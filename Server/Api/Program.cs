@@ -1,5 +1,6 @@
 using Server.Api.Extensions;
 using Server.Api.Middlewares;
+using Server.Data.Seeders;
 using Server.Gateway;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,8 @@ builder.Services
     .AddApiControllers();
 
 var app = builder.Build();
+
+await app.SeedDataAsync();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

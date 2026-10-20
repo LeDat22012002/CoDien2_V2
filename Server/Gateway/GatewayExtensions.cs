@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
+using Server.Gateway.Authorization;
+using Server.Shared.Constants;
 using Server.Shared.Models;
+using Server.Shared.Services;
 
 namespace Server.Gateway;
 
@@ -27,8 +31,12 @@ public static class GatewayExtensions
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
+                // Giữ nguyên tên claim trong JWT (sub, emp_code…) thay vì đổi sang ClaimTypes của .NET
+                options.MapInboundClaims = false;
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
+                    NameClaimType = AppClaimTypes.EmpCode,
                     ValidateIssuer = true,
                     ValidIssuer = jwtOptions.Issuer,
                     ValidateAudience = true,
@@ -41,6 +49,24 @@ public static class GatewayExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    // Token hợp lệ về chữ ký vẫn bị từ chối nếu tài khoản đã bị khóa / đổi mật khẩu sau khi cấp token
+                    OnTokenValidated = async context =>
+                    {
+                        var principal = context.Principal!;
+                        if (!int.TryParse(principal.FindFirstValue(AppClaimTypes.UserId), out var userId))
+                        {
+                            context.Fail("Token thiếu mã người dùng.");
+                            return;
+                        }
+
+                        var securityStamp = principal.FindFirstValue(AppClaimTypes.SecurityStamp) ?? string.Empty;
+                        var permissionChecker = context.HttpContext.RequestServices.GetRequiredService<IPermissionChecker>();
+                        if (!await permissionChecker.IsSessionValidAsync(
+                                userId, securityStamp, context.HttpContext.RequestAborted))
+                        {
+                            context.Fail("Phiên đăng nhập không còn hiệu lực.");
+                        }
+                    },
                     OnChallenge = async context =>
                     {
                         context.HandleResponse();
@@ -60,6 +86,10 @@ public static class GatewayExtensions
         // Mọi API mặc định yêu cầu đăng nhập; endpoint đăng nhập đánh dấu [AllowAnonymous]
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+
+        // [HasPermission("...")]: policy tạo động, kiểm tra quyền qua IPermissionChecker
+        services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+        services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
         var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
         services.AddCors(options => options.AddPolicy(CorsPolicyName, policy => policy

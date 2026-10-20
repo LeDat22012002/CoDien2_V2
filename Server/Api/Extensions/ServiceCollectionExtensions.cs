@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Server.Data;
+using Server.Data.Seeders;
 using Server.Modules.Employees;
+using Server.Modules.Identity;
 using Server.Shared.Models;
 using Server.Shared.Services;
 
@@ -20,6 +22,7 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddSeeders();
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -31,6 +34,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddModules(this IServiceCollection services)
     {
         services.AddEmployeesModule();
+        services.AddIdentityModule();
 
         return services;
     }

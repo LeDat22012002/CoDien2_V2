@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Server.Gateway.Authorization;
 using Server.Modules.Employees.DTOs;
 using Server.Modules.Employees.Services.Interfaces;
+using Server.Shared.Constants;
 using Server.Shared.Models;
 
 namespace Server.Modules.Employees.Controllers;
@@ -27,6 +29,7 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
         return Ok(ApiResponse<EmployeeDto>.Ok(result));
     }
 
+    [HasPermission(PermissionCodes.Employees.Create)]
     [HttpPost]
     public async Task<ActionResult<ApiResponse<EmployeeDto>>> Create(
         CreateEmployeeRequest request, CancellationToken cancellationToken)
@@ -36,6 +39,7 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
             ApiResponse<EmployeeDto>.Ok(result, "Thêm nhân viên thành công."));
     }
 
+    [HasPermission(PermissionCodes.Employees.Update)]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<ApiResponse<EmployeeDto>>> Update(
         int id, UpdateEmployeeRequest request, CancellationToken cancellationToken)
@@ -44,6 +48,7 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
         return Ok(ApiResponse<EmployeeDto>.Ok(result, "Cập nhật nhân viên thành công."));
     }
 
+    [HasPermission(PermissionCodes.Employees.Delete)]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id, CancellationToken cancellationToken)
     {

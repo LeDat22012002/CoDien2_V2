@@ -12,10 +12,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserSe
     {
         base.OnModelCreating(modelBuilder);
 
-        // Nạp mọi IEntityTypeConfiguration trong Infrastructure/Modules/*/Configurations
+        // Nạp mọi IEntityTypeConfiguration trong Data/Configurations
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
-        // Xóa mềm: lọc IsDeleted cho mọi entity gốc kế thừa BaseEntity
+        // Cấu hình chung cho mọi entity gốc kế thừa BaseEntity
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (!typeof(BaseEntity).IsAssignableFrom(entityType.ClrType) || entityType.BaseType is not null)
@@ -23,10 +23,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserSe
                 continue;
             }
 
+            var entity = modelBuilder.Entity(entityType.ClrType);
+            entity.Property(nameof(BaseEntity.CreatedBy)).HasMaxLength(50);
+            entity.Property(nameof(BaseEntity.UpdatedBy)).HasMaxLength(50);
+
+            // Xóa mềm: tự lọc bản ghi IsDeleted
             var parameter = Expression.Parameter(entityType.ClrType, "e");
             var isDeleted = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
-            modelBuilder.Entity(entityType.ClrType)
-                .HasQueryFilter(Expression.Lambda(Expression.Not(isDeleted), parameter));
+            entity.HasQueryFilter(Expression.Lambda(Expression.Not(isDeleted), parameter));
         }
     }
 
