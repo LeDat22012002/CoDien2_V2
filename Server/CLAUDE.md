@@ -77,4 +77,12 @@ server/
 - Quyền và trạng thái user được cache (`IMemoryCache`, 10 phút). Đổi role/quyền/khóa/mật khẩu phải gọi `IPermissionService.InvalidateUser` hoặc `InvalidateAll` để có hiệu lực ngay; đổi mật khẩu/ngừng tài khoản gọi `user.RenewSecurityStamp()` để vô hiệu access token cũ.
 - Chống leo thang: không tự sửa role/trạng thái của mình; phải còn ≥ 1 SUPER_ADMIN hoạt động; người không phải SUPER_ADMIN không đụng tới role/tài khoản SUPER_ADMIN và chỉ cấp được quyền mình đang có.
 - Viết SQL tay bằng `sqlcmd` phải thêm cờ `-I` (bật QUOTED_IDENTIFIER) vì bảng có filtered index.
+
+## Cơ cấu tổ chức (module Organization)
+
+- Bảng có sẵn (ExcludeFromMigrations): `OrgUnit`, `OrgUnitType`, `OrgUnitTypeParent`, `PositionLevel`, `Discipline`, `EmployeeAssignment`. View chỉ đọc (`ToView` + `HasNoKey`): `vOrgUnit` (cấp trưởng/phó thực tế), `vUnitMember` (UnitRole HEAD/DEPUTY/MEMBER), `vAssignmentHistory`. DB không có FK giữa các bảng này.
+- Trưởng của đơn vị = `OrgUnit.HeadLevelCode ?? OrgUnitType.HeadLevelCode`; `OrgUnitType.SingleHead = false` cho phép nhiều trưởng (Nhóm theo ca). Cha hợp lệ theo `OrgUnitTypeParent`. Tổ (GROUP) không là node riêng trên sơ đồ mà gộp vào khối "Tổ trưởng" của đơn vị cha.
+- Đổi chức vụ (`AssignmentService.ChangeAsync`, thay cho `usp_ChangeAssignment` cũ): kết thúc mọi vị trí chính đang giữ vào ngày trước ngày hiệu lực rồi tạo vị trí chính mới; chặn trưởng chính thức thứ 2 ở đơn vị SingleHead, chặn Kỹ sư thứ 2 ở Tổ, ngày hiệu lực phải sau ngày bắt đầu vị trí hiện tại.
+- Nhân viên chuyển INACTIVE → `IAssignmentService.EndAllActiveAsync` kết thúc mọi vị trí (Employees gọi qua Service, lưu chung 1 lần SaveChanges).
+- Xóa đơn vị = `IsActive = false`; chặn khi còn đơn vị con hoặc còn người giữ vị trí. GD luôn hàng 1, PGD luôn hàng 2 trên sơ đồ.
 - Secret lấy từ User Secrets hoặc biến môi trường. Connection string và `Jwt:SecretKey` đang nằm trong User Secrets, không ghi vào appsettings.

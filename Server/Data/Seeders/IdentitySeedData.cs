@@ -32,12 +32,19 @@ public static class IdentitySeedData
         new(PermissionCodes.Roles.Manage, "Quản lý vai trò và phân quyền", "roles", 31),
 
         new(PermissionCodes.Pages.Manage, "Quản lý trang và menu", "pages", 40),
+
+        new(PermissionCodes.OrgChart.View, "Xem sơ đồ tổ chức", "organization", 50),
+        new(PermissionCodes.OrgUnits.Manage, "Quản lý đơn vị và cấp bậc", "organization", 51),
+        new(PermissionCodes.Assignments.View, "Xem lịch sử chức vụ", "organization", 52),
+        new(PermissionCodes.Assignments.Manage, "Bổ nhiệm, điều chuyển, thôi chức", "organization", 53),
     ];
 
     public static readonly IReadOnlyList<PageSeed> Pages =
     [
         new("dashboard", "Tổng quan", "/", "DashboardOutlined", null, null, 10),
         new("employees", "Nhân viên", "/employees", "TeamOutlined", null, PermissionCodes.Employees.View, 20),
+        new("org-chart", "Sơ đồ tổ chức", "/org-chart", "ApartmentOutlined", null, PermissionCodes.OrgChart.View, 30),
+        new("org-units", "Cơ cấu tổ chức", "/organization/units", "ClusterOutlined", null, PermissionCodes.OrgUnits.Manage, 31),
         new("system", "Quản trị hệ thống", null, "SettingOutlined", null, null, 90),
         new("users", "Tài khoản", "/admin/users", "UserOutlined", "system", PermissionCodes.Users.View, 91),
         new("roles", "Vai trò và phân quyền", "/admin/roles", "SafetyOutlined", "system", PermissionCodes.Roles.View, 92),

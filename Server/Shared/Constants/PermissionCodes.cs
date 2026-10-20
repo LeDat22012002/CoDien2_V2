@@ -32,4 +32,21 @@ public static class PermissionCodes
     {
         public const string Manage = "pages.manage";
     }
+
+    public static class OrgChart
+    {
+        public const string View = "org-chart.view";
+    }
+
+    public static class OrgUnits
+    {
+        /// <summary>Thêm/sửa/xóa/sắp xếp đơn vị và sửa cấp bậc.</summary>
+        public const string Manage = "org-units.manage";
+    }
+
+    public static class Assignments
+    {
+        public const string View = "assignments.view";
+        public const string Manage = "assignments.manage";
+    }
 }

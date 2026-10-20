@@ -4,12 +4,16 @@ using Server.Modules.Employees.Entities;
 using Server.Modules.Employees.Repositories.Interfaces;
 using Server.Modules.Employees.Services.Interfaces;
 using Server.Modules.Employees.Validators;
+using Server.Modules.Organization.Services.Interfaces;
 using Server.Shared.Exceptions;
 using Server.Shared.Models;
 
 namespace Server.Modules.Employees.Services;
 
-public class EmployeeService(IEmployeeRepository employeeRepository, IUnitOfWork unitOfWork) : IEmployeeService
+public class EmployeeService(
+    IEmployeeRepository employeeRepository,
+    IAssignmentService assignmentService,
+    IUnitOfWork unitOfWork) : IEmployeeService
 {
     public async Task<PagedResult<EmployeeDto>> GetPagedAsync(
         EmployeeFilterRequest filter, CancellationToken cancellationToken)
@@ -63,6 +67,13 @@ public class EmployeeService(IEmployeeRepository employeeRepository, IUnitOfWork
             ?? throw new NotFoundException("Không tìm thấy nhân viên.");
 
         await EnsureEmpCodeAvailableAsync(request.EmpCode, id, cancellationToken);
+
+        // Nghỉ việc: kết thúc mọi vị trí đang giữ, lưu chung 1 lần SaveChanges với thông tin nhân viên
+        if (employee.Status == EmployeeStatus.Active && request.Status == EmployeeStatus.Inactive)
+        {
+            await assignmentService.EndAllActiveAsync(
+                employee.Id, DateOnly.FromDateTime(DateTime.Today), cancellationToken);
+        }
 
         ApplyRequest(employee, request);
         employee.Status = request.Status;

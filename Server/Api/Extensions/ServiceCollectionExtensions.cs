@@ -5,6 +5,7 @@ using Server.Data;
 using Server.Data.Seeders;
 using Server.Modules.Employees;
 using Server.Modules.Identity;
+using Server.Modules.Organization;
 using Server.Shared.Models;
 using Server.Shared.Services;
 
@@ -35,6 +36,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddEmployeesModule();
         services.AddIdentityModule();
+        services.AddOrganizationModule();
 
         return services;
     }
