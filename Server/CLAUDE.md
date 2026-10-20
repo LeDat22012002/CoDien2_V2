@@ -86,3 +86,16 @@ server/
 - Nhân viên chuyển INACTIVE → `IAssignmentService.EndAllActiveAsync` kết thúc mọi vị trí (Employees gọi qua Service, lưu chung 1 lần SaveChanges).
 - Xóa đơn vị = `IsActive = false`; chặn khi còn đơn vị con hoặc còn người giữ vị trí. GD luôn hàng 1, PGD luôn hàng 2 trên sơ đồ.
 - Secret lấy từ User Secrets hoặc biến môi trường. Connection string và `Jwt:SecretKey` đang nằm trong User Secrets, không ghi vào appsettings.
+
+## Cấp số văn bản (module Documents)
+
+- Bảng do EF tạo (migration `AddDocuments`): `DocumentTemplate` (biểu mẫu), `IssuedDocument` (sổ văn bản đã cấp). Dữ liệu cũ chuyển 1 lần từ `TEST.dbo.BieuMau` / `TEST.dbo.SoVanBanDaCap` bằng `Data/Scripts/MigrateDocumentsFromTest.sql` (giữ Id; trạng thái `chua/co/huy` → `PENDING/PUBLISHED/CANCELLED`).
+- Đánh số **theo từng biểu mẫu, theo năm** (`DateTime.Now.Year`), STT = max + 1; `StartNumber` giữ lại nhưng không dùng. 5 API cấp số riêng (giữ nguyên công thức hệ thống cũ):
+  - Thường `POST /api/issued-documents`: `{STT:D2}/{Năm}/{Đuôi số}`
+  - Nghiệm thu `acceptance-records`: `{Lần:D2}/{Số HĐ}/{Tên viết tắt}`, lần = số văn bản đã có cùng đuôi trên mọi biểu mẫu + 1 (Seq = Year = 0)
+  - XNKT `technical-confirmations`: `XNKT.{STT:D2}-{Năm}/{PR}/{Nhà thầu}`
+  - PAKT `technical-plans`: `{STT:D2}/{Năm}/PAKT-NM.CĐ2-{Nhà thầu}`
+  - Thanh toán theo HĐ `contract-payments`: `{STT:D2}/{Số HĐ}/{Năm HĐ}/{Đuôi số}`; HĐ mới bắt đầu 01, HĐ cũ tăng từ số mới nhất của HĐ đó.
+- **Chống trùng số:** đọc số lớn nhất bằng `WITH (UPDLOCK, HOLDLOCK)` trong `ExecuteInTransactionAsync`. Không có unique index vì dữ liệu cũ đang có số trùng — không đổi công thức đánh số khi chưa hỏi.
+- Người lấy số lấy từ tài khoản đăng nhập; đơn vị = đơn vị cấp 1 (dưới Nhà máy) trên sơ đồ tổ chức (`IAssignmentService.GetTopLevelUnitNameAsync`). Chưa được gán đơn vị → không lấy được số. `IssuedAt` lưu giờ địa phương.
+- Sửa: người lấy số hoặc có `documents.manage`. Xóa (mềm): chỉ số mới nhất của biểu mẫu trong năm. Biểu mẫu đã dùng không xóa được.

@@ -47,5 +47,12 @@ public class AssignmentRepository(AppDbContext dbContext) : IAssignmentRepositor
             .OrderByDescending(x => x.StartDate)
             .ToListAsync(cancellationToken);
 
+    public async Task<Dictionary<int, (int? ParentId, string Name)>> GetUnitTreeAsync(
+        CancellationToken cancellationToken) =>
+        (await dbContext.Set<OrgUnit>().AsNoTracking()
+            .Select(x => new { x.Id, x.ParentId, x.Name })
+            .ToListAsync(cancellationToken))
+            .ToDictionary(x => x.Id, x => (x.ParentId, x.Name));
+
     public void Add(EmployeeAssignment assignment) => Assignments.Add(assignment);
 }

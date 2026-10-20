@@ -27,7 +27,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserSe
             entity.Property(nameof(BaseEntity.CreatedBy)).HasMaxLength(50);
             entity.Property(nameof(BaseEntity.UpdatedBy)).HasMaxLength(50);
 
-            // Xóa mềm: tự lọc bản ghi IsDeleted
+            // Xóa mềm: tự lọc bản ghi IsDeleted. Entity đã tự khai báo filter (phải gồm !IsDeleted) thì giữ nguyên
+            if (entityType.GetQueryFilter() is not null)
+            {
+                continue;
+            }
+
             var parameter = Expression.Parameter(entityType.ClrType, "e");
             var isDeleted = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
             entity.HasQueryFilter(Expression.Lambda(Expression.Not(isDeleted), parameter));

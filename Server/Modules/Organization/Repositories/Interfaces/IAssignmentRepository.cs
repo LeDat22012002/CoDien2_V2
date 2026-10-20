@@ -26,5 +26,8 @@ public interface IAssignmentRepository
 
     Task<IReadOnlyList<VAssignmentHistory>> GetHistoryAsync(string empCode, CancellationToken cancellationToken);
 
+    /// <summary>Id → (ParentId, Name) của mọi đơn vị, dùng để tìm đơn vị cấp trên.</summary>
+    Task<Dictionary<int, (int? ParentId, string Name)>> GetUnitTreeAsync(CancellationToken cancellationToken);
+
     void Add(EmployeeAssignment assignment);
 }

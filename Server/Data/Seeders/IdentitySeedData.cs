@@ -37,6 +37,11 @@ public static class IdentitySeedData
         new(PermissionCodes.OrgUnits.Manage, "Quản lý đơn vị và cấp bậc", "organization", 51),
         new(PermissionCodes.Assignments.View, "Xem lịch sử chức vụ", "organization", 52),
         new(PermissionCodes.Assignments.Manage, "Bổ nhiệm, điều chuyển, thôi chức", "organization", 53),
+
+        new(PermissionCodes.Documents.View, "Xem sổ văn bản đã cấp", "documents", 60),
+        new(PermissionCodes.Documents.Issue, "Lấy số văn bản", "documents", 61),
+        new(PermissionCodes.Documents.Manage, "Quản lý sổ văn bản (sửa của người khác, xóa số)", "documents", 62),
+        new(PermissionCodes.DocumentTemplates.Manage, "Quản lý biểu mẫu", "documents", 63),
     ];
 
     public static readonly IReadOnlyList<PageSeed> Pages =
@@ -45,6 +50,10 @@ public static class IdentitySeedData
         new("employees", "Nhân viên", "/employees", "TeamOutlined", null, PermissionCodes.Employees.View, 20),
         new("org-chart", "Sơ đồ tổ chức", "/org-chart", "ApartmentOutlined", null, PermissionCodes.OrgChart.View, 30),
         new("org-units", "Cơ cấu tổ chức", "/organization/units", "ClusterOutlined", null, PermissionCodes.OrgUnits.Manage, 31),
+        new("documents", "Văn bản", null, "FileTextOutlined", null, null, 40),
+        new("document-issue", "Lấy số văn bản", "/documents/issue", "NumberOutlined", "documents", PermissionCodes.Documents.Issue, 41),
+        new("issued-documents", "Sổ văn bản đã cấp", "/documents", "BookOutlined", "documents", PermissionCodes.Documents.View, 42),
+        new("document-templates", "Biểu mẫu", "/documents/templates", "ProfileOutlined", "documents", PermissionCodes.DocumentTemplates.Manage, 43),
         new("system", "Quản trị hệ thống", null, "SettingOutlined", null, null, 90),
         new("users", "Tài khoản", "/admin/users", "UserOutlined", "system", PermissionCodes.Users.View, 91),
         new("roles", "Vai trò và phân quyền", "/admin/roles", "SafetyOutlined", "system", PermissionCodes.Roles.View, 92),

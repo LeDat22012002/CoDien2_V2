@@ -49,4 +49,21 @@ public static class PermissionCodes
         public const string View = "assignments.view";
         public const string Manage = "assignments.manage";
     }
+
+    public static class Documents
+    {
+        /// <summary>Xem sổ văn bản đã cấp, xuất Excel.</summary>
+        public const string View = "documents.view";
+
+        /// <summary>Lấy số văn bản, sửa văn bản của chính mình.</summary>
+        public const string Issue = "documents.issue";
+
+        /// <summary>Sửa văn bản của người khác, xóa số mới nhất.</summary>
+        public const string Manage = "documents.manage";
+    }
+
+    public static class DocumentTemplates
+    {
+        public const string Manage = "document-templates.manage";
+    }
 }

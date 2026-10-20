@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Server.Data;
 using Server.Data.Seeders;
+using Server.Modules.Documents;
 using Server.Modules.Employees;
 using Server.Modules.Identity;
 using Server.Modules.Organization;
@@ -37,6 +38,7 @@ public static class ServiceCollectionExtensions
         services.AddEmployeesModule();
         services.AddIdentityModule();
         services.AddOrganizationModule();
+        services.AddDocumentsModule();
 
         return services;
     }
