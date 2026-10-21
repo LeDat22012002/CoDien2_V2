@@ -1,0 +1,47 @@
+/* Thứ tự layer: style AntD (layer antd) nằm sau preflight nhưng trước utilities, để class Tailwind ghi đè được mà không cần !important */
+@layer theme, base, antd, components, utilities;
+
+@import 'tailwindcss';
+
+/* Giá trị thật khai báo ở src/shared/theme/theme.ts, ghi lên :root khi khởi động */
+@theme inline {
+  --font-sans: var(--app-font-family);
+  --radius-app: var(--app-radius);
+  --color-primary: var(--app-color-primary);
+  --color-accent: var(--app-color-accent);
+  --color-success: var(--app-color-success);
+  --color-warning: var(--app-color-warning);
+  --color-error: var(--app-color-error);
+  --color-text: var(--app-color-text);
+  --color-text-secondary: var(--app-color-text-secondary);
+  --color-border: var(--app-color-border);
+  --color-bg-layout: var(--app-color-bg-layout);
+  --color-bg-container: var(--app-color-bg-container);
+  --color-sider: var(--app-color-sider);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--app-font-family);
+    font-size: 14px;
+    color: var(--app-color-text);
+    background-color: var(--app-color-bg-layout);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms;
+      transition-duration: 0.01ms;
+    }
+  }
+}

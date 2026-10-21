@@ -1,11 +1,18 @@
-# CLAUDE.md — Client (React + JavaScript + TailwindCSS + Ant Design)
+# CLAUDE.md — Client (React + TypeScript + Tailwind CSS + Ant Design)
 
-Đọc kèm `../CLAUDE.md`.
+@../CLAUDE.md
+
+## Ngữ cảnh
+
+- Web nội bộ cho công ty/nhà máy: dashboard quản trị và các màn hình nghiệp vụ.
+- Người dùng dùng hằng ngày, thao tác lặp lại nhiều: nhân viên văn phòng, quản lý, tổ trưởng. Một số màn hình dùng trên tablet ở xưởng.
+- Ưu tiên rõ ràng, nhập liệu nhanh, dễ đọc dữ liệu; không trang trí rườm rà.
+- Giao diện hoàn toàn bằng tiếng Việt.
 
 ## Cấu trúc
 
 ```
-client/src/
+src/
 ├── modules/
 │   └── <moduleName>/          # Trùng tên module ở Server
 │       ├── api/               # Hàm gọi API của module
@@ -16,25 +23,59 @@ client/src/
 ├── layouts/
 ├── routes/                    # Khai báo route, PrivateRoute
 ├── stores/                    # State toàn cục (user, quyền)
-├── App.jsx
-└── main.jsx
+├── App.tsx
+└── main.tsx
 ```
 
-- Mỗi module tự chứa đủ các thư mục trên. Module không import trực tiếp từ module khác; phần dùng chung đưa vào `shared/`.
+- Mỗi module tự chứa đủ các thư mục trên.
+- Module không import trực tiếp từ module khác; phần dùng chung đưa vào `shared/`.
 
 ## Đặt tên
 
-- Component, page: PascalCase `.jsx`; page có hậu tố `Page`.
-- File khác: camelCase `.js`; file API đặt tên `<moduleName>Api.js`.
+- Component, page: PascalCase `.tsx`; page có hậu tố `Page` (vd. `ProductionOrderListPage.tsx`).
+- File khác: camelCase `.ts`; file API đặt tên `<moduleName>Api.ts`.
 - Hook: `use` + PascalCase. Hàm xử lý sự kiện: `handle*`. Props callback: `on*`.
 - Hằng số: UPPER_SNAKE_CASE.
 
 ## Quy tắc code
 
-- Chỉ dùng function component và hooks.
+- Chỉ dùng arrow function component và hooks. Props và dữ liệu API phải có type, không dùng `any`.
 - Gọi API qua `shared/axiosClient` (gắn token, refresh khi 401, chuẩn hóa lỗi). Không gọi axios/fetch trực tiếp trong component.
-- Ant Design cho component tương tác; Tailwind cho layout và khoảng cách. Không dùng `!important`, tùy biến AntD qua `ConfigProvider` (locale `vi_VN`).
-- Table phân trang phía server, có `rowKey` và trạng thái loading. Xóa và phê duyệt phải có xác nhận.
-- Ngày hiển thị `DD/MM/YYYY`, số định dạng kiểu Việt Nam; dùng hàm trong `shared/utils`.
-- Ẩn/hiện chức năng theo quyền ở client chỉ để hiển thị; server mới là nơi kiểm tra thật.
 - Biến môi trường có tiền tố `VITE_`. Không để `console.log` khi commit.
+- Ẩn/hiện chức năng theo quyền ở client chỉ để hiển thị; server mới là nơi kiểm tra thật.
+
+## UI/UX
+
+- Ant Design cho component tương tác; Tailwind cho layout và khoảng cách. Không dùng thư viện UI khác, không dùng `!important`.
+- Tùy biến giao diện AntD qua `ConfigProvider` (locale `vi_VN`, theme token). Màu, bo góc, font khai báo một chỗ ở theme, không hardcode rải rác trong component.
+- Khi tạo hoặc sửa giao diện, luôn dùng skill ui-ux-pro-max trước khi viết code. Lấy từ skill phần định hướng (style, bảng màu, typography, UX guideline) rồi áp vào AntD + Tailwind, không dựng lại component bằng thư viện khác.
+- Design system đã duyệt lưu ở `docs/design-system.md`; các màn hình sau bám theo file này.
+- Font phải hỗ trợ đầy đủ dấu tiếng Việt.
+- Màu trạng thái (chạy / dừng / cảnh báo / lỗi) dùng nhất quán toàn app, kèm icon hoặc chữ, không chỉ dựa vào màu.
+- Màn hình dùng ở xưởng: nút và vùng bấm đủ lớn cho cảm ứng, chữ đủ lớn, độ tương phản cao.
+- Mỗi màn hình phải xử lý đủ các trạng thái: loading, rỗng, lỗi.
+
+## Responsive
+
+- Thiết kế mobile-first: viết style mặc định cho màn hình nhỏ, mở rộng dần bằng breakpoint của Tailwind (`sm`, `md`, `lg`, `xl`).
+- Các mốc cần kiểm tra: điện thoại (~375px), tablet (~768px), laptop (~1280px), màn hình lớn (≥1536px).
+- Không dùng chiều rộng/chiều cao cố định bằng px cho layout; dùng `flex`, `grid`, `%`, `min/max-width`.
+- Không để trang bị cuộn ngang. Phần rộng (bảng, biểu đồ) cuộn trong container riêng.
+- Layout chung: `Sider` của AntD thu gọn theo `breakpoint="lg"`; trên màn hình nhỏ menu chuyển thành `Drawer` mở bằng nút hamburger ở header.
+- Lưới nội dung dùng `Row`/`Col` của AntD với các prop `xs`, `sm`, `md`, `lg`, `xl`, hoặc `grid` của Tailwind. Dùng `Grid.useBreakpoint()` khi cần đổi hành vi theo kích thước (không viết logic riêng đo `window.innerWidth`).
+- Table: bắt buộc có `scroll={{ x: 'max-content' }}`; cột ít quan trọng ẩn bằng `responsive: ['md']`. Trên điện thoại, danh sách dài có thể hiển thị dạng card thay cho bảng.
+- Form: một cột trên điện thoại, nhiều cột từ `md` trở lên. Input, Select, DatePicker rộng `100%`.
+- Modal: trên điện thoại rộng gần toàn màn hình (hoặc dùng `Drawer`), nội dung dài phải cuộn được; nút hành động luôn nhìn thấy.
+- Vùng bấm tối thiểu 44×44px trên cảm ứng; khoảng cách giữa các nút đủ rộng để không bấm nhầm.
+- Cỡ chữ không nhỏ hơn 14px; ảnh và biểu đồ co giãn theo container.
+- Mỗi trang mới phải được kiểm tra ở cả 3 kích thước (điện thoại, tablet, desktop) trước khi coi là xong.
+
+## Bảng và form
+
+- Table phân trang phía server, có `rowKey` và trạng thái loading; có tìm kiếm, lọc, sắp xếp khi dữ liệu nhiều.
+- Form dùng AntD `Form` với validate rõ ràng, thông báo lỗi dễ hiểu.
+- Xóa và phê duyệt phải có xác nhận.
+
+## Định dạng hiển thị
+
+- Ngày hiển thị `DD/MM/YYYY`, số định dạng kiểu Việt Nam; dùng hàm trong `shared/utils`, không tự format rải rác.
