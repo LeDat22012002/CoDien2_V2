@@ -148,7 +148,10 @@ public class AssignmentService(IAssignmentRepository assignmentRepository, IUnit
         }
     }
 
-    public async Task<string?> GetTopLevelUnitNameAsync(int employeeId, CancellationToken cancellationToken)
+    public async Task<string?> GetTopLevelUnitNameAsync(int employeeId, CancellationToken cancellationToken) =>
+        (await GetTopLevelUnitAsync(employeeId, cancellationToken))?.Name;
+
+    public async Task<(int Id, string Name)?> GetTopLevelUnitAsync(int employeeId, CancellationToken cancellationToken)
     {
         var primary = (await assignmentRepository.GetOpenAssignmentsAsync(employeeId, primaryOnly: true, cancellationToken))
             .OrderByDescending(x => x.StartDate)
@@ -165,16 +168,18 @@ public class AssignmentService(IAssignmentRepository assignmentRepository, IUnit
         }
 
         // Đi ngược lên tới đơn vị có cha là gốc (Nhà máy)
-        var visited = new HashSet<int> { primary.OrgUnitId };
+        var currentId = primary.OrgUnitId;
+        var visited = new HashSet<int> { currentId };
         while (current.ParentId is { } parentId
                && units.TryGetValue(parentId, out var parent)
                && parent.ParentId is not null
                && visited.Add(parentId))
         {
             current = parent;
+            currentId = parentId;
         }
 
-        return current.Name;
+        return (currentId, current.Name);
     }
 
     private static void Normalize(ChangeAssignmentRequest request)

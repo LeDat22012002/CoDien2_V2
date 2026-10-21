@@ -66,4 +66,20 @@ public static class PermissionCodes
     {
         public const string Manage = "document-templates.manage";
     }
+
+    public static class Equipments
+    {
+        /// <summary>Thêm/sửa/xóa/import danh mục thiết bị (xem chỉ cần đăng nhập).</summary>
+        public const string Manage = "equipments.manage";
+    }
+
+    /// <summary>Báo cáo sự cố: xem công khai, tạo chỉ cần đăng nhập (không cần mã quyền).</summary>
+    public static class Incidents
+    {
+        /// <summary>Nhập phân tích, bổ sung số order/link cho báo cáo thuộc xưởng của mình.</summary>
+        public const string Analyze = "incidents.analyze";
+
+        /// <summary>Admin chức năng: sửa đầy đủ, phân tích/bổ sung mọi xưởng, xóa, import Excel.</summary>
+        public const string Manage = "incidents.manage";
+    }
 }

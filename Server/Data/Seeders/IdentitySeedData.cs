@@ -42,6 +42,11 @@ public static class IdentitySeedData
         new(PermissionCodes.Documents.Issue, "Lấy số văn bản", "documents", 61),
         new(PermissionCodes.Documents.Manage, "Quản lý sổ văn bản (sửa của người khác, xóa số)", "documents", 62),
         new(PermissionCodes.DocumentTemplates.Manage, "Quản lý biểu mẫu", "documents", 63),
+
+        new(PermissionCodes.Equipments.Manage, "Quản lý danh mục thiết bị", "equipments", 70),
+
+        new(PermissionCodes.Incidents.Analyze, "Phân tích sự cố của xưởng mình", "incidents", 80),
+        new(PermissionCodes.Incidents.Manage, "Quản lý báo cáo sự cố (sửa đầy đủ, xóa, import)", "incidents", 81),
     ];
 
     public static readonly IReadOnlyList<PageSeed> Pages =

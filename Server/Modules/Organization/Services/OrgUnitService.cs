@@ -25,6 +25,10 @@ public class OrgUnitService(IOrgUnitRepository orgUnitRepository, IUnitOfWork un
         return ToDto(orgUnit);
     }
 
+    public async Task<IReadOnlyList<OrgUnitDto>> GetTopLevelUnitsAsync(
+        bool includeInactive, CancellationToken cancellationToken) =>
+        (await orgUnitRepository.GetTopLevelUnitsAsync(includeInactive, cancellationToken)).Select(ToDto).ToList();
+
     public async Task<OrgUnitDto> CreateAsync(CreateOrgUnitRequest request, CancellationToken cancellationToken)
     {
         request.Code = request.Code?.Trim() ?? string.Empty;

@@ -36,6 +36,14 @@ public class OrgUnitRepository(AppDbContext dbContext) : IOrgUnitRepository
     public Task<OrgUnit?> GetByIdAsync(int id, CancellationToken cancellationToken) =>
         OrgUnits.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
+    public async Task<IReadOnlyList<OrgUnit>> GetTopLevelUnitsAsync(
+        bool includeInactive, CancellationToken cancellationToken) =>
+        await OrgUnits.AsNoTracking()
+            .Where(x => x.Parent != null && x.Parent.ParentId == null && (includeInactive || x.IsActive))
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
     public Task<OrgUnit?> FindByIdAsync(int id, CancellationToken cancellationToken) =>
         OrgUnits.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 

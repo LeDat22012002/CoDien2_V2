@@ -9,6 +9,9 @@ public interface IOrgUnitRepository
 
     Task<OrgUnit?> GetByIdAsync(int id, CancellationToken cancellationToken);
 
+    /// <summary>Đơn vị cấp 1: có cha là gốc (Nhà máy).</summary>
+    Task<IReadOnlyList<OrgUnit>> GetTopLevelUnitsAsync(bool includeInactive, CancellationToken cancellationToken);
+
     /// <summary>Có tracking; dùng khi cập nhật.</summary>
     Task<OrgUnit?> FindByIdAsync(int id, CancellationToken cancellationToken);
 

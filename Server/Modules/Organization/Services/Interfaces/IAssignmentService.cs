@@ -22,4 +22,7 @@ public interface IAssignmentService
     /// người thuộc Nhà máy (Ban Giám đốc) trả tên Nhà máy. Null nếu chưa có vị trí.
     /// </summary>
     Task<string?> GetTopLevelUnitNameAsync(int employeeId, CancellationToken cancellationToken);
+
+    /// <summary>Như GetTopLevelUnitNameAsync nhưng trả cả Id đơn vị.</summary>
+    Task<(int Id, string Name)?> GetTopLevelUnitAsync(int employeeId, CancellationToken cancellationToken);
 }

@@ -8,6 +8,9 @@ public interface IOrgUnitService
 
     Task<OrgUnitDto> GetByIdAsync(int id, CancellationToken cancellationToken);
 
+    /// <summary>Đơn vị cấp 1 (ngay dưới Nhà máy), vd các xưởng; dùng cho module khác (Incidents…).</summary>
+    Task<IReadOnlyList<OrgUnitDto>> GetTopLevelUnitsAsync(bool includeInactive, CancellationToken cancellationToken);
+
     Task<OrgUnitDto> CreateAsync(CreateOrgUnitRequest request, CancellationToken cancellationToken);
 
     Task<OrgUnitDto> UpdateAsync(int id, UpdateOrgUnitRequest request, CancellationToken cancellationToken);

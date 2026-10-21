@@ -99,3 +99,18 @@ server/
 - **Chống trùng số:** đọc số lớn nhất bằng `WITH (UPDLOCK, HOLDLOCK)` trong `ExecuteInTransactionAsync`. Không có unique index vì dữ liệu cũ đang có số trùng — không đổi công thức đánh số khi chưa hỏi.
 - Người lấy số lấy từ tài khoản đăng nhập; đơn vị = đơn vị cấp 1 (dưới Nhà máy) trên sơ đồ tổ chức (`IAssignmentService.GetTopLevelUnitNameAsync`). Chưa được gán đơn vị → không lấy được số. `IssuedAt` lưu giờ địa phương.
 - Sửa: người lấy số hoặc có `documents.manage`. Xóa (mềm): chỉ số mới nhất của biểu mẫu trong năm. Biểu mẫu đã dùng không xóa được.
+
+## Thiết bị (module Equipments)
+
+- Bảng do EF tạo `Equipment` (migration `AddEquipmentsAndIncidents`), `Code` unique có điều kiện. Dữ liệu cũ `TEST.dbo.Equipment` có mã lặp (bản trùng giống hệt) → script giữ Id nhỏ nhất mỗi mã.
+- Xem (`GET /api/equipments`, `/options`): chỉ cần đăng nhập. Thêm/sửa/xóa/import: `equipments.manage`. Import bỏ qua mã đã có hoặc lặp trong file; `import-default` đọc 4 sheet "THAM CHIẾU EQ - …" cố định.
+- Xóa (mềm) bị chặn khi đã có báo cáo sự cố — kiểm tra qua `IIncidentLookupService` (tách riêng để tránh vòng DI với `IncidentService`).
+
+## Báo cáo sự cố (module Incidents)
+
+- Bảng do EF tạo `Incident`. Dữ liệu cũ chuyển 1 lần bằng `Data/Scripts/MigrateIncidentsFromTest.sql` (chạy sqlcmd với `-f 65001`): xưởng cũ `Tbl_Xuong` → OrgUnit cấp 1 qua `#WorkshopMap`; người nhập `Tbl_TaiKhoan.TenTaiKhoan` = `Employee.EmpCode`. TEST và NM_CD2 khác collation → so sánh chuỗi phải `COLLATE DATABASE_DEFAULT`.
+- Xưởng = đơn vị cấp 1 (`IOrgUnitService.GetTopLevelUnitsAsync`); xưởng của người dùng: `IAssignmentService.GetTopLevelUnitAsync`.
+- Mã/tên thiết bị lưu dạng bản chụp; tạo/sửa qua API phải có mã trong danh mục (chỉ kiểm tra khi mã đổi), import Excel thì không bắt buộc.
+- `ReportedAt` (giờ địa phương) + người nhập lấy theo tài khoản khi tạo; dữ liệu import để null → không vào dashboard, không cảnh báo quá hạn.
+- Quyền: GET danh sách/chi tiết/dashboard/thiết bị lặp lại công khai; tạo: mọi người đăng nhập; tiến độ (`/progress`): người nhập hoặc `incidents.manage`; phân tích (`/analysis`): `incidents.analyze` cùng xưởng hoặc manage; bổ sung (`/supplement`): người nhập, analyze cùng xưởng hoặc manage; sửa đầy đủ/xóa/import: chỉ `incidents.manage`.
+- Quy tắc (`IncidentRules`): quá hạn phân tích > 7 ngày thiếu nguyên nhân/nguyên nhân gốc/hành động; quá hạn bổ sung (có AHSX) > 3 ngày thiếu số order/link; mốc so sánh `now − (N + 1)` ngày; thiết bị lặp lại > 3 lần/năm. Thứ tự mốc: nhận tin ≤ bắt đầu sửa ≤ sửa xong ≤ bàn giao.
