@@ -3,6 +3,25 @@
 
 @import 'tailwindcss';
 
+@theme {
+  /* Độ rộng tối đa nội dung trang công khai: class max-w-main */
+  --container-main: 1400px;
+
+  /* Header cố định của trang công khai trượt xuống khi cuộn: class animate-slide-down */
+  --animate-slide-down: slide-down 0.3s ease-out;
+
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
 /* Giá trị thật khai báo ở src/shared/theme/theme.ts, ghi lên :root khi khởi động */
 @theme inline {
   --font-sans: var(--app-font-family);
@@ -18,6 +37,59 @@
   --color-bg-layout: var(--app-color-bg-layout);
   --color-bg-container: var(--app-color-bg-container);
   --color-sider: var(--app-color-sider);
+}
+
+/*
+ * Slider tab biểu mẫu (react-slick), giống .customSlider hệ thống cũ.
+ * Để ngoài layer và dùng selector 2 class để thắng slick-theme.css (cũng ngoài layer) mà không cần !important.
+ */
+.template-slider .slick-prev,
+.template-slider .slick-next {
+  display: block;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  z-index: 10;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.template-slider .slick-prev {
+  left: 0;
+}
+
+.template-slider .slick-next {
+  right: 6px;
+}
+
+.template-slider .slick-prev::before,
+.template-slider .slick-next::before {
+  font-family: 'slick';
+  font-size: 30px;
+  opacity: 0.75;
+  color: gray;
+  content: '\276E';
+}
+
+.template-slider .slick-next::before {
+  content: '\276F';
+}
+
+.template-slider .slick-disabled::before {
+  opacity: 0.25;
+}
+
+/* Khoảng cách đều 2 bên để chừa chỗ cho mũi tên */
+.template-slider .slick-list {
+  margin: 0 24px;
+  overflow: hidden;
+}
+
+/* Khoảng cách giữa các nút */
+.template-slider.slick-initialized .slick-slide {
+  display: inline-block;
+  padding: 0 8px;
+  box-sizing: border-box;
 }
 
 @layer base {

@@ -24,6 +24,8 @@ export interface MenuItem {
   code: string;
   title: string;
   path?: string | null;
+  /** Liên kết ngoài, mở tab mới (không đi cùng path). */
+  externalUrl?: string | null;
   icon?: string | null;
   children: MenuItem[];
 }

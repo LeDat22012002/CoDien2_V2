@@ -36,6 +36,7 @@ public class MenuItemDto
     public string Code { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string? Path { get; init; }
+    public string? ExternalUrl { get; init; }
     public string? Icon { get; init; }
     public IReadOnlyList<MenuItemDto> Children { get; init; } = [];
 }

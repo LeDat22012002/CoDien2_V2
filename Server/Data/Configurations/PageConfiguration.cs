@@ -15,7 +15,9 @@ public class PageConfiguration : IEntityTypeConfiguration<Page>
         builder.Property(x => x.Code).HasMaxLength(50).IsUnicode(false).IsRequired();
         builder.Property(x => x.Title).HasMaxLength(100).IsRequired();
         builder.Property(x => x.Path).HasMaxLength(200).IsUnicode(false);
+        builder.Property(x => x.ExternalUrl).HasMaxLength(1000).IsUnicode(false);
         builder.Property(x => x.Icon).HasMaxLength(50).IsUnicode(false);
+        builder.Property(x => x.Area).HasMaxLength(20).IsUnicode(false).IsRequired().HasDefaultValue(PageAreas.Admin);
 
         builder.HasIndex(x => x.Code).IsUnique();
 

@@ -11,6 +11,13 @@ public interface IAssignmentService
 
     Task<IReadOnlyList<AssignmentHistoryDto>> GetHistoryAsync(string empCode, CancellationToken cancellationToken);
 
+    /// <summary>Vị trí đang giữ của danh sách nhân viên (vị trí chính trước, mới nhất trước).</summary>
+    Task<IReadOnlyList<CurrentAssignmentDto>> GetCurrentAssignmentsAsync(
+        IReadOnlyCollection<int> employeeIds, CancellationToken cancellationToken);
+
+    /// <summary>Id nhân viên đang giữ vị trí ở đơn vị hoặc các đơn vị con cháu của nó.</summary>
+    Task<IReadOnlyList<int>> GetEmployeeIdsInUnitTreeAsync(int orgUnitId, CancellationToken cancellationToken);
+
     /// <summary>
     /// Kết thúc mọi vị trí đang giữ của nhân viên (khi nghỉ việc). Chỉ đánh dấu thay đổi,
     /// không SaveChanges: người gọi lưu trong cùng transaction với thay đổi của mình.

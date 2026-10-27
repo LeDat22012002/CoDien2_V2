@@ -29,6 +29,15 @@ public class PageService(
         return pages.Where(x => x.ParentId is null).ToList();
     }
 
+    public async Task<IReadOnlyList<MenuItemDto>> GetPublicMenuAsync(CancellationToken cancellationToken)
+    {
+        var pages = (await pageRepository.GetAllAsync(cancellationToken))
+            .Where(x => x.Area == PageAreas.Public && x.IsActive && x.IsMenu)
+            .ToList();
+
+        return PageMenuBuilder.Build(pages);
+    }
+
     public async Task<PageDto> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken)
     {
         Normalize(request);
@@ -82,9 +91,16 @@ public class PageService(
             errors["code"] = [$"Mã trang '{request.Code}' đã tồn tại."];
         }
 
-        if (request.Path is not null && await pageRepository.IsPathTakenAsync(request.Path, pageId, cancellationToken))
+        if (request.Path is not null
+            && await pageRepository.IsPathTakenAsync(request.Path, request.Area, pageId, cancellationToken))
         {
-            errors["path"] = [$"Đường dẫn '{request.Path}' đã được dùng cho trang khác."];
+            errors["path"] = [$"Đường dẫn '{request.Path}' đã được dùng cho trang khác trong cùng menu."];
+        }
+
+        if (pageId is not null
+            && await pageRepository.HasChildrenOutsideAreaAsync(pageId.Value, request.Area, cancellationToken))
+        {
+            errors["area"] = ["Trang đang có trang con thuộc menu khác. Hãy chuyển các trang con trước khi đổi menu."];
         }
 
         if (request.PermissionId is { } permissionId
@@ -103,6 +119,10 @@ public class PageService(
             else if (pageId is not null && IsSelfOrDescendant(parentId, pageId.Value, parentMap))
             {
                 errors["parentId"] = ["Không thể chọn chính trang này hoặc trang con của nó làm trang cha."];
+            }
+            else if (await pageRepository.GetAreaAsync(parentId, cancellationToken) != request.Area)
+            {
+                errors["parentId"] = ["Trang cha phải cùng menu (quản trị / công khai) với trang này."];
             }
         }
 
@@ -135,7 +155,9 @@ public class PageService(
         request.Code = request.Code?.Trim().ToLowerInvariant() ?? string.Empty;
         request.Title = request.Title?.Trim() ?? string.Empty;
         request.Path = string.IsNullOrWhiteSpace(request.Path) ? null : request.Path.Trim();
+        request.ExternalUrl = string.IsNullOrWhiteSpace(request.ExternalUrl) ? null : request.ExternalUrl.Trim();
         request.Icon = string.IsNullOrWhiteSpace(request.Icon) ? null : request.Icon.Trim();
+        request.Area = string.IsNullOrWhiteSpace(request.Area) ? PageAreas.Admin : request.Area.Trim().ToUpperInvariant();
     }
 
     private static void Apply(Page page, PageRequestBase request)
@@ -143,8 +165,10 @@ public class PageService(
         page.Code = request.Code;
         page.Title = request.Title;
         page.Path = request.Path;
+        page.ExternalUrl = request.ExternalUrl;
         page.Icon = request.Icon;
         page.ParentId = request.ParentId;
+        page.Area = request.Area;
         page.PermissionId = request.PermissionId;
         page.SortOrder = request.SortOrder;
         page.IsMenu = request.IsMenu;

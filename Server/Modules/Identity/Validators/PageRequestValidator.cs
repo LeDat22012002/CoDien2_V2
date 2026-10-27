@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Server.Modules.Identity.DTOs;
+using Server.Modules.Identity.Entities;
 using Server.Shared.Extensions;
 
 namespace Server.Modules.Identity.Validators;
@@ -28,16 +29,38 @@ public static partial class PageRequestValidator
             errors["title"] = ["Tiêu đề tối đa 100 ký tự."];
         }
 
-        if (request.Path is not null)
+        if (!PageAreas.All.Contains(request.Area))
         {
-            if (request.Path.Length > 200 || !PathRegex().IsMatch(request.Path))
+            errors["area"] = ["Khu vực menu không hợp lệ (ADMIN hoặc PUBLIC)."];
+        }
+
+        if (request.Path is not null && (request.Path.Length > 200 || !PathRegex().IsMatch(request.Path)))
+        {
+            errors["path"] = ["Đường dẫn tối đa 200 ký tự, bắt đầu bằng '/', chỉ gồm chữ không dấu, số, '-', '_', '/', ':' (vd /employees/:id)."];
+        }
+
+        if (request.ExternalUrl is not null)
+        {
+            if (request.Path is not null)
             {
-                errors["path"] = ["Đường dẫn tối đa 200 ký tự, bắt đầu bằng '/', chỉ gồm chữ không dấu, số, '-', '_', '/', ':' (vd /employees/:id)."];
+                errors["externalUrl"] = ["Chỉ nhập một trong hai: đường dẫn trong hệ thống hoặc liên kết ngoài."];
+            }
+            else if (request.ExternalUrl.Length > 1000 || !IsHttpUrl(request.ExternalUrl))
+            {
+                errors["externalUrl"] = ["Liên kết ngoài tối đa 1000 ký tự, bắt đầu bằng http:// hoặc https://."];
             }
         }
-        else if (request.PermissionId is not null)
+
+        if (request.PermissionId is not null)
         {
-            errors["permissionId"] = ["Nút nhóm menu (không có đường dẫn) không gắn quyền; quyền đặt ở các trang con."];
+            if (request.Area == PageAreas.Public)
+            {
+                errors["permissionId"] = ["Trang công khai chỉ là liên kết điều hướng, không gắn quyền; quyền đặt ở trang quản trị cùng đường dẫn."];
+            }
+            else if (request.Path is null && request.ExternalUrl is null)
+            {
+                errors["permissionId"] = ["Nút nhóm menu (không có đường dẫn) không gắn quyền; quyền đặt ở các trang con."];
+            }
         }
 
         if (request.Icon?.Length > 50)
@@ -47,6 +70,10 @@ public static partial class PageRequestValidator
 
         errors.ThrowIfInvalid();
     }
+
+    private static bool IsHttpUrl(string value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
     [GeneratedRegex("^[a-z0-9]+(-[a-z0-9]+)*$")]
     private static partial Regex PageCodeRegex();

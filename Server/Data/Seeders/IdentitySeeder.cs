@@ -8,7 +8,7 @@ namespace Server.Data.Seeders;
 /// <summary>
 /// Chạy mỗi lần khởi động, an toàn khi chạy lặp lại. Không ghi đè dữ liệu admin đã chỉnh trên FE:
 /// - Permission: chỉ thêm mã mới khai báo trong code.
-/// - Page: chỉ tạo bộ trang mặc định khi bảng Page còn trống; sau đó quản lý hoàn toàn từ FE.
+/// - Page: tạo bộ trang mặc định của từng Area (ADMIN, PUBLIC) khi Area đó chưa có trang nào; sau đó quản lý hoàn toàn từ FE.
 /// - Tạo role SUPER_ADMIN và admin tổng đầu tiên nếu chưa có.
 /// </summary>
 public class IdentitySeeder(
@@ -57,10 +57,20 @@ public class IdentitySeeder(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    /// <summary>Chỉ chạy lần cài đặt đầu (bảng Page trống). Sau đó trang được quản lý hoàn toàn từ FE.</summary>
+    /// <summary>
+    /// Seed riêng từng Area: Area nào chưa có trang nào thì tạo bộ trang mặc định của Area đó
+    /// (vd thêm menu PUBLIC vào DB đã có trang ADMIN). Area đã có trang thì không đụng tới.
+    /// </summary>
     private async Task SeedDefaultPagesAsync(CancellationToken cancellationToken)
     {
-        if (await dbContext.Set<Page>().AnyAsync(cancellationToken))
+        var existingAreas = (await dbContext.Set<Page>()
+            .Select(x => x.Area)
+            .Distinct()
+            .ToListAsync(cancellationToken))
+            .ToHashSet();
+
+        var seeds = IdentitySeedData.Pages.Where(x => !existingAreas.Contains(x.Area)).ToList();
+        if (seeds.Count == 0)
         {
             return;
         }
@@ -69,14 +79,16 @@ public class IdentitySeeder(
             .ToDictionaryAsync(x => x.Code, x => x.Id, cancellationToken);
         var pages = new Dictionary<string, Page>();
 
-        // Duyệt theo thứ tự khai báo: trang cha phải khai báo trước trang con
-        foreach (var seed in IdentitySeedData.Pages)
+        // Duyệt theo thứ tự khai báo: trang cha phải khai báo trước trang con (cùng Area)
+        foreach (var seed in seeds)
         {
             var page = new Page
             {
                 Code = seed.Code,
                 Title = seed.Title,
                 Path = seed.Path,
+                ExternalUrl = seed.ExternalUrl,
+                Area = seed.Area,
                 Icon = seed.Icon,
                 Parent = seed.ParentCode is null ? null : pages[seed.ParentCode],
                 PermissionId = seed.PermissionCode is null ? null : permissionIds[seed.PermissionCode],
@@ -89,7 +101,8 @@ public class IdentitySeeder(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Đã tạo {Count} trang mặc định", pages.Count);
+        logger.LogInformation(
+            "Đã tạo {Count} trang mặc định cho {Areas}", pages.Count, string.Join(", ", seeds.Select(x => x.Area).Distinct()));
     }
 
     private async Task<Role> EnsureSuperAdminRoleAsync(CancellationToken cancellationToken)

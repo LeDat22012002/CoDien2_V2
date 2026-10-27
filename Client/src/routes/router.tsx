@@ -1,14 +1,16 @@
-import type { ComponentType } from 'react';
-import { createBrowserRouter } from 'react-router';
-import { FullPageLoading } from '@/shared/components/FullPageLoading';
-import RouteErrorPage from '@/shared/pages/RouteErrorPage';
-import { GuestRoute } from '@/routes/GuestRoute';
-import { PrivateRoute } from '@/routes/PrivateRoute';
+import type { ComponentType } from "react";
+import { createBrowserRouter, Navigate } from "react-router";
+import { FullPageLoading } from "@/shared/components/FullPageLoading";
+import { DEFAULT_PUBLIC_PATH } from "@/shared/constants/routes";
+import RouteErrorPage from "@/shared/pages/RouteErrorPage";
+import { GuestRoute } from "@/routes/GuestRoute";
+import { PrivateRoute } from "@/routes/PrivateRoute";
+import { PageGuard } from "./PageGuard";
 
 /**
  * Khai báo route toàn app. Trang của module tải lazy để tách bundle theo module.
- * - Trang công khai (chỉ gọi API GET [AllowAnonymous]): đặt ngang hàng trang chủ, ngoài PrivateRoute.
- * - Trang cần đăng nhập: đặt trong PrivateRoute. Cần quyền thì bọc thêm route cha
+ * - Trang công khai (chỉ gọi API GET [AllowAnonymous]): con của PublicLayout. Không có trang chủ, "/" chuyển về DEFAULT_PUBLIC_PATH.
+ * - Trang sau đăng nhập (quản trị, thông tin cá nhân): con của PrivateLayout (trong PrivateRoute). Cần quyền thì bọc thêm route cha
  *   `element: <PageGuard pagePath="/<path>" />`, pagePath khớp Path của trang trong bảng Page.
  *
  * Ví dụ:
@@ -20,7 +22,9 @@ import { PrivateRoute } from '@/routes/PrivateRoute';
  *   },
  */
 
-const toRoute = (module: { default: ComponentType }) => ({ Component: module.default });
+const toRoute = (module: { default: ComponentType }) => ({
+  Component: module.default,
+});
 
 export const router = createBrowserRouter([
   {
@@ -30,22 +34,93 @@ export const router = createBrowserRouter([
       {
         element: <GuestRoute />,
         children: [
-          { path: 'login', lazy: () => import('@/modules/identity/pages/LoginPage').then(toRoute) },
+          {
+            path: "login",
+            lazy: () =>
+              import("@/modules/identity/pages/LoginPage").then(toRoute),
+          },
         ],
       },
+      // Công khai: layout landing page (header ngang)
       {
-        lazy: () => import('@/layouts/MainLayout').then(toRoute),
+        lazy: () => import("@/layouts/PublicLayout").then(toRoute),
         children: [
-          // Công khai
-          { index: true, lazy: () => import('@/modules/home/pages/HomePage').then(toRoute) },
-
-          // Bắt buộc đăng nhập
+          // Không có trang chủ: "/" chuyển về trang Lấy số văn bản
           {
-            element: <PrivateRoute />,
-            children: [],
+            index: true,
+            element: <Navigate to={DEFAULT_PUBLIC_PATH} replace />,
           },
-
-          { path: '*', lazy: () => import('@/shared/pages/NotFoundPage').then(toRoute) },
+          {
+            path: "documents/issue",
+            lazy: () =>
+              import("@/modules/documents/pages/DocumentIssuePage").then(
+                toRoute,
+              ),
+          },
+          {
+            path: "*",
+            lazy: () => import("@/shared/pages/NotFoundPage").then(toRoute),
+          },
+        ],
+      },
+      // Bắt buộc đăng nhập: layout có Sider (quản trị, thông tin cá nhân)
+      {
+        element: <PrivateRoute />,
+        children: [
+          {
+            lazy: () => import("@/layouts/PrivateLayout").then(toRoute),
+            children: [
+              {
+                element: <PageGuard pagePath="/admin/dashboard" />, // Hoặc path khớp với DB của bạn
+                children: [
+                  {
+                    path: "admin/dashboard",
+                    lazy: () =>
+                      import("@/modules/dashboard/pages/DashboardAdminPage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/employees" />,
+                children: [
+                  {
+                    path: "admin/employees",
+                    lazy: () =>
+                      import("@/modules/employees/pages/EmployeeListPage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/org-units" />,
+                children: [
+                  {
+                    path: "admin/org-units",
+                    lazy: () =>
+                      import(
+                        "@/modules/organization/pages/OrgUnitManagementPage"
+                      ).then(toRoute),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/position-levels" />,
+                children: [
+                  {
+                    path: "admin/position-levels",
+                    lazy: () =>
+                      import(
+                        "@/modules/organization/pages/PositionLevelPage"
+                      ).then(toRoute),
+                  },
+                ],
+              },
+              // Các route quản trị khác (users,...) đặt ở đây
+            ],
+          },
         ],
       },
     ],

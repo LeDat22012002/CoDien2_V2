@@ -11,9 +11,14 @@ public class EmployeeRepository(AppDbContext dbContext) : IEmployeeRepository
     private DbSet<Employee> Employees => dbContext.Set<Employee>();
 
     public async Task<(IReadOnlyList<Employee> Items, int TotalCount)> GetPagedAsync(
-        EmployeeFilterRequest filter, CancellationToken cancellationToken)
+        EmployeeFilterRequest filter, IReadOnlyCollection<int>? employeeIds, CancellationToken cancellationToken)
     {
         var query = Employees.AsNoTracking();
+
+        if (employeeIds is not null)
+        {
+            query = query.Where(x => employeeIds.Contains(x.Id));
+        }
 
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {

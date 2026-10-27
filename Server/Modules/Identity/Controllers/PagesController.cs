@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Server.Gateway.Authorization;
 using Server.Modules.Identity.DTOs;
@@ -17,6 +18,16 @@ public class PagesController(IPageService pageService) : ControllerBase
     {
         var result = await pageService.GetTreeAsync(cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<PageDto>>.Ok(result));
+    }
+
+    /// <summary>Menu header trang công khai, xem được khi chưa đăng nhập.</summary>
+    [AllowAnonymous]
+    [HttpGet("public-menu")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<MenuItemDto>>>> GetPublicMenu(
+        CancellationToken cancellationToken)
+    {
+        var result = await pageService.GetPublicMenuAsync(cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<MenuItemDto>>.Ok(result));
     }
 
     [HttpPost]

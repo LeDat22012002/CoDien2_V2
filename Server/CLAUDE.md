@@ -59,7 +59,7 @@ server/
 - Không trả Entity ra API, luôn map sang DTO.
 - Repository không gọi SaveChanges; Service gọi `IUnitOfWork.SaveChangesAsync`.
 - Dùng async/await kèm `CancellationToken`. Query chỉ đọc dùng `AsNoTracking()`.
-- Ghi nhiều bảng thì bọc trong `IUnitOfWork.ExecuteInTransactionAsync`.
+- Ghi nhiều bảng thì bọc trong `IUnitOfWork.ExecuteInTransactionAsync`. Gọi lồng (service này gọi service khác cũng dùng transaction) thì lần trong dùng chung transaction ngoài, chỉ SaveChanges; lỗi ở đâu cũng rollback cả.
 - Lỗi xử lý tập trung tại middleware; Service ném exception trong `Shared/Exceptions` (`NotFoundException` → 404, `ForbiddenException` → 403, `UnauthorizedException` → 401, còn lại → 400).
 - Validate request trong `Modules/<M>/Validators` (static class, thông báo tiếng Việt, key lỗi camelCase), ném `ValidationException`.
 - API công khai: gắn `[AllowAnonymous]` trên từng action GET; còn lại mặc định bắt buộc đăng nhập.
@@ -69,7 +69,9 @@ server/
 - RBAC: User (gắn 1 Employee, đăng nhập bằng EmpCode) → nhiều Role → nhiều Permission. Trang (Page) hiển thị khi user có permission xem của trang. Role `SUPER_ADMIN` có toàn quyền.
 - Mã quyền dạng `<module>.<hành động>` khai báo trong `Shared/Constants/PermissionCodes.cs`.
 - **Permission do code định nghĩa** (vì API phải kiểm tra đúng mã đó): thêm chức năng cần quyền mới → thêm mã vào `PermissionCodes` và `IdentitySeedData.Permissions`; khi khởi động `IdentitySeeder` chỉ **thêm mã mới**, không ghi đè, không xóa. Admin trên FE chỉ xem, sửa tên hiển thị và gán quyền cho role.
-- **Page quản lý từ FE** (CRUD qua API): `IdentitySeedData.Pages` chỉ là bộ trang mặc định, seed **một lần khi bảng Page trống**. `Path` phải khớp route có thật ở Client.
+- **Page quản lý từ FE** (CRUD qua API): `IdentitySeedData.Pages` chỉ là bộ trang mặc định, seed **riêng từng Area, một lần khi Area đó chưa có trang nào** (Area đã có trang thì seed không đụng tới; thêm trang vào Area đã có thì tạo trên FE). `Path` phải khớp route có thật ở Client.
+- `Page.Area`: `ADMIN` = menu Sider trang quản trị (`/api/auth/me` → `menu`, `routes` chỉ lấy Area này); `PUBLIC` = menu header trang công khai (`GET /api/pages/public-menu`, `[AllowAnonymous]`). Trang PUBLIC chỉ là liên kết điều hướng, **không gắn quyền**; quyền vào route vẫn theo trang ADMIN cùng path (Path chỉ cần duy nhất trong cùng Area). Trang con cùng Area với trang cha.
+- `Page.ExternalUrl`: liên kết ngoài http/https (mở tab mới), không nhập cùng `Path`.
 - Admin tổng đầu tiên lấy từ User Secrets `Identity:SuperAdmin:EmpCode` / `Identity:SuperAdmin:InitialPassword`, chỉ tạo khi chưa có SUPER_ADMIN nào.
 - **Gắn quyền cho API**: `[HasPermission(PermissionCodes.X.Y)]` trên action (hoặc controller). Truyền nhiều mã = chỉ cần có 1 trong số đó. Không gắn gì = chỉ cần đăng nhập; `[AllowAnonymous]` = công khai.
 - Trong service, lấy người đang gọi qua `ICurrentUserService` (`UserId`, `UserName` = EmpCode); kiểm tra quyền/leo thang qua `IPermissionService` (`EnsureCanGrantPermissionsAsync`, `EnsureCanAssignRolesAsync`).

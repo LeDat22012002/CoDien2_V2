@@ -45,11 +45,31 @@ Dùng `StatusTag` (`shared/components`) hoặc `OPERATION_STATUS_META` (`shared/
 
 ## Kích thước và khoảng cách
 
-- Bo góc 6px. Control cao 36px; trên thiết bị cảm ứng (`pointer: coarse`) toàn app tự chuyển `componentSize="large"` (44px).
-- Mục menu cao 44px. Nút chỉ có icon phải có `aria-label` và vùng bấm ≥ 44×44px.
+- Bo góc 6px.
+- **Chiều cao control (Input, Select, DatePicker, TreeSelect, Button…): 32px khi dùng chuột, 40px trên thiết bị cảm ứng** (`pointer: coarse` → toàn app tự chuyển `componentSize="large"`). Khai báo một chỗ ở `theme.ts` (`controlHeight` / `controlHeightLG`); component không tự đặt `size`, `height` hay class chiều cao riêng cho ô nhập.
+- Xem giao diện desktop trong DevTools thì tắt giả lập cảm ứng (chế độ Responsive mặc định là cảm ứng → 40px) và tải lại trang.
+- Mục menu cao 44px. Nút chỉ có icon phải có `aria-label`.
 - Khoảng cách theo Tailwind: trong khối `gap-2`/`gap-3`, giữa các khối `gap-4`, lề nội dung `p-4` (điện thoại) / `md:p-6`.
 
-## Layout
+## Bảng
+
+- **Độ rộng cột cố định:** mỗi cột khai báo `width` từ `COLUMN_WIDTH` (`shared/constants/tableColumns.ts`): STT 60, mã 110, điện thoại 130, ngày 120, ngày giờ 150, số 120, tag 130, trạng thái 150, họ tên 220, chữ vừa 220, chữ dài 280, thao tác 130. Bảng `tableLayout="fixed"`, `scroll.x = getTableScrollX(columns, screens)` (chỉ cộng cột đang hiện). Bảng rộng hơn tổng thì các cột giãn đều theo tỉ lệ; màn hình hẹp hơn thì cuộn ngang trong bảng.
+- **Dòng cao bằng nhau:** ô chỉ 1 dòng (`whitespace-nowrap`), chữ dài cắt "…" và hover hiện đầy đủ. Ô 2 dòng (họ tên + email) thì luôn đủ 2 dòng, thiếu dữ liệu hiện "—".
+- **Khung cao cố định:** bảng danh sách chính chiếm phần còn lại của màn hình, thân bảng cuộn bên trong (`useTableScrollY`), tiêu đề cột và phân trang (`Pagination` của AntD, căn phải) luôn nhìn thấy.
+
+## Layout công khai (`PublicLayout`, kiểu landing page)
+
+- Dùng cho trang chủ "/" và các trang công khai. Không chặn đăng nhập, không có footer.
+- Header ngang cao 64px, nền trắng, có bóng. Nội dung rộng tối đa 1400px (`max-w-main`), canh giữa.
+- Cuộn quá 80px: hiện thêm header cố định trượt xuống (`animate-slide-down`), giống hệ thống cũ.
+- Menu lấy từ trang Area `PUBLIC` (`GET /api/pages/public-menu`). Mục cấp 1 viết hoa, đậm. Liên kết ngoài có icon ↗ và mở tab mới.
+- `≥ lg`: logo, menu ngang (dropdown khi hover), ô tìm kiếm bo tròn, nút Đăng nhập hoặc avatar.
+- `< lg`: logo, nút tài khoản thu gọn, hamburger 44×44 mở `Drawer` bên phải chứa ô tìm kiếm và menu dọc.
+- Avatar có mục "Trang quản trị" (vào trang quản trị đầu tiên user có quyền) và "Đăng xuất".
+
+## Layout sau đăng nhập (`PrivateLayout`: quản trị, thông tin cá nhân)
+
+- Đầu Sider: logo Hòa Phát trên dải trắng cao bằng header; Sider thu gọn thì chỉ còn biểu tượng (`LogoHP.png`). Điện thoại: logo nằm trên header.
 
 - `< md` (điện thoại): menu nằm trong `Drawer`, mở bằng nút hamburger ở header.
 - `md – lg` (tablet): `Sider` thu gọn còn icon.
@@ -63,3 +83,5 @@ Mỗi màn hình xử lý đủ:
 - **Loading:** `Table loading`, `Skeleton` hoặc `Spin`; tải cả trang dùng `FullPageLoading`.
 - **Rỗng:** `Empty` của AntD kèm câu hướng dẫn việc cần làm tiếp.
 - **Lỗi:** `ErrorState` (thông báo lỗi từ Server + nút Thử lại). Lỗi validate gắn vào từng ô bằng `applyServerErrors`.
+- **Thông báo kết quả thao tác** (lưu, xóa, đăng nhập thất bại…): toast góc trên phải qua `notify` (React Toastify), font và màu theo theme.
+- **Đang xử lý chặn thao tác** (đăng nhập…): `LoadingOverlay`: phủ mờ toàn màn hình, spinner màu primary, chữ mô tả.

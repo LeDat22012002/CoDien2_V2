@@ -21,6 +21,22 @@ public class AssignmentHistoryDto
     public bool IsPrimary { get; init; }
 }
 
+/// <summary>1 vị trí đang giữ (từ vUnitMember), dùng cho danh sách / chi tiết nhân viên.</summary>
+public class CurrentAssignmentDto
+{
+    public int AssignmentId { get; init; }
+    public int EmployeeId { get; init; }
+    public int OrgUnitId { get; init; }
+    public string OrgUnitCode { get; init; } = string.Empty;
+    public string OrgUnitName { get; init; } = string.Empty;
+    public string LevelCode { get; init; } = string.Empty;
+    public string LevelName { get; init; } = string.Empty;
+    public string? JobTitle { get; init; }
+    public bool IsActing { get; init; }
+    public bool IsPrimary { get; init; }
+    public DateOnly StartDate { get; init; }
+}
+
 // ===== Request =====
 
 /// <summary>

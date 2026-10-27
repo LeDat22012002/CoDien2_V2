@@ -20,8 +20,10 @@ public class PageRepository(AppDbContext dbContext) : IPageRepository
                 Code = x.Code,
                 Title = x.Title,
                 Path = x.Path,
+                ExternalUrl = x.ExternalUrl,
                 Icon = x.Icon,
                 ParentId = x.ParentId,
+                Area = x.Area,
                 PermissionId = x.PermissionId,
                 PermissionCode = x.Permission != null ? x.Permission.Code : null,
                 SortOrder = x.SortOrder,
@@ -36,11 +38,18 @@ public class PageRepository(AppDbContext dbContext) : IPageRepository
     public Task<bool> IsCodeTakenAsync(string code, int? excludeId, CancellationToken cancellationToken) =>
         Pages.AnyAsync(x => x.Code == code && (excludeId == null || x.Id != excludeId), cancellationToken);
 
-    public Task<bool> IsPathTakenAsync(string path, int? excludeId, CancellationToken cancellationToken) =>
-        Pages.AnyAsync(x => x.Path == path && (excludeId == null || x.Id != excludeId), cancellationToken);
+    public Task<bool> IsPathTakenAsync(string path, string area, int? excludeId, CancellationToken cancellationToken) =>
+        Pages.AnyAsync(
+            x => x.Path == path && x.Area == area && (excludeId == null || x.Id != excludeId), cancellationToken);
+
+    public Task<string?> GetAreaAsync(int id, CancellationToken cancellationToken) =>
+        Pages.Where(x => x.Id == id).Select(x => x.Area).FirstOrDefaultAsync(cancellationToken);
 
     public Task<bool> HasChildrenAsync(int id, CancellationToken cancellationToken) =>
         Pages.AnyAsync(x => x.ParentId == id, cancellationToken);
+
+    public Task<bool> HasChildrenOutsideAreaAsync(int id, string area, CancellationToken cancellationToken) =>
+        Pages.AnyAsync(x => x.ParentId == id && x.Area != area, cancellationToken);
 
     public Task<Dictionary<int, int?>> GetParentMapAsync(CancellationToken cancellationToken) =>
         Pages.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.ParentId, cancellationToken);

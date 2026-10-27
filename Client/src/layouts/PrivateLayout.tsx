@@ -1,42 +1,44 @@
-import { LoginOutlined, MenuFoldOutlined, MenuOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { MenuFoldOutlined, MenuOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import { Button, Drawer, Grid, Layout } from 'antd';
 import { useState } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router';
-import { FullPageLoading } from '@/shared/components/FullPageLoading';
+import { Link, Outlet } from 'react-router';
+import logo from '@/assets/images/Logo.png';
+import logoIcon from '@/assets/images/LogoHP.png';
 import { SIDER_WIDTH } from '@/shared/theme/theme';
-import { buildLoginPath } from '@/shared/utils/redirect';
-import { useSessionBootstrap } from '@/modules/identity/hooks/useSessionBootstrap';
 import { AppMenu } from '@/layouts/components/AppMenu';
 import { UserDropdown } from '@/layouts/components/UserDropdown';
 
-const APP_NAME = 'Nhà máy Cơ điện 2';
-const APP_SHORT_NAME = 'CĐ2';
+const LOGO_ALT = 'Hòa Phát Gang Thép';
 
 interface SiderBrandProps {
   isCollapsed?: boolean;
 }
 
+/** Logo đầu Sider trên dải trắng cao bằng header (logo màu xanh không đọc được trên nền Sider navy). */
 const SiderBrand = ({ isCollapsed }: SiderBrandProps) => (
-  <div className="flex h-14 items-center px-4 text-base font-semibold text-white">
-    <span className="truncate">{isCollapsed ? APP_SHORT_NAME : APP_NAME}</span>
-  </div>
+  <Link
+    to="/"
+    aria-label="Về trang chủ"
+    className="flex h-14 items-center justify-center border-b border-border bg-bg-container px-3"
+  >
+    {isCollapsed ? (
+      <img src={logoIcon} alt={LOGO_ALT} className="h-8 w-auto" />
+    ) : (
+      <img src={logo} alt={LOGO_ALT} className="h-10 w-auto max-w-full object-contain" />
+    )}
+  </Link>
 );
 
 /**
+ * Layout chung cho các trang sau đăng nhập: quản trị, thông tin cá nhân (luôn nằm sau PrivateRoute).
  * Điện thoại (< md): menu trong Drawer, mở bằng nút hamburger.
  * Tablet (md–lg): Sider tự thu gọn còn icon. Laptop trở lên (≥ lg): Sider mở rộng, có nút thu gọn.
- * Dùng cho cả trang công khai (trang chủ) lẫn trang cần đăng nhập; chưa đăng nhập thì header hiện nút Đăng nhập.
  */
-const MainLayout = () => {
-  const status = useSessionBootstrap();
+const PrivateLayout = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  if (status === 'unknown') return <FullPageLoading />;
 
   const handleToggleMenu = () => {
     if (isMobile) setIsDrawerOpen(true);
@@ -84,19 +86,13 @@ const MainLayout = () => {
             aria-label={isMobile ? 'Mở menu' : isCollapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
             onClick={handleToggleMenu}
           />
-          {isMobile && <span className="truncate text-base font-semibold">{APP_NAME}</span>}
+          {isMobile && (
+            <Link to="/" aria-label="Về trang chủ" className="flex items-center">
+              <img src={logo} alt={LOGO_ALT} className="h-8 w-auto" />
+            </Link>
+          )}
           <div className="ml-auto">
-            {status === 'authenticated' ? (
-              <UserDropdown />
-            ) : (
-              <Button
-                type="primary"
-                icon={<LoginOutlined />}
-                onClick={() => navigate(buildLoginPath(`${location.pathname}${location.search}`))}
-              >
-                Đăng nhập
-              </Button>
-            )}
+            <UserDropdown />
           </div>
         </Layout.Header>
 
@@ -108,4 +104,4 @@ const MainLayout = () => {
   );
 };
 
-export default MainLayout;
+export default PrivateLayout;

@@ -4,25 +4,43 @@ using Server.Modules.Employees.Entities;
 using Server.Modules.Employees.Repositories.Interfaces;
 using Server.Modules.Employees.Services.Interfaces;
 using Server.Modules.Employees.Validators;
+using Server.Modules.Organization.DTOs;
+using Server.Modules.Organization.Entities;
 using Server.Modules.Organization.Services.Interfaces;
+using Server.Shared.Constants;
 using Server.Shared.Exceptions;
 using Server.Shared.Models;
+using Server.Shared.Services;
 
 namespace Server.Modules.Employees.Services;
 
 public class EmployeeService(
     IEmployeeRepository employeeRepository,
     IAssignmentService assignmentService,
+    IPermissionChecker permissionChecker,
+    ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork) : IEmployeeService
 {
+    /// <summary>Key lỗi của AssignmentService → tên ô nhập vị trí ban đầu trên form tạo nhân viên.</summary>
+    private static readonly Dictionary<string, string> AssignmentErrorKeys = new()
+    {
+        ["newOrgUnitCode"] = "orgUnitCode",
+        ["newLevelCode"] = "levelCode",
+    };
+
     public async Task<PagedResult<EmployeeDto>> GetPagedAsync(
         EmployeeFilterRequest filter, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await employeeRepository.GetPagedAsync(filter, cancellationToken);
+        var employeeIds = filter.OrgUnitId is { } orgUnitId
+            ? await assignmentService.GetEmployeeIdsInUnitTreeAsync(orgUnitId, cancellationToken)
+            : null;
+
+        var (items, totalCount) = await employeeRepository.GetPagedAsync(filter, employeeIds, cancellationToken);
+        var assignments = await GetAssignmentsByEmployeeAsync(items.Select(x => x.Id).ToList(), cancellationToken);
 
         return new PagedResult<EmployeeDto>
         {
-            Items = items.Select(ToDto).ToList(),
+            Items = items.Select(x => ToDto(x, assignments[x.Id].ToList())).ToList(),
             TotalCount = totalCount,
             PageIndex = filter.PageIndex,
             PageSize = filter.PageSize,
@@ -34,7 +52,7 @@ public class EmployeeService(
         var employee = await employeeRepository.GetByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy nhân viên.");
 
-        return ToDto(employee);
+        return await ToDtoWithAssignmentsAsync(employee, cancellationToken);
     }
 
     public async Task<EmployeeDto> CreateAsync(CreateEmployeeRequest request, CancellationToken cancellationToken)
@@ -42,6 +60,11 @@ public class EmployeeService(
         Normalize(request);
         EmployeeRequestValidator.Validate(request);
         await EnsureEmpCodeAvailableAsync(request.EmpCode, null, cancellationToken);
+
+        if (request.InitialAssignment is not null)
+        {
+            await EnsureCanManageAssignmentsAsync(cancellationToken);
+        }
 
         var now = DateTime.UtcNow;
         var employee = new Employee
@@ -52,10 +75,19 @@ public class EmployeeService(
         };
         ApplyRequest(employee, request);
 
-        employeeRepository.Add(employee);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        // Lưu nhân viên trước để AssignmentService tìm được theo mã; vị trí lỗi thì rollback cả nhân viên
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            employeeRepository.Add(employee);
+            await unitOfWork.SaveChangesAsync(ct);
 
-        return ToDto(employee);
+            if (request.InitialAssignment is { } assignment)
+            {
+                await AssignInitialPositionAsync(employee.EmpCode, assignment, ct);
+            }
+        }, cancellationToken);
+
+        return await ToDtoWithAssignmentsAsync(employee, cancellationToken);
     }
 
     public async Task<EmployeeDto> UpdateAsync(int id, UpdateEmployeeRequest request, CancellationToken cancellationToken)
@@ -81,7 +113,7 @@ public class EmployeeService(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return ToDto(employee);
+        return await ToDtoWithAssignmentsAsync(employee, cancellationToken);
     }
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken)
@@ -97,6 +129,54 @@ public class EmployeeService(
 
         employeeRepository.Remove(employee);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>Bổ nhiệm vị trí ban đầu, hiệu lực từ hôm nay; lỗi theo field đổi key cho khớp form tạo nhân viên.</summary>
+    private async Task AssignInitialPositionAsync(
+        string empCode, InitialAssignmentRequest assignment, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await assignmentService.ChangeAsync(new ChangeAssignmentRequest
+            {
+                EmpCode = empCode,
+                NewOrgUnitCode = assignment.OrgUnitCode,
+                NewLevelCode = assignment.LevelCode,
+                EffectiveDate = DateOnly.FromDateTime(DateTime.Today),
+                ChangeType = AssignmentChangeTypes.Appoint,
+                JobTitle = assignment.JobTitle,
+                IsActing = assignment.IsActing,
+                DecisionNo = assignment.DecisionNo,
+                Note = assignment.Note,
+            }, cancellationToken);
+        }
+        catch (ValidationException exception) when (exception.Errors is not null)
+        {
+            throw new ValidationException(exception.Message, exception.Errors.ToDictionary(
+                x => AssignmentErrorKeys.GetValueOrDefault(x.Key, x.Key), x => x.Value));
+        }
+    }
+
+    /// <summary>Tạo nhân viên kèm vị trí ban đầu cần thêm quyền quản lý chức vụ.</summary>
+    private async Task EnsureCanManageAssignmentsAsync(CancellationToken cancellationToken)
+    {
+        var userId = currentUserService.UserId
+            ?? throw new UnauthorizedException("Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
+        if (!await permissionChecker.HasPermissionAsync(userId, PermissionCodes.Assignments.Manage, cancellationToken))
+        {
+            throw new ForbiddenException("Bạn không có quyền xếp vị trí trên sơ đồ tổ chức.");
+        }
+    }
+
+    private async Task<ILookup<int, CurrentAssignmentDto>> GetAssignmentsByEmployeeAsync(
+        IReadOnlyCollection<int> employeeIds, CancellationToken cancellationToken) =>
+        (await assignmentService.GetCurrentAssignmentsAsync(employeeIds, cancellationToken))
+        .ToLookup(x => x.EmployeeId);
+
+    private async Task<EmployeeDto> ToDtoWithAssignmentsAsync(Employee employee, CancellationToken cancellationToken)
+    {
+        var assignments = await assignmentService.GetCurrentAssignmentsAsync([employee.Id], cancellationToken);
+        return ToDto(employee, assignments);
     }
 
     private async Task EnsureEmpCodeAvailableAsync(string empCode, int? excludeId, CancellationToken cancellationToken)
@@ -126,6 +206,15 @@ public class EmployeeService(
         {
             updateRequest.Status = updateRequest.Status?.Trim().ToUpperInvariant() ?? string.Empty;
         }
+
+        if (request is CreateEmployeeRequest { InitialAssignment: { } assignment })
+        {
+            assignment.OrgUnitCode = assignment.OrgUnitCode?.Trim() ?? string.Empty;
+            assignment.LevelCode = assignment.LevelCode?.Trim() ?? string.Empty;
+            assignment.JobTitle = NullIfEmpty(assignment.JobTitle);
+            assignment.DecisionNo = NullIfEmpty(assignment.DecisionNo);
+            assignment.Note = NullIfEmpty(assignment.Note);
+        }
     }
 
     private static string? NullIfEmpty(string? value) =>
@@ -144,8 +233,9 @@ public class EmployeeService(
         employee.AvatarUrl = request.AvatarUrl;
     }
 
-    private static EmployeeDto ToDto(Employee employee) => new()
+    private static EmployeeDto ToDto(Employee employee, IReadOnlyList<CurrentAssignmentDto> assignments) => new()
     {
+        CurrentAssignments = assignments,
         Id = employee.Id,
         EmpCode = employee.EmpCode,
         FullName = employee.FullName,

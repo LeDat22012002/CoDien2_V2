@@ -44,8 +44,10 @@ export const THEME_CONFIG: ThemeConfig = {
     fontFamily: FONT_FAMILY,
     fontSize: 14,
     borderRadius: BORDER_RADIUS,
-    controlHeight: 36,
-    controlHeightLG: 44,
+    // Chiều cao chung của Input, Select, DatePicker, Button…: 32px khi dùng chuột,
+    // 40px trên màn hình cảm ứng (App.tsx chuyển componentSize="large"). Không đặt height riêng trong component.
+    controlHeight: 32,
+    controlHeightLG: 40,
     motionDurationMid: '0.2s',
   },
   components: {

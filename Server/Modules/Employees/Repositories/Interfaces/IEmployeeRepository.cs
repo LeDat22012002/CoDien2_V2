@@ -5,8 +5,9 @@ namespace Server.Modules.Employees.Repositories.Interfaces;
 
 public interface IEmployeeRepository
 {
+    /// <summary>employeeIds khác null: chỉ lấy trong danh sách này (lọc theo đơn vị).</summary>
     Task<(IReadOnlyList<Employee> Items, int TotalCount)> GetPagedAsync(
-        EmployeeFilterRequest filter, CancellationToken cancellationToken);
+        EmployeeFilterRequest filter, IReadOnlyCollection<int>? employeeIds, CancellationToken cancellationToken);
 
     /// <summary>Đọc không tracking, dùng cho truy vấn chỉ đọc.</summary>
     Task<Employee?> GetByIdAsync(int id, CancellationToken cancellationToken);

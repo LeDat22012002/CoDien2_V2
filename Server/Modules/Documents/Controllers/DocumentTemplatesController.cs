@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Server.Gateway.Authorization;
 using Server.Modules.Documents.DTOs;
@@ -11,7 +12,8 @@ namespace Server.Modules.Documents.Controllers;
 [Route("api/document-templates")]
 public class DocumentTemplatesController(IDocumentTemplateService templateService) : ControllerBase
 {
-    /// <summary>Toàn bộ biểu mẫu cho ô chọn khi lấy số (chỉ cần đăng nhập).</summary>
+    /// <summary>Toàn bộ biểu mẫu cho ô chọn và tab lọc ở trang Lấy số văn bản (công khai).</summary>
+    [AllowAnonymous]
     [HttpGet("options")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<DocumentTemplateDto>>>> GetOptions(
         CancellationToken cancellationToken)

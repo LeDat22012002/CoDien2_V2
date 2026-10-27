@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Server.Gateway.Authorization;
 using Server.Modules.Documents.DTOs;
@@ -9,7 +10,7 @@ namespace Server.Modules.Documents.Controllers;
 
 /// <summary>
 /// Sổ văn bản đã cấp. Có 5 API cấp số tương ứng 5 cách đánh số (như hệ thống cũ);
-/// FE chọn API theo biểu mẫu. Người lấy số lấy theo tài khoản đăng nhập.
+/// FE chọn API theo biểu mẫu. Người lấy số lấy theo tài khoản đăng nhập. Xem sổ: công khai.
 /// </summary>
 [ApiController]
 [Route("api/issued-documents")]
@@ -17,7 +18,8 @@ public class IssuedDocumentsController(IIssuedDocumentService documentService) :
 {
     private const string ExcelContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-    [HasPermission(PermissionCodes.Documents.View)]
+    /// <summary>Công khai như hệ thống cũ: trang Lấy số văn bản cho mọi người xem sổ, chỉ lấy số mới cần đăng nhập.</summary>
+    [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<IssuedDocumentDto>>>> GetPaged(
         [FromQuery] IssuedDocumentFilterRequest filter, CancellationToken cancellationToken)

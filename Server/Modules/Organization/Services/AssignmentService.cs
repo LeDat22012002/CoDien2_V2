@@ -137,6 +137,54 @@ public class AssignmentService(IAssignmentRepository assignmentRepository, IUnit
         }).ToList();
     }
 
+    public async Task<IReadOnlyList<CurrentAssignmentDto>> GetCurrentAssignmentsAsync(
+        IReadOnlyCollection<int> employeeIds, CancellationToken cancellationToken)
+    {
+        if (employeeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var members = await assignmentRepository.GetCurrentByEmployeeIdsAsync(employeeIds, cancellationToken);
+
+        return members.Select(x => new CurrentAssignmentDto
+        {
+            AssignmentId = x.AssignmentId,
+            EmployeeId = x.EmployeeId,
+            OrgUnitId = x.OrgUnitId,
+            OrgUnitCode = x.OrgUnitCode,
+            OrgUnitName = x.OrgUnitName,
+            LevelCode = x.LevelCode,
+            LevelName = x.LevelName,
+            JobTitle = x.JobTitle,
+            IsActing = x.IsActing,
+            IsPrimary = x.IsPrimary,
+            StartDate = x.StartDate,
+        }).ToList();
+    }
+
+    public async Task<IReadOnlyList<int>> GetEmployeeIdsInUnitTreeAsync(int orgUnitId, CancellationToken cancellationToken)
+    {
+        var units = await assignmentRepository.GetUnitTreeAsync(cancellationToken);
+        var childrenByParent = units.ToLookup(x => x.Value.ParentId, x => x.Key);
+
+        // Duyệt cây từ đơn vị được chọn xuống mọi đơn vị con cháu
+        var unitIds = new HashSet<int> { orgUnitId };
+        var pending = new Queue<int>([orgUnitId]);
+        while (pending.TryDequeue(out var parentId))
+        {
+            foreach (var childId in childrenByParent[parentId])
+            {
+                if (unitIds.Add(childId))
+                {
+                    pending.Enqueue(childId);
+                }
+            }
+        }
+
+        return await assignmentRepository.GetEmployeeIdsInUnitsAsync(unitIds, cancellationToken);
+    }
+
     public async Task EndAllActiveAsync(int employeeId, DateOnly endDate, CancellationToken cancellationToken)
     {
         var openAssignments = await assignmentRepository.GetOpenAssignmentsAsync(

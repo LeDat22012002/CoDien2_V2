@@ -26,6 +26,14 @@ public interface IAssignmentRepository
 
     Task<IReadOnlyList<VAssignmentHistory>> GetHistoryAsync(string empCode, CancellationToken cancellationToken);
 
+    /// <summary>Các vị trí đang giữ của danh sách nhân viên (vị trí chính trước, mới nhất trước).</summary>
+    Task<IReadOnlyList<VUnitMember>> GetCurrentByEmployeeIdsAsync(
+        IReadOnlyCollection<int> employeeIds, CancellationToken cancellationToken);
+
+    /// <summary>Id nhân viên đang giữ vị trí ở một trong các đơn vị.</summary>
+    Task<IReadOnlyList<int>> GetEmployeeIdsInUnitsAsync(
+        IReadOnlyCollection<int> orgUnitIds, CancellationToken cancellationToken);
+
     /// <summary>Id → (ParentId, Name) của mọi đơn vị, dùng để tìm đơn vị cấp trên.</summary>
     Task<Dictionary<int, (int? ParentId, string Name)>> GetUnitTreeAsync(CancellationToken cancellationToken);
 

@@ -11,6 +11,36 @@ public static class EmployeeRequestValidator
     public static void Validate(CreateEmployeeRequest request)
     {
         var errors = ValidateCommon(request);
+
+        // Key lỗi phẳng, trùng tên ô nhập vị trí trên form tạo nhân viên
+        if (request.InitialAssignment is { } assignment)
+        {
+            if (string.IsNullOrWhiteSpace(assignment.OrgUnitCode))
+            {
+                errors["orgUnitCode"] = ["Đơn vị không được để trống."];
+            }
+
+            if (string.IsNullOrWhiteSpace(assignment.LevelCode))
+            {
+                errors["levelCode"] = ["Cấp bậc không được để trống."];
+            }
+
+            if (assignment.JobTitle?.Length > 255)
+            {
+                errors["jobTitle"] = ["Chức danh tối đa 255 ký tự."];
+            }
+
+            if (assignment.DecisionNo?.Length > 100)
+            {
+                errors["decisionNo"] = ["Số quyết định tối đa 100 ký tự."];
+            }
+
+            if (assignment.Note?.Length > 500)
+            {
+                errors["note"] = ["Ghi chú tối đa 500 ký tự."];
+            }
+        }
+
         ThrowIfInvalid(errors);
     }
 

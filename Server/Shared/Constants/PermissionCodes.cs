@@ -6,6 +6,12 @@ namespace Server.Shared.Constants;
 /// </summary>
 public static class PermissionCodes
 {
+    public static class DashBoards
+    {
+        /// <summary>Xem trang tổng quan của khu quản trị (/admin/dashboard).</summary>
+        public const string View = "dashboard.view";
+    }
+
     public static class Employees
     {
         public const string View = "employees.view";

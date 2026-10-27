@@ -132,7 +132,7 @@ public class AuthService(
             ?? throw new UnauthorizedException(SessionExpiredMessage);
 
         var visiblePages = (await pageRepository.GetAllAsync(cancellationToken))
-            .Where(x => x.IsActive && CanSeePage(x, state))
+            .Where(x => x.Area == PageAreas.Admin && x.IsActive && CanSeePage(x, state))
             .ToList();
 
         return new MeDto
@@ -148,7 +148,7 @@ public class AuthService(
             IsSuperAdmin = state.IsSuperAdmin,
             Roles = state.Roles,
             Permissions = state.PermissionCodes.Order().ToList(),
-            Menu = BuildMenu(visiblePages.Where(x => x.IsMenu).ToList(), parentId: null),
+            Menu = PageMenuBuilder.Build(visiblePages.Where(x => x.IsMenu).ToList()),
             Routes = visiblePages.Where(x => x.Path is not null).Select(x => x.Path!).Distinct().ToList(),
         };
     }
@@ -251,19 +251,4 @@ public class AuthService(
 
     private static bool CanSeePage(PageDto page, UserAuthState state) =>
         page.PermissionCode is null || state.IsSuperAdmin || state.PermissionCodes.Contains(page.PermissionCode);
-
-    /// <summary>Dựng cây menu; nút nhóm (không có Path) bị bỏ nếu không còn trang con nào hiển thị.</summary>
-    private static List<MenuItemDto> BuildMenu(List<PageDto> pages, int? parentId) =>
-        pages
-            .Where(x => x.ParentId == parentId)
-            .Select(x => new MenuItemDto
-            {
-                Code = x.Code,
-                Title = x.Title,
-                Path = x.Path,
-                Icon = x.Icon,
-                Children = BuildMenu(pages, x.Id),
-            })
-            .Where(x => x.Path is not null || x.Children.Count > 0)
-            .ToList();
 }
