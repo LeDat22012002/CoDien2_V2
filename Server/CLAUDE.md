@@ -63,6 +63,7 @@ server/
 - Lỗi xử lý tập trung tại middleware; Service ném exception trong `Shared/Exceptions` (`NotFoundException` → 404, `ForbiddenException` → 403, `UnauthorizedException` → 401, còn lại → 400).
 - Validate request trong `Modules/<M>/Validators` (static class, thông báo tiếng Việt, key lỗi camelCase), ném `ValidationException`.
 - API công khai: gắn `[AllowAnonymous]` trên từng action GET; còn lại mặc định bắt buộc đăng nhập.
+- File tải lên (ảnh đại diện…): qua `IFileStorageService`, lưu ngoài mã nguồn tại `FileStorage:RootPath` (mặc định `D:/Uploads`), phục vụ tĩnh ở `/api/uploads/...`; DB chỉ lưu URL. Ảnh đại diện thuộc nhân viên: `POST /api/employees/{id}/avatar` (`employees.update`), `/api/auth/me` trả `avatarUrl` từ Employee.
 
 ## Phân quyền (module Identity)
 

@@ -14,6 +14,7 @@ export const PERMISSION_CODES = {
     create: 'users.create',
     update: 'users.update',
     resetPassword: 'users.reset-password',
+    delete: 'users.delete',
   },
   roles: {
     view: 'roles.view',

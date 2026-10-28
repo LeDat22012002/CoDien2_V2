@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddSingleton<IFileStorageService, FileStorageService>();
 
         return services;
     }

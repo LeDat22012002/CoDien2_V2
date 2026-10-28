@@ -17,3 +17,10 @@ export const createEmployee = (request: CreateEmployeeRequest) => httpPost<Emplo
 
 export const updateEmployee = (id: number, request: UpdateEmployeeRequest) =>
   httpPut<Employee>(`/employees/${id}`, request);
+
+/** Ảnh lưu ở thư mục upload của Server, trả về nhân viên với avatarUrl mới. */
+export const uploadEmployeeAvatar = (id: number, file: File) => {
+  const body = new FormData();
+  body.append('file', file);
+  return httpPost<Employee>(`/employees/${id}/avatar`, body);
+};

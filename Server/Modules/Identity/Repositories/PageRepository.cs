@@ -54,6 +54,12 @@ public class PageRepository(AppDbContext dbContext) : IPageRepository
     public Task<Dictionary<int, int?>> GetParentMapAsync(CancellationToken cancellationToken) =>
         Pages.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.ParentId, cancellationToken);
 
+    public async Task<IReadOnlyList<Page>> GetSiblingsAsync(
+        int? parentId, string area, CancellationToken cancellationToken) =>
+        await Pages
+            .Where(x => x.ParentId == parentId && (parentId != null || x.Area == area))
+            .ToListAsync(cancellationToken);
+
     public void Add(Page page) => Pages.Add(page);
 
     public void Remove(Page page) => Pages.Remove(page);

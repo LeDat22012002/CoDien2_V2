@@ -29,4 +29,7 @@ public interface IUserRepository
     Task<int> CountActiveUsersInRoleAsync(int roleId, int? excludeUserId, CancellationToken cancellationToken);
 
     void Add(User user);
+
+    /// <summary>Xóa mềm (AppDbContext tự đổi Remove thành IsDeleted).</summary>
+    void Remove(User user);
 }

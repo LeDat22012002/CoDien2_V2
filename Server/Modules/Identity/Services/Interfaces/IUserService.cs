@@ -19,4 +19,7 @@ public interface IUserService
     Task ResetPasswordAsync(int id, ResetPasswordRequest request, CancellationToken cancellationToken);
 
     Task UnlockAsync(int id, CancellationToken cancellationToken);
+
+    /// <summary>Xóa mềm tài khoản, thu hồi mọi phiên đăng nhập.</summary>
+    Task DeleteAsync(int id, CancellationToken cancellationToken);
 }

@@ -19,8 +19,11 @@ public class EmployeeService(
     IAssignmentService assignmentService,
     IPermissionChecker permissionChecker,
     ICurrentUserService currentUserService,
+    IFileStorageService fileStorageService,
     IUnitOfWork unitOfWork) : IEmployeeService
 {
+    private const string AvatarFolder = "avatars";
+
     /// <summary>Key lỗi của AssignmentService → tên ô nhập vị trí ban đầu trên form tạo nhân viên.</summary>
     private static readonly Dictionary<string, string> AssignmentErrorKeys = new()
     {
@@ -129,6 +132,32 @@ public class EmployeeService(
 
         employeeRepository.Remove(employee);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<EmployeeDto> UpdateAvatarAsync(int id, IFormFile? file, CancellationToken cancellationToken)
+    {
+        EmployeeRequestValidator.ValidateAvatar(file);
+
+        var employee = await employeeRepository.FindByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy nhân viên.");
+
+        var oldAvatarUrl = employee.AvatarUrl;
+        var avatarUrl = await fileStorageService.SaveAsync(
+            file!, AvatarFolder, $"{employee.EmpCode}_{DateTime.UtcNow.Ticks}", cancellationToken);
+        try
+        {
+            employee.AvatarUrl = avatarUrl;
+            employee.UpdatedAt = DateTime.UtcNow;
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            fileStorageService.Delete(avatarUrl);
+            throw;
+        }
+
+        fileStorageService.Delete(oldAvatarUrl);
+        return await ToDtoWithAssignmentsAsync(employee, cancellationToken);
     }
 
     /// <summary>Bổ nhiệm vị trí ban đầu, hiệu lực từ hôm nay; lỗi theo field đổi key cho khớp form tạo nhân viên.</summary>

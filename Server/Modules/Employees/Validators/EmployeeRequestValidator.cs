@@ -8,6 +8,11 @@ namespace Server.Modules.Employees.Validators;
 /// <summary>Kiểm tra dữ liệu đầu vào theo ràng buộc của bảng dbo.Employee; lỗi thì ném ValidationException.</summary>
 public static class EmployeeRequestValidator
 {
+    private const long MaxAvatarBytes = 5 * 1024 * 1024;
+
+    private static readonly HashSet<string> AvatarExtensions =
+        new([".png", ".jpg", ".jpeg", ".webp", ".gif"], StringComparer.OrdinalIgnoreCase);
+
     public static void Validate(CreateEmployeeRequest request)
     {
         var errors = ValidateCommon(request);
@@ -129,5 +134,26 @@ public static class EmployeeRequestValidator
         {
             throw new ValidationException("Dữ liệu không hợp lệ.", errors);
         }
+    }
+
+    public static void ValidateAvatar(IFormFile? file)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        if (file is null || file.Length == 0)
+        {
+            errors["file"] = ["Vui lòng chọn ảnh."];
+        }
+        else if (!AvatarExtensions.Contains(Path.GetExtension(file.FileName))
+                 || !file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            errors["file"] = ["Chỉ nhận ảnh PNG, JPG, WEBP hoặc GIF."];
+        }
+        else if (file.Length > MaxAvatarBytes)
+        {
+            errors["file"] = ["Ảnh tối đa 5MB."];
+        }
+
+        ThrowIfInvalid(errors);
     }
 }

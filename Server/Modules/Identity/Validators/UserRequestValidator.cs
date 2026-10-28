@@ -5,6 +5,7 @@ namespace Server.Modules.Identity.Validators;
 
 public static class UserRequestValidator
 {
+
     public static void Validate(CreateUserRequest request, AuthOptions.PasswordSettings passwordSettings)
     {
         var errors = new Dictionary<string, string[]>();
@@ -15,6 +16,11 @@ public static class UserRequestValidator
         }
 
         PasswordValidator.Validate(errors, "password", request.Password, passwordSettings);
+
+        if (request.RoleIds.Count == 0)
+        {
+            errors["roleIds"] = ["Vui lòng chọn ít nhất 1 vai trò."];
+        }
 
         errors.ThrowIfInvalid();
     }

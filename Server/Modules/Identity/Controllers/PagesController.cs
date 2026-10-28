@@ -46,6 +46,14 @@ public class PagesController(IPageService pageService) : ControllerBase
         return Ok(ApiResponse<PageDto>.Ok(result, "Cập nhật trang thành công."));
     }
 
+    [HttpPut("reorder")]
+    public async Task<ActionResult<ApiResponse<object>>> Reorder(
+        ReorderPagesRequest request, CancellationToken cancellationToken)
+    {
+        await pageService.ReorderAsync(request, cancellationToken);
+        return Ok(ApiResponse.Ok("Đã cập nhật thứ tự."));
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id, CancellationToken cancellationToken)
     {

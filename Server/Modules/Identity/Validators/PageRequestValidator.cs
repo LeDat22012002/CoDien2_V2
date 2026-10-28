@@ -71,6 +71,23 @@ public static partial class PageRequestValidator
         errors.ThrowIfInvalid();
     }
 
+    public static void Validate(ReorderPagesRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        if (!PageAreas.All.Contains(request.Area))
+        {
+            errors["area"] = ["Khu vực menu không hợp lệ (ADMIN hoặc PUBLIC)."];
+        }
+
+        if (request.OrderedIds.Count == 0 || request.OrderedIds.Distinct().Count() != request.OrderedIds.Count)
+        {
+            errors["orderedIds"] = ["Danh sách sắp xếp trống hoặc có trang lặp lại."];
+        }
+
+        errors.ThrowIfInvalid();
+    }
+
     private static bool IsHttpUrl(string value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri)
         && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);

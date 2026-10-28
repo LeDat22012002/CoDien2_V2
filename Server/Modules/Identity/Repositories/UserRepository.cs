@@ -20,7 +20,9 @@ public class UserRepository(AppDbContext dbContext) : IUserRepository
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
             var keyword = filter.Keyword.Trim();
-            query = query.Where(x => x.Employee.EmpCode.Contains(keyword) || x.Employee.FullName.Contains(keyword));
+            query = query.Where(x => x.Employee.EmpCode.Contains(keyword)
+                                     || x.Employee.FullName.Contains(keyword)
+                                     || (x.Employee.Email != null && x.Employee.Email.Contains(keyword)));
         }
 
         if (filter.RoleId is { } roleId)
@@ -33,12 +35,20 @@ public class UserRepository(AppDbContext dbContext) : IUserRepository
             query = query.Where(x => x.IsActive == isActive);
         }
 
+        var now = DateTime.UtcNow;
+        if (filter.IsLocked is { } isLocked)
+        {
+            query = isLocked
+                ? query.Where(x => x.LockoutEnd != null && x.LockoutEnd > now)
+                : query.Where(x => x.LockoutEnd == null || x.LockoutEnd <= now);
+        }
+
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderBy(x => x.Employee.EmpCode)
             .Skip((filter.PageIndex - 1) * filter.PageSize)
             .Take(filter.PageSize)
-            .Select(ToDto(DateTime.UtcNow))
+            .Select(ToDto(now))
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);
@@ -76,13 +86,23 @@ public class UserRepository(AppDbContext dbContext) : IUserRepository
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             var trimmed = keyword.Trim();
-            query = query.Where(e => e.EmpCode.Contains(trimmed) || e.FullName.Contains(trimmed));
+            query = query.Where(e => e.EmpCode.Contains(trimmed)
+                                     || e.FullName.Contains(trimmed)
+                                     || (e.Email != null && e.Email.Contains(trimmed)));
         }
 
         return await query
             .OrderBy(e => e.EmpCode)
             .Take(50)
-            .Select(e => new AvailableEmployeeDto { Id = e.Id, EmpCode = e.EmpCode, FullName = e.FullName })
+            .Select(e => new AvailableEmployeeDto
+            {
+                Id = e.Id,
+                EmpCode = e.EmpCode,
+                FullName = e.FullName,
+                AvatarUrl = e.AvatarUrl,
+                Email = e.Email,
+                Phone = e.Phone,
+            })
             .ToListAsync(cancellationToken);
     }
 
@@ -95,6 +115,8 @@ public class UserRepository(AppDbContext dbContext) : IUserRepository
 
     public void Add(User user) => Users.Add(user);
 
+    public void Remove(User user) => Users.Remove(user);
+
     private static Expression<Func<User, UserDto>> ToDto(DateTime now) => x => new UserDto
     {
         Id = x.Id,
@@ -102,6 +124,8 @@ public class UserRepository(AppDbContext dbContext) : IUserRepository
         EmpCode = x.Employee.EmpCode,
         FullName = x.Employee.FullName,
         AvatarUrl = x.Employee.AvatarUrl,
+        Email = x.Employee.Email,
+        Phone = x.Employee.Phone,
         EmployeeStatus = x.Employee.Status,
         IsActive = x.IsActive,
         IsLocked = x.LockoutEnd != null && x.LockoutEnd > now,

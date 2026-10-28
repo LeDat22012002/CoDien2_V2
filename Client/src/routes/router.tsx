@@ -118,7 +118,43 @@ export const router = createBrowserRouter([
                   },
                 ],
               },
-              // Các route quản trị khác (users,...) đặt ở đây
+              {
+                element: <PageGuard pagePath="/admin/users" />,
+                children: [
+                  {
+                    path: "admin/users",
+                    lazy: () =>
+                      import("@/modules/identity/pages/UserListPage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/roles" />,
+                children: [
+                  {
+                    path: "admin/roles",
+                    lazy: () =>
+                      import("@/modules/identity/pages/RoleManagementPage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/pages" />,
+                children: [
+                  {
+                    path: "admin/pages",
+                    lazy: () =>
+                      import("@/modules/identity/pages/PageManagementPage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
+              // Các route quản trị khác đặt ở đây (nhớ thêm vào APP_ROUTE_PATHS ở shared/constants/routes.ts)
             ],
           },
         ],

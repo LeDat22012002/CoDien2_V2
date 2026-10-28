@@ -15,4 +15,7 @@ public interface IPageService
     Task<PageDto> UpdateAsync(int id, UpdatePageRequest request, CancellationToken cancellationToken);
 
     Task DeleteAsync(int id, CancellationToken cancellationToken);
+
+    /// <summary>Đổi thứ tự các trang cùng cấp (SortOrder = 10, 20, 30… chừa chỗ chèn tay).</summary>
+    Task ReorderAsync(ReorderPagesRequest request, CancellationToken cancellationToken);
 }

@@ -34,6 +34,7 @@ public static class IdentitySeedData
         new(PermissionCodes.Users.Create, "Tạo tài khoản", "users", 21),
         new(PermissionCodes.Users.Update, "Sửa tài khoản, gán vai trò", "users", 22),
         new(PermissionCodes.Users.ResetPassword, "Đặt lại mật khẩu", "users", 23),
+        new(PermissionCodes.Users.Delete, "Xóa tài khoản", "users", 24),
 
         new(PermissionCodes.Roles.View, "Xem vai trò", "roles", 30),
         new(PermissionCodes.Roles.Manage, "Quản lý vai trò và phân quyền", "roles", 31),

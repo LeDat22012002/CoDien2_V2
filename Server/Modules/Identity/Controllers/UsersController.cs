@@ -72,4 +72,12 @@ public class UsersController(IUserService userService) : ControllerBase
         await userService.UnlockAsync(id, cancellationToken);
         return Ok(ApiResponse.Ok("Mở khóa tài khoản thành công."));
     }
+
+    [HasPermission(PermissionCodes.Users.Delete)]
+    [HttpDelete("{id:int}")]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(int id, CancellationToken cancellationToken)
+    {
+        await userService.DeleteAsync(id, cancellationToken);
+        return Ok(ApiResponse.Ok("Xóa tài khoản thành công."));
+    }
 }

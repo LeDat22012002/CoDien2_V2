@@ -25,6 +25,9 @@ public interface IPageRepository
     /// <summary>Id → ParentId của mọi trang, dùng để chặn vòng lặp cha-con.</summary>
     Task<Dictionary<int, int?>> GetParentMapAsync(CancellationToken cancellationToken);
 
+    /// <summary>Có tracking: các trang cùng cha (ParentId null = cấp gốc của Area).</summary>
+    Task<IReadOnlyList<Page>> GetSiblingsAsync(int? parentId, string area, CancellationToken cancellationToken);
+
     void Add(Page page);
 
     void Remove(Page page);

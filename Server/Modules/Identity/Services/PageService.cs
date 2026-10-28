@@ -15,6 +15,7 @@ public class PageService(
     IUnitOfWork unitOfWork) : IPageService
 {
     private const string PageNotFoundMessage = "Không tìm thấy trang.";
+    private const int SortOrderStep = 10;
 
     public async Task<IReadOnlyList<PageDto>> GetTreeAsync(CancellationToken cancellationToken)
     {
@@ -79,6 +80,30 @@ public class PageService(
         }
 
         pageRepository.Remove(page);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ReorderAsync(ReorderPagesRequest request, CancellationToken cancellationToken)
+    {
+        request.Area = string.IsNullOrWhiteSpace(request.Area) ? PageAreas.Admin : request.Area.Trim().ToUpperInvariant();
+        PageRequestValidator.Validate(request);
+
+        var siblings = await pageRepository.GetSiblingsAsync(request.ParentId, request.Area, cancellationToken);
+        var siblingIds = siblings.Select(x => x.Id).ToHashSet();
+        if (siblings.Count == 0
+            || request.OrderedIds.Count != siblingIds.Count
+            || !request.OrderedIds.All(siblingIds.Contains))
+        {
+            throw new BusinessException(
+                "Danh sách sắp xếp phải gồm đủ các trang cùng cấp hiện có. Hãy tải lại trang rồi thử lại.");
+        }
+
+        var siblingsById = siblings.ToDictionary(x => x.Id);
+        for (var index = 0; index < request.OrderedIds.Count; index++)
+        {
+            siblingsById[request.OrderedIds[index]].SortOrder = (index + 1) * SortOrderStep;
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 

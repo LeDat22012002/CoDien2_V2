@@ -26,6 +26,7 @@ public static class PermissionCodes
         public const string Create = "users.create";
         public const string Update = "users.update";
         public const string ResetPassword = "users.reset-password";
+        public const string Delete = "users.delete";
     }
 
     public static class Roles

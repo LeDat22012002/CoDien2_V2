@@ -14,4 +14,7 @@ public interface IEmployeeService
     Task<EmployeeDto> UpdateAsync(int id, UpdateEmployeeRequest request, CancellationToken cancellationToken);
 
     Task DeleteAsync(int id, CancellationToken cancellationToken);
+
+    /// <summary>Lưu ảnh vào thư mục upload, cập nhật AvatarUrl và xóa ảnh cũ.</summary>
+    Task<EmployeeDto> UpdateAvatarAsync(int id, IFormFile? file, CancellationToken cancellationToken);
 }

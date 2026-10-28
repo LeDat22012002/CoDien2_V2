@@ -1,10 +1,11 @@
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useInvalidateAssignments } from '@/shared/hooks/useOrgStructure';
 import {
   createEmployee,
   getEmployeeById,
   getEmployees,
   updateEmployee,
+  uploadEmployeeAvatar,
 } from '@/modules/employees/api/employeesApi';
 import type { EmployeeFilter, UpdateEmployeeRequest } from '@/modules/employees/types/employees';
 
@@ -43,5 +44,16 @@ export const useUpdateEmployee = () => {
   return useMutation({
     mutationFn: ({ id, request }: { id: number; request: UpdateEmployeeRequest }) => updateEmployee(id, request),
     onSuccess: invalidate,
+  });
+};
+
+/** Ảnh đại diện hiện ở danh sách nhân viên, tài khoản và sơ đồ tổ chức. */
+export const useUploadEmployeeAvatar = () => {
+  const invalidate = useInvalidateAssignments();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: number; file: File }) => uploadEmployeeAvatar(id, file),
+    onSuccess: () =>
+      Promise.all([invalidate(), queryClient.invalidateQueries({ queryKey: ['users'] })]),
   });
 };

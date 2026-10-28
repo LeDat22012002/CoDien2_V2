@@ -7,6 +7,7 @@ using Server.Modules.Identity.Entities;
 using Server.Modules.Identity.Repositories.Interfaces;
 using Server.Modules.Identity.Services.Interfaces;
 using Server.Modules.Identity.Validators;
+using Server.Modules.Organization.Services.Interfaces;
 using Server.Shared.Exceptions;
 using Server.Shared.Models;
 using Server.Shared.Services;
@@ -21,6 +22,7 @@ public class UserService(
     IPasswordHasher<User> passwordHasher,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
+    IAssignmentService assignmentService,
     IOptions<AuthOptions> authOptions) : IUserService
 {
     private const string UserNotFoundMessage = "Không tìm thấy tài khoản.";
@@ -30,6 +32,7 @@ public class UserService(
     public async Task<PagedResult<UserDto>> GetPagedAsync(UserFilterRequest filter, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await userRepository.GetPagedAsync(filter, cancellationToken);
+        await AttachPrimaryAssignmentsAsync(items, x => x.EmployeeId, cancellationToken);
 
         return new PagedResult<UserDto>
         {
@@ -40,13 +43,22 @@ public class UserService(
         };
     }
 
-    public async Task<UserDto> GetByIdAsync(int id, CancellationToken cancellationToken) =>
-        await userRepository.GetByIdAsync(id, cancellationToken)
-        ?? throw new NotFoundException(UserNotFoundMessage);
+    public async Task<UserDto> GetByIdAsync(int id, CancellationToken cancellationToken)
+    {
+        var user = await userRepository.GetByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException(UserNotFoundMessage);
 
-    public Task<IReadOnlyList<AvailableEmployeeDto>> GetAvailableEmployeesAsync(
-        string? keyword, CancellationToken cancellationToken) =>
-        userRepository.GetAvailableEmployeesAsync(keyword, cancellationToken);
+        await AttachPrimaryAssignmentsAsync([user], x => x.EmployeeId, cancellationToken);
+        return user;
+    }
+
+    public async Task<IReadOnlyList<AvailableEmployeeDto>> GetAvailableEmployeesAsync(
+        string? keyword, CancellationToken cancellationToken)
+    {
+        var employees = await userRepository.GetAvailableEmployeesAsync(keyword, cancellationToken);
+        await AttachPrimaryAssignmentsAsync(employees, x => x.Id, cancellationToken);
+        return employees;
+    }
 
     public async Task<UserDto> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
@@ -71,7 +83,7 @@ public class UserService(
         var user = new User
         {
             EmployeeId = employee.Id,
-            IsActive = request.IsActive,
+            IsActive = true,
             MustChangePassword = false,
         };
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
@@ -174,6 +186,64 @@ public class UserService(
         user.FailedLoginCount = 0;
         user.LockoutEnd = null;
         await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteAsync(int id, CancellationToken cancellationToken)
+    {
+        var user = await userRepository.FindByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException(UserNotFoundMessage);
+
+        var current = await permissionService.GetCurrentUserStateAsync(cancellationToken);
+        if (user.Id == current.UserId)
+        {
+            throw new BusinessException("Không thể tự xóa tài khoản của chính mình.");
+        }
+
+        await EnsureCanManageUserAsync(user.Id, current, cancellationToken);
+        await EnsureNotRemovingLastSuperAdminAsync(user, new HashSet<int>(), false, cancellationToken);
+
+        var now = DateTime.UtcNow;
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            // Vô hiệu ngay mọi phiên đang đăng nhập rồi xóa mềm
+            user.RenewSecurityStamp();
+            await refreshTokenRepository.RevokeAllAsync(user.Id, now, ct);
+            userRepository.Remove(user);
+        }, cancellationToken);
+
+        permissionService.InvalidateUser(user.Id);
+    }
+
+    /// <summary>Gắn chức danh, đơn vị của vị trí chính đang giữ (danh sách đã xếp vị trí chính trước, mới nhất trước).</summary>
+    private async Task AttachPrimaryAssignmentsAsync<T>(
+        IReadOnlyCollection<T> items, Func<T, int> getEmployeeId, CancellationToken cancellationToken)
+    {
+        var assignments = await assignmentService.GetCurrentAssignmentsAsync(
+            items.Select(getEmployeeId).Distinct().ToList(), cancellationToken);
+        var primaryByEmployee = assignments
+            .GroupBy(x => x.EmployeeId)
+            .ToDictionary(x => x.Key, x => x.First());
+
+        foreach (var item in items)
+        {
+            if (!primaryByEmployee.TryGetValue(getEmployeeId(item), out var assignment))
+            {
+                continue;
+            }
+
+            switch (item)
+            {
+                case UserDto user:
+                    user.JobTitle = assignment.JobTitle ?? assignment.LevelName;
+                    user.OrgUnitName = assignment.OrgUnitName;
+                    user.IsActing = assignment.IsActing;
+                    break;
+                case AvailableEmployeeDto employee:
+                    employee.JobTitle = assignment.JobTitle ?? assignment.LevelName;
+                    employee.OrgUnitName = assignment.OrgUnitName;
+                    break;
+            }
+        }
     }
 
     /// <summary>Chỉ SUPER_ADMIN mới được sửa / đặt lại mật khẩu tài khoản SUPER_ADMIN khác.</summary>

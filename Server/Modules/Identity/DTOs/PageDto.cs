@@ -54,3 +54,14 @@ public abstract class PageRequestBase
 public class CreatePageRequest : PageRequestBase;
 
 public class UpdatePageRequest : PageRequestBase;
+
+/// <summary>
+/// Sắp xếp lại các trang cùng cấp: OrderedIds = toàn bộ Id trang con của ParentId (null = cấp gốc của Area)
+/// theo thứ tự mới.
+/// </summary>
+public class ReorderPagesRequest
+{
+    public int? ParentId { get; set; }
+    public string Area { get; set; } = PageAreas.Admin;
+    public List<int> OrderedIds { get; set; } = [];
+}

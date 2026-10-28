@@ -1,6 +1,24 @@
-import { Alert, Checkbox, Col, DatePicker, Divider, Form, Input, Modal, Row, Select, Spin, Switch, TreeSelect } from 'antd';
+import { CameraOutlined } from '@ant-design/icons';
+import {
+  Alert,
+  Avatar,
+  Button,
+  Checkbox,
+  Col,
+  DatePicker,
+  Divider,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Select,
+  Spin,
+  Switch,
+  TreeSelect,
+  Upload,
+} from 'antd';
 import type { Dayjs } from 'dayjs';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getErrorMessage } from '@/shared/api/axiosClient';
 import dayjs from '@/shared/utils/dayjs';
 import { DATE_FORMAT, toIsoDate } from '@/shared/utils/format';
@@ -9,11 +27,13 @@ import { notify } from '@/shared/utils/notify';
 import { PositionCard } from '@/shared/components/PositionCard';
 import type { OrgUnit, PositionLevel } from '@/shared/types/organization';
 import { buildUnitTree, renderUnitTreeTitle } from '@/shared/utils/orgUnitTree';
+import { useAuthStore } from '@/stores/authStore';
 import { EDUCATION_LEVEL_OPTIONS, GENDER_OPTIONS } from '@/modules/employees/constants/employeeOptions';
 import {
   useCreateEmployee,
   useEmployeeDetail,
   useUpdateEmployee,
+  useUploadEmployeeAvatar,
 } from '@/modules/employees/hooks/useEmployeeQueries';
 import type { CreateEmployeeRequest, EducationLevel, Gender } from '@/modules/employees/types/employees';
 
@@ -26,7 +46,6 @@ interface EmployeeFormValues {
   major?: string;
   email?: string;
   phone?: string;
-  avatarUrl?: string;
   // Vị trí ban đầu (chỉ khi thêm mới)
   withAssignment?: boolean;
   orgUnitCode?: string;
@@ -38,6 +57,10 @@ interface EmployeeFormValues {
 }
 
 const PHONE_PATTERN = /^[0-9+\s.-]{8,20}$/;
+
+/** Ảnh đại diện: khớp kiểm tra ở Server (EmployeeRequestValidator.ValidateAvatar). */
+const AVATAR_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif';
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
 const toPersonalRequest = (values: EmployeeFormValues): Omit<CreateEmployeeRequest, 'empCode'> => ({
   fullName: values.fullName,
@@ -75,7 +98,31 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
   const detail = detailQuery.data;
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const avatarMutation = useUploadEmployeeAvatar();
+  const isSaving = createMutation.isPending || updateMutation.isPending || avatarMutation.isPending;
+  const currentUser = useAuthStore((state) => state.user);
+  const setCurrentUser = useAuthStore((state) => state.setUser);
+
+  // Ảnh mới chọn: chỉ gửi lên khi bấm Lưu
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  const replaceAvatar = (file: File | null) => {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setAvatarFile(file);
+    setAvatarPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const handleClose = () => {
+    replaceAvatar(null);
+    onClose();
+  };
+
+  const handlePickAvatar = (file: File) => {
+    if (file.size > AVATAR_MAX_BYTES) notify.warning('Ảnh tối đa 5MB.');
+    else replaceAvatar(file);
+    return Upload.LIST_IGNORE;
+  };
 
   const unitTree = useMemo(() => buildUnitTree(units, 'code'), [units]);
   const levelOptions = useMemo(
@@ -101,7 +148,6 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
         major: detail.major ?? undefined,
         email: detail.email ?? undefined,
         phone: detail.phone ?? undefined,
-        avatarUrl: detail.avatarUrl ?? undefined,
       });
     }
   }, [open, isCreate, detail, canAssign, form]);
@@ -139,13 +185,18 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
           request: {
             empCode: detail.empCode,
             ...toPersonalRequest(values),
-            avatarUrl: values.avatarUrl,
+            avatarUrl: detail.avatarUrl ?? undefined,
             status: detail.status,
           },
         });
+        if (avatarFile) {
+          const updated = await avatarMutation.mutateAsync({ id: detail.id, file: avatarFile });
+          // Đổi ảnh của chính mình → cập nhật luôn avatar trên header
+          if (currentUser?.employeeId === detail.id) setCurrentUser({ ...currentUser, avatarUrl: updated.avatarUrl });
+        }
         notify.success('Cập nhật nhân viên thành công.');
       }
-      onClose();
+      handleClose();
     } catch (error) {
       if (!applyServerErrors(form, error)) notify.apiError(error);
     }
@@ -160,7 +211,7 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
       okText={isCreate ? 'Thêm mới' : 'Lưu thay đổi'}
       cancelText="Hủy"
       onOk={handleSubmit}
-      onCancel={onClose}
+      onCancel={handleClose}
       confirmLoading={isSaving}
       okButtonProps={{ disabled: isLoadingDetail || (!isCreate && !detail) }}
       mask={{ closable: false }}
@@ -252,12 +303,20 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
 
             {!isCreate && (
               <Col span={24}>
-                <Form.Item
-                  name="avatarUrl"
-                  label="Ảnh đại diện (đường dẫn)"
-                  rules={[{ max: 500, message: 'Tối đa 500 ký tự' }]}
-                >
-                  <Input placeholder="https://…" />
+                <Form.Item label="Ảnh đại diện" extra="PNG, JPG, WEBP hoặc GIF, tối đa 5MB. Ảnh mới được lưu khi bấm Lưu thay đổi.">
+                  <div className="flex items-center gap-3">
+                    <Avatar size={64} src={avatarPreview ?? detail?.avatarUrl ?? undefined} className="shrink-0 bg-primary">
+                      {detail?.fullName.trim().split(/\s+/).pop()?.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Upload accept={AVATAR_ACCEPT} showUploadList={false} beforeUpload={handlePickAvatar}>
+                      <Button icon={<CameraOutlined />}>{detail?.avatarUrl || avatarFile ? 'Đổi ảnh' : 'Chọn ảnh'}</Button>
+                    </Upload>
+                    {avatarFile && (
+                      <Button type="link" onClick={() => replaceAvatar(null)}>
+                        Bỏ chọn
+                      </Button>
+                    )}
+                  </div>
                 </Form.Item>
               </Col>
             )}
