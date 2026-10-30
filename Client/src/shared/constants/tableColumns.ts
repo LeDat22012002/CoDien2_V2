@@ -8,6 +8,8 @@ import type { Breakpoint, TableColumnsType } from 'antd';
 export const COLUMN_WIDTH = {
   /** STT. */
   index: 60,
+  /** Giá trị rất ngắn: kíp, Có/Không, %… */
+  short: 90,
   /** Mã ngắn: mã NV, mã thiết bị… */
   code: 110,
   /** Số điện thoại. */
@@ -28,6 +30,8 @@ export const COLUMN_WIDTH = {
   text: 220,
   /** Chữ dài: chức danh, mô tả, ghi chú… */
   longText: 280,
+  /** Đoạn văn hiện đầy đủ, tự xuống dòng (bảng cần đọc kỹ như báo cáo sự cố). */
+  paragraph: 400,
   /** Ô chọn (Select) sửa trực tiếp trong bảng. */
   select: 180,
   /** Cột thao tác 3 nút icon. */

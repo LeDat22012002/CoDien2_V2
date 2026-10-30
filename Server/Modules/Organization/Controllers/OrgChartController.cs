@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Server.Gateway.Authorization;
 using Server.Modules.Organization.DTOs;
@@ -12,7 +13,11 @@ namespace Server.Modules.Organization.Controllers;
 [HasPermission(PermissionCodes.OrgChart.View)]
 public class OrgChartController(IOrgChartService orgChartService) : ControllerBase
 {
-    /// <summary>Toàn bộ cây sơ đồ trong 1 lần gọi; FE xếp node theo Row và hiện hover từ Heads / Deputies / Blocks.</summary>
+    /// <summary>
+    /// Toàn bộ cây sơ đồ trong 1 lần gọi; FE xếp node theo Row và hiện hover từ Heads / Deputies / Blocks.
+    /// Công khai cho trang Sơ đồ tổ chức (không cần đăng nhập).
+    /// </summary>
+    [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult<ApiResponse<OrgChartTreeDto>>> GetTree(CancellationToken cancellationToken)
     {
@@ -20,6 +25,8 @@ public class OrgChartController(IOrgChartService orgChartService) : ControllerBa
         return Ok(ApiResponse<OrgChartTreeDto>.Ok(result));
     }
 
+    /// <summary>Người trong đơn vị, công khai cho trang Sơ đồ tổ chức.</summary>
+    [AllowAnonymous]
     [HttpGet("units/{orgUnitId:int}/members")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<UnitMemberDto>>>> GetMembers(
         int orgUnitId, CancellationToken cancellationToken)

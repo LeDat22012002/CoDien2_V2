@@ -50,7 +50,7 @@ export const reorderPageTree = (tree: Page[], parentId: number | null, orderedId
 export const toPageCode = (title: string) =>
   title
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/\p{Diacritic}/gu, '')
     .replace(/đ/gi, 'd')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')

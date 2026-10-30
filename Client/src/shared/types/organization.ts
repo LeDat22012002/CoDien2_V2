@@ -75,6 +75,9 @@ export interface UnitMember {
   employeeId: number;
   empCode: string;
   fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  avatarUrl?: string | null;
   levelCode: string;
   levelName: string;
   unitRole: UnitRole;

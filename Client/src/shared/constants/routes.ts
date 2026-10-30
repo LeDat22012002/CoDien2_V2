@@ -7,11 +7,14 @@ export const DEFAULT_PUBLIC_PATH = '/documents/issue';
  */
 export const APP_ROUTE_PATHS = [
   '/documents/issue',
+  '/org/organizationalchart',
+  '/incidents',
   '/admin/dashboard',
   '/admin/employees',
   '/admin/org-units',
   '/admin/position-levels',
   '/admin/users',
   '/admin/roles',
+  '/admin/permissions',
   '/admin/pages',
 ] as const;

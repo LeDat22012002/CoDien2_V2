@@ -21,6 +21,7 @@
     "react-router": "^7.18.4",
     "react-slick": "^0.31.0",
     "react-toastify": "^11.1.0",
+    "react-zoom-pan-pinch": "^4.2.0",
     "slick-carousel": "^1.8.1",
     "sweetalert2": "^11.26.25",
     "zustand": "^5.0.15"

@@ -55,7 +55,6 @@ export const EmployeeFilterBar = ({
         treeDefaultExpandedKeys={unitTree.map((node) => node.value)}
         placeholder="Lọc theo đơn vị"
         loading={isUnitsLoading}
-        popupMatchSelectWidth={false}
         listHeight={380}
         treeTitleRender={renderUnitTreeTitle}
         className="w-full sm:w-72"

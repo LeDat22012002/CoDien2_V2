@@ -88,6 +88,7 @@ server/
 - Đổi chức vụ (`AssignmentService.ChangeAsync`, thay cho `usp_ChangeAssignment` cũ): kết thúc mọi vị trí chính đang giữ vào ngày trước ngày hiệu lực rồi tạo vị trí chính mới; chặn trưởng chính thức thứ 2 ở đơn vị SingleHead, chặn Kỹ sư thứ 2 ở Tổ, ngày hiệu lực phải sau ngày bắt đầu vị trí hiện tại.
 - Nhân viên chuyển INACTIVE → `IAssignmentService.EndAllActiveAsync` kết thúc mọi vị trí (Employees gọi qua Service, lưu chung 1 lần SaveChanges).
 - Xóa đơn vị = `IsActive = false`; chặn khi còn đơn vị con hoặc còn người giữ vị trí. GD luôn hàng 1, PGD luôn hàng 2 trên sơ đồ.
+- Trang Sơ đồ tổ chức là trang công khai: `GET /api/org-chart` và `GET /api/org-chart/units/{id}/members` gắn `[AllowAnonymous]` (gồm cả email, SĐT nhân viên); `lookups` vẫn cần `org-chart.view`.
 - Secret lấy từ User Secrets hoặc biến môi trường. Connection string và `Jwt:SecretKey` đang nằm trong User Secrets, không ghi vào appsettings.
 
 ## Cấp số văn bản (module Documents)

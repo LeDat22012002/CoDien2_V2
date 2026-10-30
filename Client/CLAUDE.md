@@ -79,6 +79,7 @@ src/
 
 - Table phân trang phía server, có `rowKey` và trạng thái loading; có tìm kiếm, lọc, sắp xếp khi dữ liệu nhiều.
 - Form dùng AntD `Form` với validate rõ ràng, thông báo lỗi dễ hiểu.
+- Dropdown của Select / TreeSelect / AutoComplete luôn rộng bằng ô nhập: không dùng `popupMatchSelectWidth={false}` hay đặt độ rộng popup riêng. Lựa chọn dài thì để AntD cắt "…".
 - Xóa và phê duyệt phải có xác nhận.
 
 ## Định dạng hiển thị

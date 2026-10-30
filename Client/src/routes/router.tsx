@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import type { PublicRouteHandle } from "@/layouts/PublicLayout";
 import { createBrowserRouter, Navigate } from "react-router";
 import { FullPageLoading } from "@/shared/components/FullPageLoading";
 import { DEFAULT_PUBLIC_PATH } from "@/shared/constants/routes";
@@ -54,6 +55,24 @@ export const router = createBrowserRouter([
             path: "documents/issue",
             lazy: () =>
               import("@/modules/documents/pages/DocumentIssuePage").then(
+                toRoute,
+              ),
+          },
+          {
+            path: "org/organizationalchart",
+            // Sơ đồ chiếm toàn màn hình dưới header
+            handle: { isFullScreen: true } satisfies PublicRouteHandle,
+            lazy: () =>
+              import("@/modules/organization/pages/OrgChartPage").then(
+                toRoute,
+              ),
+          },
+          {
+            path: "incidents",
+            // Bảng nhiều cột: dùng hết bề rộng màn hình
+            handle: { isFullScreen: true } satisfies PublicRouteHandle,
+            lazy: () =>
+              import("@/modules/incidents/pages/IncidentListPage").then(
                 toRoute,
               ),
           },
@@ -136,9 +155,21 @@ export const router = createBrowserRouter([
                   {
                     path: "admin/roles",
                     lazy: () =>
-                      import("@/modules/identity/pages/RoleManagementPage").then(
+                      import("@/modules/identity/pages/RoleListPage").then(
                         toRoute,
                       ),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/permissions" />,
+                children: [
+                  {
+                    path: "admin/permissions",
+                    lazy: () =>
+                      import(
+                        "@/modules/identity/pages/PermissionAssignmentPage"
+                      ).then(toRoute),
                   },
                 ],
               },

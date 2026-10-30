@@ -3,6 +3,7 @@ import { ORG_QUERY_KEYS } from '@/shared/hooks/useOrgStructure';
 import {
   createOrgUnit,
   deleteOrgUnit,
+  getOrgChart,
   getPositionLevels,
   reorderOrgUnits,
   updateOrgUnit,
@@ -12,7 +13,15 @@ import type { UpdateOrgUnitRequest, UpdatePositionLevelRequest } from '@/modules
 
 export const ORGANIZATION_QUERY_KEYS = {
   positionLevels: ['position-levels'] as const,
+  orgChart: ['org-chart', 'tree'] as const,
 };
+
+/** Cây sơ đồ tổ chức (trang công khai). */
+export const useOrgChart = () =>
+  useQuery({
+    queryKey: ORGANIZATION_QUERY_KEYS.orgChart,
+    queryFn: getOrgChart,
+  });
 
 /** Đổi đơn vị → làm mới danh sách đơn vị (mọi bộ lọc) và danh sách nhân viên (tên đơn vị hiển thị ở đó). */
 const useInvalidateOrgUnits = () => {

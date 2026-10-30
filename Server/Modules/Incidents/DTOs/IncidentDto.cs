@@ -48,6 +48,13 @@ public class IncidentDto
         from.HasValue && to.HasValue ? Math.Round((to.Value - from.Value).TotalMinutes, 2) : null;
 }
 
+/// <summary>Xưởng (đơn vị cấp 1 đang hoạt động) cho ô chọn của báo cáo sự cố.</summary>
+public class IncidentWorkshopDto
+{
+    public int Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+}
+
 public class IncidentImportResultDto
 {
     public int TotalRows { get; set; }

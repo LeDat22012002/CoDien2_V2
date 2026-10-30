@@ -3,9 +3,7 @@ import { Empty, Grid, Input, Segmented, Table, Typography, type TableColumnsType
 import { useMemo, useState, type Key } from 'react';
 import { COLUMN_WIDTH, getTableScrollX } from '@/shared/constants/tableColumns';
 import { useTableScrollY } from '@/shared/hooks/useTableScrollY';
-import { notify } from '@/shared/utils/notify';
 import { getPermissionModuleLabel, normalizeSearchText } from '@/modules/identity/constants/roleOptions';
-import { useUpdatePermission } from '@/modules/identity/hooks/useRoleQueries';
 import type { Permission, PermissionGroup } from '@/modules/identity/types/roles';
 
 type CheckedFilter = 'all' | 'checked' | 'unchecked';
@@ -36,23 +34,19 @@ interface PermissionTableProps {
   selectedIds: ReadonlySet<number>;
   /** Chỉ xem (không có quyền quản lý, hoặc vai trò hệ thống). */
   isReadOnly: boolean;
-  /** Cho sửa tên hiển thị của quyền (roles.manage). */
-  canRename: boolean;
   onChange: (selectedIds: Set<number>) => void;
 }
 
 /**
  * Bảng phân quyền: mỗi nhóm module là 1 dòng cha, mở ra là các quyền. Tick dòng cha = chọn cả nhóm
  * (tự hiện "chọn một phần"). Bảng cao bằng khung cha, thân bảng cuộn bên trong.
- * Mã quyền do Server định nghĩa nên chỉ đổi được tên hiển thị.
  */
-export const PermissionTable = ({ groups, selectedIds, isReadOnly, canRename, onChange }: PermissionTableProps) => {
+export const PermissionTable = ({ groups, selectedIds, isReadOnly, onChange }: PermissionTableProps) => {
   const [keyword, setKeyword] = useState('');
   const [checkedFilter, setCheckedFilter] = useState<CheckedFilter>('all');
   const [collapsedKeys, setCollapsedKeys] = useState<string[]>([]);
   const { containerRef, scrollY } = useTableScrollY();
   const screens = Grid.useBreakpoint();
-  const updatePermissionMutation = useUpdatePermission();
 
   const normalizedKeyword = normalizeSearchText(keyword);
   const rows = useMemo<PermissionRow[]>(
@@ -87,19 +81,13 @@ export const PermissionTable = ({ groups, selectedIds, isReadOnly, canRename, on
   const isFiltering = Boolean(normalizedKeyword) || checkedFilter !== 'all';
   const expandedKeys = rows.map((row) => row.key).filter((key) => isFiltering || !collapsedKeys.includes(key));
 
-  const handleRename = async (permission: Permission, name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed || trimmed === permission.name) return;
-    try {
-      await updatePermissionMutation.mutateAsync({
-        id: permission.id,
-        request: { name: trimmed, sortOrder: permission.sortOrder },
-      });
-      notify.success('Đã đổi tên quyền.');
-    } catch (error) {
-      notify.apiError(error);
-    }
-  };
+  // Ô tick bị khóa (chỉ xem) thì antd không tự tính dòng nhóm từ dòng con → khai báo luôn nhóm đã chọn đủ
+  const selectedRowKeys = [
+    ...[...selectedIds].map(toPermissionKey),
+    ...rows
+      .filter((row) => row.children?.every((child) => selectedIds.has(child.permission?.id ?? -1)))
+      .map((row) => row.key),
+  ];
 
   /**
    * antd trả về key các dòng đang tick (gồm cả dòng nhóm). Chỉ đổi các quyền đang hiển thị
@@ -126,19 +114,7 @@ export const PermissionTable = ({ groups, selectedIds, isReadOnly, canRename, on
       width: COLUMN_WIDTH.longText,
       render: (_, row) =>
         row.permission ? (
-          <Typography.Text
-            ellipsis={{ tooltip: row.permission.name }}
-            className="block"
-            editable={
-              canRename
-                ? {
-                    tooltip: 'Đổi tên hiển thị',
-                    maxLength: 200,
-                    onChange: (value) => void handleRename(row.permission!, value),
-                  }
-                : false
-            }
-          >
+          <Typography.Text ellipsis={{ tooltip: row.permission.name }} className="block">
             {row.permission.name}
           </Typography.Text>
         ) : (
@@ -194,7 +170,7 @@ export const PermissionTable = ({ groups, selectedIds, isReadOnly, canRename, on
           scroll={{ x: getTableScrollX(columns, screens), y: scrollY }}
           className="[&_.ant-table-cell]:whitespace-nowrap"
           rowSelection={{
-            selectedRowKeys: [...selectedIds].map(toPermissionKey),
+            selectedRowKeys,
             onChange: handleSelectionChange,
             getCheckboxProps: () => ({ disabled: isReadOnly }),
             columnWidth: 48,

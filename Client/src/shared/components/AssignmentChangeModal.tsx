@@ -327,7 +327,6 @@ export const AssignmentChangeModal = ({
                 treeNodeFilterProp="searchText"
                 treeDefaultExpandedKeys={unitTree.map((node) => node.value)}
                 placeholder="Chọn Xưởng / Đội / Tổ…"
-                popupMatchSelectWidth={false}
                 listHeight={360}
                 treeTitleRender={renderUnitTreeTitle}
               />

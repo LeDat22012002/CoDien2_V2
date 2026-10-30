@@ -328,7 +328,6 @@ export const OrgUnitFormModal = ({
                   treeData={parentTree}
                   treeNodeFilterProp="searchText"
                   treeDefaultExpandAll
-                  popupMatchSelectWidth={false}
                   listHeight={360}
                   treeTitleRender={renderUnitTreeTitle}
                 />

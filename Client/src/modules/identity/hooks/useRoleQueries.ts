@@ -5,10 +5,9 @@ import {
   getPermissionGroups,
   getRoleById,
   getRoles,
-  updatePermission,
   updateRole,
 } from '@/modules/identity/api/rolesApi';
-import type { UpdatePermissionRequest, UpdateRoleRequest } from '@/modules/identity/types/roles';
+import type { UpdateRoleRequest } from '@/modules/identity/types/roles';
 
 export const ROLE_QUERY_KEYS = {
   all: ['roles'] as const,
@@ -65,12 +64,4 @@ export const useUpdateRole = () => {
 export const useDeleteRole = () => {
   const invalidate = useInvalidateRoles();
   return useMutation({ mutationFn: deleteRole, onSuccess: invalidate });
-};
-
-export const useUpdatePermission = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, request }: { id: number; request: UpdatePermissionRequest }) => updatePermission(id, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ROLE_QUERY_KEYS.permissions }),
-  });
 };

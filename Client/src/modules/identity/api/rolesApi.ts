@@ -1,11 +1,9 @@
 import { httpDelete, httpGet, httpPost, httpPut } from '@/shared/api/axiosClient';
 import type {
   CreateRoleRequest,
-  Permission,
   PermissionGroup,
   Role,
   RoleDetail,
-  UpdatePermissionRequest,
   UpdateRoleRequest,
 } from '@/modules/identity/types/roles';
 
@@ -25,6 +23,3 @@ export const deleteRole = (id: number) => httpDelete<null>(`/roles/${id}`);
 
 /** Quyền nhóm theo module, đã sắp xếp. */
 export const getPermissionGroups = () => httpGet<PermissionGroup[]>('/permissions');
-
-export const updatePermission = (id: number, request: UpdatePermissionRequest) =>
-  httpPut<Permission>(`/permissions/${id}`, request);

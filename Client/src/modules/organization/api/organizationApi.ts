@@ -6,8 +6,14 @@ import type {
   UpdateOrgUnitRequest,
   UpdatePositionLevelRequest,
 } from '@/modules/organization/types/organization';
+import type { OrgChartTree } from '@/modules/organization/types/orgChart';
 
 // Danh sách đơn vị, lookups, người trong đơn vị, chức vụ: shared/api/orgStructureApi.ts
+
+// ===== Sơ đồ tổ chức (công khai) =====
+
+/** Toàn bộ cây sơ đồ + số liệu tổng trong 1 lần gọi. */
+export const getOrgChart = () => httpGet<OrgChartTree>('/org-chart');
 
 // ===== Đơn vị =====
 

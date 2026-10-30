@@ -6,6 +6,8 @@ using Server.Modules.Incidents.Entities;
 using Server.Modules.Incidents.Repositories.Interfaces;
 using Server.Modules.Incidents.Services.Interfaces;
 using Server.Modules.Incidents.Validators;
+using Server.Modules.Organization.DTOs;
+using Server.Modules.Organization.Entities;
 using Server.Modules.Organization.Services.Interfaces;
 using Server.Shared.Constants;
 using Server.Shared.Exceptions;
@@ -58,6 +60,11 @@ public class IncidentService(
 
     public async Task<IncidentDto> GetByIdAsync(int id, CancellationToken cancellationToken) =>
         await incidentRepository.GetDetailAsync(id, cancellationToken) ?? throw new NotFoundException(NotFoundMessage);
+
+    public async Task<IReadOnlyList<IncidentWorkshopDto>> GetWorkshopsAsync(CancellationToken cancellationToken) =>
+        (await GetActiveWorkshopsAsync(cancellationToken))
+        .Select(x => new IncidentWorkshopDto { Id = x.Id, Name = x.Name })
+        .ToList();
 
     // ===== Ghi =====
 
@@ -304,7 +311,7 @@ public class IncidentService(
 
         if (request.WorkshopId is { } workshopId && workshopId != current?.WorkshopId)
         {
-            var workshops = await orgUnitService.GetTopLevelUnitsAsync(includeInactive: false, cancellationToken);
+            var workshops = await GetActiveWorkshopsAsync(cancellationToken);
             if (workshops.All(x => x.Id != workshopId))
             {
                 errors["workshopId"] = ["Xưởng không hợp lệ."];
@@ -322,6 +329,12 @@ public class IncidentService(
             throw new ValidationException("Dữ liệu không hợp lệ.", errors);
         }
     }
+
+    /// <summary>Đơn vị cấp 1 đang hoạt động có loại Xưởng (bỏ Đội, Kho, Hành chính…).</summary>
+    private async Task<IReadOnlyList<OrgUnitDto>> GetActiveWorkshopsAsync(CancellationToken cancellationToken) =>
+        (await orgUnitService.GetTopLevelUnitsAsync(includeInactive: false, cancellationToken))
+        .Where(x => x.TypeCode == OrgUnitTypeCodes.Workshop)
+        .ToList();
 
     private bool IsReporter(Incident incident) =>
         incident.ReporterEmpCode is not null

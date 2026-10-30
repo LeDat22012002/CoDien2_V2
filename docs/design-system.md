@@ -48,13 +48,20 @@ Dùng `StatusTag` (`shared/components`) hoặc `OPERATION_STATUS_META` (`shared/
 - Bo góc 6px.
 - **Chiều cao control (Input, Select, DatePicker, TreeSelect, Button…): 32px khi dùng chuột, 40px trên thiết bị cảm ứng** (`pointer: coarse` → toàn app tự chuyển `componentSize="large"`). Khai báo một chỗ ở `theme.ts` (`controlHeight` / `controlHeightLG`); component không tự đặt `size`, `height` hay class chiều cao riêng cho ô nhập.
 - Xem giao diện desktop trong DevTools thì tắt giả lập cảm ứng (chế độ Responsive mặc định là cảm ứng → 40px) và tải lại trang.
+- Dropdown của Select / TreeSelect / AutoComplete luôn rộng bằng ô nhập (không dùng `popupMatchSelectWidth={false}`).
 - Mục menu cao 44px. Nút chỉ có icon phải có `aria-label`.
 - Khoảng cách theo Tailwind: trong khối `gap-2`/`gap-3`, giữa các khối `gap-4`, lề nội dung `p-4` (điện thoại) / `md:p-6`.
+
+## Thanh cuộn
+
+- Dùng chung toàn app, khai báo một chỗ ở `src/index.css`: mảnh (`scrollbar-width: thin`, Safari cũ 6px), thanh xám nhạt `#CBD5E1`, hover `#94A3B8`, nền trong suốt; vùng nền tối (Sider) dùng trắng mờ. Thân bảng (Table) dùng thanh đậm hơn `#94A3B8` (hover `#64748B`) để dễ thấy bảng còn cuộn ngang được.
+- Component không tự style thanh cuộn riêng.
 
 ## Bảng
 
 - **Độ rộng cột cố định:** mỗi cột khai báo `width` từ `COLUMN_WIDTH` (`shared/constants/tableColumns.ts`): STT 60, mã 110, điện thoại 130, ngày 120, ngày giờ 150, số 120, tag 130, trạng thái 150, họ tên 220, chữ vừa 220, chữ dài 280, thao tác 130. Bảng `tableLayout="fixed"`, `scroll.x = getTableScrollX(columns, screens)` (chỉ cộng cột đang hiện). Bảng rộng hơn tổng thì các cột giãn đều theo tỉ lệ; màn hình hẹp hơn thì cuộn ngang trong bảng.
 - **Dòng cao bằng nhau:** ô chỉ 1 dòng (`whitespace-nowrap`), chữ dài cắt "…" và hover hiện đầy đủ. Ô 2 dòng (họ tên + email) thì luôn đủ 2 dòng, thiếu dữ liệu hiện "—".
+- **Ngoại lệ — bảng cần đọc kỹ** (Báo cáo sự cố): hiện đầy đủ, không cắt "…"; chữ tự xuống dòng, giữ xuống dòng người nhập gõ, ô canh trên; cột đoạn văn rộng `COLUMN_WIDTH.paragraph` (400). Dòng cao theo nội dung.
 - **Khung cao cố định:** bảng danh sách chính chiếm phần còn lại của màn hình, thân bảng cuộn bên trong (`useTableScrollY`), tiêu đề cột và phân trang (`Pagination` của AntD, căn phải) luôn nhìn thấy.
 
 ## Layout công khai (`PublicLayout`, kiểu landing page)

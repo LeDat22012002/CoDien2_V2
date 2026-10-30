@@ -13,6 +13,9 @@ export const PERMISSION_MODULE_LABELS: Record<string, string> = {
 
 export const getPermissionModuleLabel = (module: string) => PERMISSION_MODULE_LABELS[module] ?? module;
 
+/** Trang gán quyền cho vai trò (?role=id). */
+export const PERMISSION_ASSIGNMENT_PATH = '/admin/permissions';
+
 /** Mã vai trò: khớp RoleRequestValidator ở Server. */
 export const ROLE_CODE_PATTERN = /^[A-Z][A-Z0-9_]{1,49}$/;
 
@@ -20,7 +23,7 @@ export const ROLE_CODE_PATTERN = /^[A-Z][A-Z0-9_]{1,49}$/;
 export const normalizeSearchText = (value: string) =>
   value
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/\p{Diacritic}/gu, '')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .toLowerCase()

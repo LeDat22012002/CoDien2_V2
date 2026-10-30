@@ -14,7 +14,7 @@ export interface RoleDetail extends Role {
   permissionIds: number[];
 }
 
-/** Mã quyền do Server định nghĩa ("module.hành động"); admin chỉ sửa được tên hiển thị. */
+/** Mã quyền do Server định nghĩa ("module.hành động"). */
 export interface Permission {
   id: number;
   code: string;
@@ -41,8 +41,3 @@ export interface CreateRoleRequest extends RoleRequestBase {
 }
 
 export type UpdateRoleRequest = RoleRequestBase;
-
-export interface UpdatePermissionRequest {
-  name: string;
-  sortOrder: number;
-}

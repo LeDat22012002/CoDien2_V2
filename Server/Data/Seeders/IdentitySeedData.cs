@@ -71,8 +71,9 @@ public static class IdentitySeedData
         new("document-templates", "Biểu mẫu", "/documents/templates", "ProfileOutlined", "documents", PermissionCodes.DocumentTemplates.Manage, 43),
         new("system", "Quản trị hệ thống", null, "SettingOutlined", null, null, 90),
         new("users", "Tài khoản", "/admin/users", "UserOutlined", "system", PermissionCodes.Users.View, 91),
-        new("roles", "Vai trò và phân quyền", "/admin/roles", "SafetyOutlined", "system", PermissionCodes.Roles.View, 92),
-        new("pages", "Trang và menu", "/admin/pages", "MenuOutlined", "system", PermissionCodes.Pages.Manage, 93),
+        new("roles", "Vai trò", "/admin/roles", "SafetyOutlined", "system", PermissionCodes.Roles.View, 92),
+        new("permissions", "Phân quyền", "/admin/permissions", "KeyOutlined", "system", PermissionCodes.Roles.View, 93),
+        new("pages", "Trang và menu", "/admin/pages", "MenuOutlined", "system", PermissionCodes.Pages.Manage, 94),
 
         // Menu header trang công khai (giống hệ thống cũ)
         new("public-document-issue", "Lấy số văn bản", "/documents/issue", null, null, null, 110,

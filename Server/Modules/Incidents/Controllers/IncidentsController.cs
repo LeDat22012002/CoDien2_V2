@@ -28,6 +28,16 @@ public class IncidentsController(
         return Ok(ApiResponse<PagedResult<IncidentDto>>.Ok(result));
     }
 
+    /// <summary>Xưởng (đơn vị cấp 1 loại WORKSHOP, đang hoạt động) cho bộ lọc và form báo cáo.</summary>
+    [AllowAnonymous]
+    [HttpGet("workshops")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<IncidentWorkshopDto>>>> GetWorkshops(
+        CancellationToken cancellationToken)
+    {
+        var result = await incidentService.GetWorkshopsAsync(cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<IncidentWorkshopDto>>.Ok(result));
+    }
+
     /// <summary>Toàn nhà máy (kèm thống kê theo xưởng) hoặc 1 xưởng: ?year=2026&amp;workshopId=5.</summary>
     [AllowAnonymous]
     [HttpGet("dashboard")]
