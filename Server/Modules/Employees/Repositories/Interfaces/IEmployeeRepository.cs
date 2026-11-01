@@ -15,6 +15,9 @@ public interface IEmployeeRepository
     /// <summary>Đọc có tracking, dùng khi cần cập nhật hoặc xóa.</summary>
     Task<Employee?> FindByIdAsync(int id, CancellationToken cancellationToken);
 
+    /// <summary>Như FindByIdAsync nhưng tìm theo mã nhân viên (tên đăng nhập).</summary>
+    Task<Employee?> FindByEmpCodeAsync(string empCode, CancellationToken cancellationToken);
+
     Task<bool> IsEmpCodeTakenAsync(string empCode, int? excludeId, CancellationToken cancellationToken);
 
     Task<bool> HasAssignmentsAsync(int employeeId, CancellationToken cancellationToken);

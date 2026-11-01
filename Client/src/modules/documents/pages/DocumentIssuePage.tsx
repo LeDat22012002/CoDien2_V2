@@ -23,7 +23,7 @@ import {
 import { useDocumentTemplateOptions, useIssuedDocuments } from '@/modules/documents/hooks/useDocumentQueries';
 import { useIssueDocument } from '@/modules/documents/hooks/useIssueDocument';
 import type {
-  DocumentTemplateOption,
+  DocumentTemplate,
   IssueDocumentPayload,
   IssueResult,
   SelectedTemplate,
@@ -100,7 +100,7 @@ const DocumentIssuePage = () => {
   // ----- Lấy số -----
   const [selectedTemplate, setSelectedTemplate] = useState<SelectedTemplate>(EMPTY_SELECTION);
   const [subject, setSubject] = useState('');
-  const [detailTemplate, setDetailTemplate] = useState<DocumentTemplateOption | null>(null);
+  const [detailTemplate, setDetailTemplate] = useState<DocumentTemplate | null>(null);
 
   /** Chưa đăng nhập: cảnh báo rồi chuyển sang đăng nhập, xong quay lại đúng trang này (như hệ thống cũ). */
   const ensureLoggedIn = () => {
@@ -117,13 +117,13 @@ const DocumentIssuePage = () => {
     setDetailTemplate(null);
   };
 
-  const handleIssued = (template: DocumentTemplateOption, result: IssueResult) => {
+  const handleIssued = (template: DocumentTemplate, result: IssueResult) => {
     void showIssueResultAlert(`"${template.name}" được cấp số:`, result.documentNumber);
     goToTemplate(template.id);
     resetIssueInputs();
   };
 
-  const handleTemplateSelect = (template: DocumentTemplateOption) => {
+  const handleTemplateSelect = (template: DocumentTemplate) => {
     setSelectedTemplate({ id: template.id, text: template.name });
     // Biểu mẫu đánh số đặc biệt: mở phiếu điền thông tin ngay khi chọn
     if (!isStandardIssueMethod(getIssueMethod(template.id))) setDetailTemplate(template);

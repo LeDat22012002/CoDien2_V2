@@ -61,6 +61,9 @@ public class EmployeeRepository(AppDbContext dbContext) : IEmployeeRepository
     public Task<Employee?> FindByIdAsync(int id, CancellationToken cancellationToken) =>
         Employees.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
+    public Task<Employee?> FindByEmpCodeAsync(string empCode, CancellationToken cancellationToken) =>
+        Employees.FirstOrDefaultAsync(x => x.EmpCode == empCode, cancellationToken);
+
     public Task<bool> IsEmpCodeTakenAsync(string empCode, int? excludeId, CancellationToken cancellationToken) =>
         Employees.AnyAsync(x => x.EmpCode == empCode && (excludeId == null || x.Id != excludeId), cancellationToken);
 

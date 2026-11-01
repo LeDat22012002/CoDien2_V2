@@ -63,7 +63,7 @@ server/
 - Lỗi xử lý tập trung tại middleware; Service ném exception trong `Shared/Exceptions` (`NotFoundException` → 404, `ForbiddenException` → 403, `UnauthorizedException` → 401, còn lại → 400).
 - Validate request trong `Modules/<M>/Validators` (static class, thông báo tiếng Việt, key lỗi camelCase), ném `ValidationException`.
 - API công khai: gắn `[AllowAnonymous]` trên từng action GET; còn lại mặc định bắt buộc đăng nhập.
-- File tải lên (ảnh đại diện…): qua `IFileStorageService`, lưu ngoài mã nguồn tại `FileStorage:RootPath` (mặc định `D:/Uploads`), phục vụ tĩnh ở `/api/uploads/...`; DB chỉ lưu URL. Ảnh đại diện thuộc nhân viên: `POST /api/employees/{id}/avatar` (`employees.update`), `/api/auth/me` trả `avatarUrl` từ Employee.
+- File tải lên (ảnh đại diện…): qua `IFileStorageService`, lưu ngoài mã nguồn tại `FileStorage:RootPath` (mặc định `D:/Uploads`), phục vụ tĩnh ở `/api/uploads/...`; DB chỉ lưu URL. Ảnh đại diện thuộc nhân viên: `POST /api/employees/{id}/avatar` (`employees.update`); tự đổi ảnh của mình: `POST /api/employees/me/avatar` (chỉ cần đăng nhập); `/api/auth/me` trả `avatarUrl` từ Employee.
 
 ## Phân quyền (module Identity)
 
@@ -71,7 +71,7 @@ server/
 - Mã quyền dạng `<module>.<hành động>` khai báo trong `Shared/Constants/PermissionCodes.cs`.
 - **Permission do code định nghĩa** (vì API phải kiểm tra đúng mã đó): thêm chức năng cần quyền mới → thêm mã vào `PermissionCodes` và `IdentitySeedData.Permissions`; khi khởi động `IdentitySeeder` chỉ **thêm mã mới**, không ghi đè, không xóa. Admin trên FE chỉ xem, sửa tên hiển thị và gán quyền cho role.
 - **Page quản lý từ FE** (CRUD qua API): `IdentitySeedData.Pages` chỉ là bộ trang mặc định, seed **riêng từng Area, một lần khi Area đó chưa có trang nào** (Area đã có trang thì seed không đụng tới; thêm trang vào Area đã có thì tạo trên FE). `Path` phải khớp route có thật ở Client.
-- `Page.Area`: `ADMIN` = menu Sider trang quản trị (`/api/auth/me` → `menu`, `routes` chỉ lấy Area này); `PUBLIC` = menu header trang công khai (`GET /api/pages/public-menu`, `[AllowAnonymous]`). Trang PUBLIC chỉ là liên kết điều hướng, **không gắn quyền**; quyền vào route vẫn theo trang ADMIN cùng path (Path chỉ cần duy nhất trong cùng Area). Trang con cùng Area với trang cha.
+- `Page.Area`: `ADMIN` = menu Sider trang quản trị (`/api/auth/me` → `menu`); `MEMBER` = menu Sider trang cá nhân `/member/...` (`/api/auth/me` → `memberMenu`, trang không gắn quyền = ai đăng nhập cũng thấy); `routes` gồm trang của cả ADMIN và MEMBER; `PUBLIC` = menu header trang công khai (`GET /api/pages/public-menu`, `[AllowAnonymous]`). Trang PUBLIC chỉ là liên kết điều hướng, **không gắn quyền**; quyền vào route vẫn theo trang ADMIN cùng path (Path chỉ cần duy nhất trong cùng Area). Trang con cùng Area với trang cha.
 - `Page.ExternalUrl`: liên kết ngoài http/https (mở tab mới), không nhập cùng `Path`.
 - Admin tổng đầu tiên lấy từ User Secrets `Identity:SuperAdmin:EmpCode` / `Identity:SuperAdmin:InitialPassword`, chỉ tạo khi chưa có SUPER_ADMIN nào.
 - **Gắn quyền cho API**: `[HasPermission(PermissionCodes.X.Y)]` trên action (hoặc controller). Truyền nhiều mã = chỉ cần có 1 trong số đó. Không gắn gì = chỉ cần đăng nhập; `[AllowAnonymous]` = công khai.
@@ -88,6 +88,7 @@ server/
 - Đổi chức vụ (`AssignmentService.ChangeAsync`, thay cho `usp_ChangeAssignment` cũ): kết thúc mọi vị trí chính đang giữ vào ngày trước ngày hiệu lực rồi tạo vị trí chính mới; chặn trưởng chính thức thứ 2 ở đơn vị SingleHead, chặn Kỹ sư thứ 2 ở Tổ, ngày hiệu lực phải sau ngày bắt đầu vị trí hiện tại.
 - Nhân viên chuyển INACTIVE → `IAssignmentService.EndAllActiveAsync` kết thúc mọi vị trí (Employees gọi qua Service, lưu chung 1 lần SaveChanges).
 - Xóa đơn vị = `IsActive = false`; chặn khi còn đơn vị con hoặc còn người giữ vị trí. GD luôn hàng 1, PGD luôn hàng 2 trên sơ đồ.
+- Báo cáo sự cố: `GET /api/incidents/my-scope` (cần đăng nhập) trả quyền quản lý / phân tích và xưởng (đơn vị cấp 1 loại WORKSHOP) của người đang đăng nhập, để FE ẩn/hiện nút từng dòng; quyền thật vẫn kiểm tra trong `IncidentService`.
 - Trang Sơ đồ tổ chức là trang công khai: `GET /api/org-chart` và `GET /api/org-chart/units/{id}/members` gắn `[AllowAnonymous]` (gồm cả email, SĐT nhân viên); `lookups` vẫn cần `org-chart.view`.
 - Secret lấy từ User Secrets hoặc biến môi trường. Connection string và `Jwt:SecretKey` đang nằm trong User Secrets, không ghi vào appsettings.
 
@@ -103,6 +104,7 @@ server/
 - **Chống trùng số:** đọc số lớn nhất bằng `WITH (UPDLOCK, HOLDLOCK)` trong `ExecuteInTransactionAsync`. Không có unique index vì dữ liệu cũ đang có số trùng — không đổi công thức đánh số khi chưa hỏi.
 - Người lấy số lấy từ tài khoản đăng nhập; đơn vị = đơn vị cấp 1 (dưới Nhà máy) trên sơ đồ tổ chức (`IAssignmentService.GetTopLevelUnitNameAsync`). Chưa được gán đơn vị → không lấy được số. `IssuedAt` lưu giờ địa phương.
 - Sửa: người lấy số hoặc có `documents.manage`. Xóa (mềm): chỉ số mới nhất của biểu mẫu trong năm. Biểu mẫu đã dùng không xóa được.
+- Lọc sổ (`GET /api/issued-documents`): `keyword` (họ tên, mã NV, số hiệu, trích yếu), `publishStatus`, biểu mẫu, ngày ban hành. `GET export` dùng cùng bộ lọc (bỏ phân trang) — FE quản trị xuất đúng những gì đang lọc.
 
 ## Thiết bị (module Equipments)
 

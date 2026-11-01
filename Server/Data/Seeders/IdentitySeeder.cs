@@ -8,7 +8,7 @@ namespace Server.Data.Seeders;
 /// <summary>
 /// Chạy mỗi lần khởi động, an toàn khi chạy lặp lại. Không ghi đè dữ liệu admin đã chỉnh trên FE:
 /// - Permission: chỉ thêm mã mới khai báo trong code.
-/// - Page: tạo bộ trang mặc định của từng Area (ADMIN, PUBLIC) khi Area đó chưa có trang nào; sau đó quản lý hoàn toàn từ FE.
+/// - Page: tạo bộ trang mặc định của từng Area (ADMIN, PUBLIC, MEMBER) khi Area đó chưa có trang nào; sau đó quản lý hoàn toàn từ FE.
 /// - Tạo role SUPER_ADMIN và admin tổng đầu tiên nếu chưa có.
 /// </summary>
 public class IdentitySeeder(

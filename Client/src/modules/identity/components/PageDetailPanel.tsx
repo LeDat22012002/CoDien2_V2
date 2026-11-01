@@ -12,6 +12,7 @@ import { getMenuIcon } from '@/shared/constants/menuIcons';
 import { APP_ROUTE_PATHS } from '@/shared/constants/routes';
 import { COLUMN_WIDTH } from '@/shared/constants/tableColumns';
 import { EMPTY_TEXT } from '@/shared/utils/format';
+import { canAreaHavePermission } from '@/modules/identity/constants/pageOptions';
 import type { Page } from '@/modules/identity/types/pages';
 import type { Permission } from '@/modules/identity/types/roles';
 import { getPageLinkType } from '@/modules/identity/utils/pageTree';
@@ -191,7 +192,7 @@ export const PageDetailPanel = ({
               EMPTY_TEXT
             ),
           },
-          ...(page.area === 'ADMIN'
+          ...(canAreaHavePermission(page.area)
             ? [
                 {
                   key: 'permission',

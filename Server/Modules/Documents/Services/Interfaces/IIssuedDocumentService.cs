@@ -29,5 +29,6 @@ public interface IIssuedDocumentService
     /// <summary>Chỉ được xóa số mới nhất của biểu mẫu trong năm.</summary>
     Task DeleteAsync(int id, CancellationToken cancellationToken);
 
-    Task<byte[]> ExportExcelAsync(int? year, CancellationToken cancellationToken);
+    /// <summary>Xuất Excel theo bộ lọc sổ (bỏ phân trang), mỗi biểu mẫu 1 sheet.</summary>
+    Task<byte[]> ExportExcelAsync(IssuedDocumentFilterRequest filter, int? year, CancellationToken cancellationToken);
 }

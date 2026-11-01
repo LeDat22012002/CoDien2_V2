@@ -11,6 +11,7 @@ interface AuthState {
   roles: RoleSummary[];
   permissions: string[];
   menu: MenuItem[];
+  memberMenu: MenuItem[];
   routes: string[];
   setProfile: (me: Me) => void;
   setUser: (user: CurrentUser) => void;
@@ -23,6 +24,7 @@ const EMPTY_SESSION = {
   roles: [],
   permissions: [],
   menu: [],
+  memberMenu: [],
   routes: [],
 } satisfies Partial<AuthState>;
 
@@ -37,6 +39,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
       roles: me.roles,
       permissions: me.permissions,
       menu: me.menu,
+      memberMenu: me.memberMenu ?? [],
       routes: me.routes,
     }),
   setUser: (user) => set({ user }),

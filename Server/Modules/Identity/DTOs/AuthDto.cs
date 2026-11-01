@@ -25,7 +25,11 @@ public class MeDto
     public bool IsSuperAdmin { get; init; }
     public IReadOnlyList<RoleSummaryDto> Roles { get; init; } = [];
     public IReadOnlyList<string> Permissions { get; init; } = [];
+    /// <summary>Menu Sider trang quản trị (Area ADMIN).</summary>
     public IReadOnlyList<MenuItemDto> Menu { get; init; } = [];
+
+    /// <summary>Menu Sider trang cá nhân /member (Area MEMBER).</summary>
+    public IReadOnlyList<MenuItemDto> MemberMenu { get; init; } = [];
 
     /// <summary>Mọi route user được vào, kể cả trang không hiện trên menu.</summary>
     public IReadOnlyList<string> Routes { get; init; } = [];

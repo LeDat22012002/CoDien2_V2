@@ -131,8 +131,9 @@ public class AuthService(
         var user = await userRepository.GetByIdAsync(state.UserId, cancellationToken)
             ?? throw new UnauthorizedException(SessionExpiredMessage);
 
+        // Trang quản trị và trang cá nhân đều chặn route theo quyền; menu công khai không tính
         var visiblePages = (await pageRepository.GetAllAsync(cancellationToken))
-            .Where(x => x.Area == PageAreas.Admin && x.IsActive && CanSeePage(x, state))
+            .Where(x => x.Area is PageAreas.Admin or PageAreas.Member && x.IsActive && CanSeePage(x, state))
             .ToList();
 
         return new MeDto
@@ -148,7 +149,8 @@ public class AuthService(
             IsSuperAdmin = state.IsSuperAdmin,
             Roles = state.Roles,
             Permissions = state.PermissionCodes.Order().ToList(),
-            Menu = PageMenuBuilder.Build(visiblePages.Where(x => x.IsMenu).ToList()),
+            Menu = PageMenuBuilder.Build(visiblePages.Where(x => x.Area == PageAreas.Admin && x.IsMenu).ToList()),
+            MemberMenu = PageMenuBuilder.Build(visiblePages.Where(x => x.Area == PageAreas.Member && x.IsMenu).ToList()),
             Routes = visiblePages.Where(x => x.Path is not null).Select(x => x.Path!).Distinct().ToList(),
         };
     }

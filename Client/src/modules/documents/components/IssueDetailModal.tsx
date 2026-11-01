@@ -12,7 +12,7 @@ import {
 } from '@/modules/documents/constants/issueMethods';
 import { useContractNumbers } from '@/modules/documents/hooks/useDocumentQueries';
 import type {
-  DocumentTemplateOption,
+  DocumentTemplate,
   IssueDocumentPayload,
   IssueMethod,
 } from '@/modules/documents/types/documents';
@@ -159,7 +159,7 @@ const TextField = ({ name, label, placeholder, values, errors, onChange, onFocus
 // ----- Phiếu -----
 
 interface IssueDetailFormProps {
-  template: DocumentTemplateOption;
+  template: DocumentTemplate;
   method: DetailIssueMethod;
   isSubmitting: boolean;
   onSubmit: (payload: IssueDocumentPayload) => Promise<unknown>;
@@ -297,7 +297,7 @@ const IssueDetailForm = ({ template, method, isSubmitting, onSubmit }: IssueDeta
 };
 
 interface IssueDetailModalProps {
-  template: DocumentTemplateOption | null;
+  template: DocumentTemplate | null;
   method: IssueMethod;
   isSubmitting: boolean;
   onSubmit: (payload: IssueDocumentPayload) => Promise<unknown>;

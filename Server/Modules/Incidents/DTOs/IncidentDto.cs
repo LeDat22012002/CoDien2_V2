@@ -55,6 +55,19 @@ public class IncidentWorkshopDto
     public string Name { get; init; } = string.Empty;
 }
 
+/// <summary>
+/// Quyền báo cáo sự cố của người đang đăng nhập (FE ẩn/hiện nút từng dòng; Server vẫn kiểm tra khi ghi).
+/// WorkshopId: xưởng (đơn vị cấp 1 loại WORKSHOP) của vị trí chính, null nếu không thuộc xưởng nào.
+/// </summary>
+public class IncidentScopeDto
+{
+    public string EmpCode { get; init; } = string.Empty;
+    public bool CanManage { get; init; }
+    public bool CanAnalyze { get; init; }
+    public int? WorkshopId { get; init; }
+    public string? WorkshopName { get; init; }
+}
+
 public class IncidentImportResultDto
 {
     public int TotalRows { get; set; }

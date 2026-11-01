@@ -141,9 +141,27 @@ public class EmployeeService(
         var employee = await employeeRepository.FindByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy nhân viên.");
 
+        return await SaveAvatarAsync(employee, file!, cancellationToken);
+    }
+
+    public async Task<EmployeeDto> UpdateMyAvatarAsync(IFormFile? file, CancellationToken cancellationToken)
+    {
+        EmployeeRequestValidator.ValidateAvatar(file);
+
+        var empCode = currentUserService.UserName
+            ?? throw new UnauthorizedException("Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
+        var employee = await employeeRepository.FindByEmpCodeAsync(empCode, cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy nhân viên của tài khoản đang đăng nhập.");
+
+        return await SaveAvatarAsync(employee, file!, cancellationToken);
+    }
+
+    /// <summary>Lưu ảnh mới rồi mới xóa ảnh cũ; lưu DB lỗi thì xóa ảnh vừa ghi.</summary>
+    private async Task<EmployeeDto> SaveAvatarAsync(Employee employee, IFormFile file, CancellationToken cancellationToken)
+    {
         var oldAvatarUrl = employee.AvatarUrl;
         var avatarUrl = await fileStorageService.SaveAsync(
-            file!, AvatarFolder, $"{employee.EmpCode}_{DateTime.UtcNow.Ticks}", cancellationToken);
+            file, AvatarFolder, $"{employee.EmpCode}_{DateTime.UtcNow.Ticks}", cancellationToken);
         try
         {
             employee.AvatarUrl = avatarUrl;

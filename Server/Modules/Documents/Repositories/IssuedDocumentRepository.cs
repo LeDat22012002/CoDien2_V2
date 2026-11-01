@@ -18,34 +18,7 @@ public class IssuedDocumentRepository(AppDbContext dbContext) : IIssuedDocumentR
     public async Task<(IReadOnlyList<IssuedDocumentDto> Items, int TotalCount)> GetPagedAsync(
         IssuedDocumentFilterRequest filter, CancellationToken cancellationToken)
     {
-        var query = Documents.AsNoTracking();
-
-        if (filter.DocumentTemplateId is { } templateId)
-        {
-            query = query.Where(x => x.DocumentTemplateId == templateId);
-        }
-
-        if (!string.IsNullOrWhiteSpace(filter.IssuerEmpCode))
-        {
-            var empCode = filter.IssuerEmpCode.Trim();
-            query = query.Where(x => x.IssuerEmpCode.Contains(empCode));
-        }
-
-        if (!string.IsNullOrWhiteSpace(filter.Note))
-        {
-            var note = filter.Note.Trim();
-            query = query.Where(x => x.Note != null && x.Note.Contains(note));
-        }
-
-        if (filter.FromDate is { } fromDate)
-        {
-            query = query.Where(x => x.IssueDate >= fromDate);
-        }
-
-        if (filter.ToDate is { } toDate)
-        {
-            query = query.Where(x => x.IssueDate <= toDate);
-        }
+        var query = ApplyFilter(Documents.AsNoTracking(), filter);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
@@ -76,6 +49,56 @@ public class IssuedDocumentRepository(AppDbContext dbContext) : IIssuedDocumentR
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);
+    }
+
+    /// <summary>Bộ lọc dùng chung cho danh sách và xuất Excel.</summary>
+    private static IQueryable<IssuedDocument> ApplyFilter(
+        IQueryable<IssuedDocument> query, IssuedDocumentFilterRequest filter)
+    {
+        if (filter.DocumentTemplateId is { } templateId)
+        {
+            query = query.Where(x => x.DocumentTemplateId == templateId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.IssuerEmpCode))
+        {
+            var empCode = filter.IssuerEmpCode.Trim();
+            query = query.Where(x => x.IssuerEmpCode.Contains(empCode));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Note))
+        {
+            var note = filter.Note.Trim();
+            query = query.Where(x => x.Note != null && x.Note.Contains(note));
+        }
+
+        if (filter.FromDate is { } fromDate)
+        {
+            query = query.Where(x => x.IssueDate >= fromDate);
+        }
+
+        if (filter.ToDate is { } toDate)
+        {
+            query = query.Where(x => x.IssueDate <= toDate);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.PublishStatus))
+        {
+            var status = filter.PublishStatus.Trim().ToUpperInvariant();
+            query = query.Where(x => x.PublishStatus == status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var keyword = filter.Keyword.Trim();
+            query = query.Where(x =>
+                x.IssuerName.Contains(keyword)
+                || x.IssuerEmpCode.Contains(keyword)
+                || x.DocumentNumber.Contains(keyword)
+                || (x.Subject != null && x.Subject.Contains(keyword)));
+        }
+
+        return query;
     }
 
     public Task<IssuedDocument?> FindByIdAsync(int id, CancellationToken cancellationToken) =>
@@ -114,9 +137,10 @@ public class IssuedDocumentRepository(AppDbContext dbContext) : IIssuedDocumentR
             .OrderBy(x => x)
             .ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<IssuedDocument>> GetForExportAsync(int? year, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<IssuedDocument>> GetForExportAsync(
+        IssuedDocumentFilterRequest filter, int? year, CancellationToken cancellationToken)
     {
-        var query = Documents.AsNoTracking().Include(x => x.DocumentTemplate).AsQueryable();
+        var query = ApplyFilter(Documents.AsNoTracking().Include(x => x.DocumentTemplate), filter);
         if (year is { } value)
         {
             query = query.Where(x => x.Year == value);

@@ -67,8 +67,8 @@ public static class IdentitySeedData
         new("position-levels", "Cấp bậc", "/admin/position-levels", "OrderedListOutlined", "organization", PermissionCodes.OrgUnits.Manage, 33),
         new("documents", "Văn bản", null, "FileTextOutlined", null, null, 40),
         new("document-issue", "Lấy số văn bản", "/documents/issue", "NumberOutlined", "documents", PermissionCodes.Documents.Issue, 41),
-        new("issued-documents", "Sổ văn bản đã cấp", "/documents", "BookOutlined", "documents", PermissionCodes.Documents.View, 42),
-        new("document-templates", "Biểu mẫu", "/documents/templates", "ProfileOutlined", "documents", PermissionCodes.DocumentTemplates.Manage, 43),
+        new("issued-documents", "Sổ văn bản đã cấp", "/admin/issued-documents", "BookOutlined", "documents", PermissionCodes.Documents.View, 42),
+        new("document-templates", "Danh sách văn bản", "/admin/document-templates", "ProfileOutlined", "documents", PermissionCodes.DocumentTemplates.Manage, 43),
         new("system", "Quản trị hệ thống", null, "SettingOutlined", null, null, 90),
         new("users", "Tài khoản", "/admin/users", "UserOutlined", "system", PermissionCodes.Users.View, 91),
         new("roles", "Vai trò", "/admin/roles", "SafetyOutlined", "system", PermissionCodes.Roles.View, 92),
@@ -90,5 +90,15 @@ public static class IdentitySeedData
             ExternalUrl: "https://nmnd.hoaphatdungquat.vn/"),
         new("public-equipment-monitoring", "Giám sát Thiết bị Cấp A", null, null, "public-digital", null, 133,
             Area: PageAreas.Public, ExternalUrl: "http://10.192.226.25:8082"),
+
+        // Menu trang cá nhân /member: ai đăng nhập cũng thấy
+        new("member-incidents", "Báo cáo sự cố", "/member/incidents", "WarningOutlined", null, null, 210,
+            Area: PageAreas.Member),
+        new("member-documents", "Văn bản tôi đã lấy", "/member/documents", "FileTextOutlined", null, null, 220,
+            Area: PageAreas.Member),
+        new("member-profile", "Thông tin cá nhân", "/member/profile", "UserOutlined", null, null, 230,
+            Area: PageAreas.Member),
+        new("member-password", "Đổi mật khẩu", "/member/change-password", "LockOutlined", null, null, 240,
+            Area: PageAreas.Member),
     ];
 }

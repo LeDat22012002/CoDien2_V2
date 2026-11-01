@@ -207,9 +207,10 @@ public class IssuedDocumentService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<byte[]> ExportExcelAsync(int? year, CancellationToken cancellationToken)
+    public async Task<byte[]> ExportExcelAsync(
+        IssuedDocumentFilterRequest filter, int? year, CancellationToken cancellationToken)
     {
-        var documents = await documentRepository.GetForExportAsync(year, cancellationToken);
+        var documents = await documentRepository.GetForExportAsync(filter, year, cancellationToken);
         if (documents.Count == 0)
         {
             throw new BusinessException("Không có dữ liệu để xuất Excel.");

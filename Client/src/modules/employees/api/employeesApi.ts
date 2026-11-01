@@ -24,3 +24,10 @@ export const uploadEmployeeAvatar = (id: number, file: File) => {
   body.append('file', file);
   return httpPost<Employee>(`/employees/${id}/avatar`, body);
 };
+
+/** Người đang đăng nhập tự đổi ảnh đại diện (không cần quyền sửa nhân viên). */
+export const uploadMyAvatar = (file: File) => {
+  const body = new FormData();
+  body.append('file', file);
+  return httpPost<Employee>('/employees/me/avatar', body);
+};

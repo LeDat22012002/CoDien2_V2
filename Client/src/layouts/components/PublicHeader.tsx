@@ -1,6 +1,6 @@
 import { LoginOutlined, MenuOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Drawer, Grid, Input } from 'antd';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import logo from '@/assets/images/Logo.png';
 import { DEFAULT_PUBLIC_PATH } from '@/shared/constants/routes';
@@ -8,7 +8,6 @@ import { buildLoginPath } from '@/shared/utils/redirect';
 import { useAuthStore } from '@/stores/authStore';
 import { PublicNavigation } from '@/layouts/components/PublicNavigation';
 import { UserDropdown } from '@/layouts/components/UserDropdown';
-import { collectMenuLeaves } from '@/layouts/utils/menuItems';
 
 const DRAWER_WIDTH = 300;
 
@@ -34,15 +33,11 @@ interface AccountActionProps {
 
 const AccountAction = ({ isCompact }: AccountActionProps) => {
   const status = useAuthStore((state) => state.status);
-  const menu = useAuthStore((state) => state.menu);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Trang quản trị đầu tiên user được vào (bỏ qua "/" vì "/" chỉ chuyển về trang công khai mặc định)
-  const adminPath = useMemo(() => collectMenuLeaves(menu).find((leaf) => leaf.path !== '/')?.path, [menu]);
-
   if (status === 'unknown') return null;
-  if (status === 'authenticated') return <UserDropdown adminPath={adminPath} />;
+  if (status === 'authenticated') return <UserDropdown />;
 
   const handleLogin = () => navigate(buildLoginPath(`${location.pathname}${location.search}`));
 

@@ -17,4 +17,7 @@ public interface IEmployeeService
 
     /// <summary>Lưu ảnh vào thư mục upload, cập nhật AvatarUrl và xóa ảnh cũ.</summary>
     Task<EmployeeDto> UpdateAvatarAsync(int id, IFormFile? file, CancellationToken cancellationToken);
+
+    /// <summary>Đổi ảnh của nhân viên gắn với tài khoản đang đăng nhập (không cần quyền sửa nhân viên).</summary>
+    Task<EmployeeDto> UpdateMyAvatarAsync(IFormFile? file, CancellationToken cancellationToken);
 }

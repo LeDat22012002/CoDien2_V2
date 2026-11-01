@@ -1,6 +1,6 @@
 import type { Ref } from 'react';
 import SliderModule, { type Settings } from 'react-slick';
-import type { DocumentTemplateOption, TemplateSliderInstance } from '@/modules/documents/types/documents';
+import type { DocumentTemplate, TemplateSliderInstance } from '@/modules/documents/types/documents';
 
 /** react-slick là gói CommonJS: qua Vite, default import có thể là object `{ default: Slider }` thay vì component. */
 const Slider =
@@ -24,7 +24,7 @@ const SLIDER_SETTINGS: Settings = {
 
 interface TemplateSliderProps {
   sliderRef: Ref<TemplateSliderInstance>;
-  templates: DocumentTemplateOption[];
+  templates: DocumentTemplate[];
   activeTemplateId?: number;
   onChange: (templateId: number) => void;
 }

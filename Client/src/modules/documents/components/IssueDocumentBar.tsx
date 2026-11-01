@@ -1,15 +1,15 @@
 import { CloseCircleOutlined, SearchOutlined } from "@ant-design/icons";
 import { AutoComplete } from "antd";
 import { IssueButton } from "@/modules/documents/components/IssueButton";
-import type { DocumentTemplateOption, SelectedTemplate } from "@/modules/documents/types/documents";
+import type { DocumentTemplate, SelectedTemplate } from "@/modules/documents/types/documents";
 
 interface IssueDocumentBarProps {
-  templates: DocumentTemplateOption[];
+  templates: DocumentTemplate[];
   selectedTemplate: SelectedTemplate;
   subject: string;
   issuerEmpCode: string;
   isSubmitting: boolean;
-  onTemplateSelect: (template: DocumentTemplateOption) => void;
+  onTemplateSelect: (template: DocumentTemplate) => void;
   onTemplateTextChange: (text: string) => void;
   onTemplateClear: () => void;
   onSubjectChange: (subject: string) => void;

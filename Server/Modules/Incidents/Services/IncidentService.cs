@@ -66,6 +66,32 @@ public class IncidentService(
         .Select(x => new IncidentWorkshopDto { Id = x.Id, Name = x.Name })
         .ToList();
 
+    public async Task<IncidentScopeDto> GetMyScopeAsync(CancellationToken cancellationToken)
+    {
+        var empCode = currentUserService.UserName ?? throw new UnauthorizedException(InvalidSessionMessage);
+        var employee = await incidentRepository.GetEmployeeByEmpCodeAsync(empCode, cancellationToken)
+            ?? throw new UnauthorizedException(InvalidSessionMessage);
+
+        var canManage = await HasPermissionAsync(PermissionCodes.Incidents.Manage, cancellationToken);
+        var canAnalyze = canManage || await HasPermissionAsync(PermissionCodes.Incidents.Analyze, cancellationToken);
+
+        // Chỉ nhận xưởng thật (loại WORKSHOP), giống ô chọn xưởng của báo cáo
+        var topLevelUnit = await assignmentService.GetTopLevelUnitAsync(employee.Id, cancellationToken);
+        var workshop = topLevelUnit is { } unit
+            && (await GetActiveWorkshopsAsync(cancellationToken)).Any(x => x.Id == unit.Id)
+                ? topLevelUnit
+                : null;
+
+        return new IncidentScopeDto
+        {
+            EmpCode = employee.EmpCode,
+            CanManage = canManage,
+            CanAnalyze = canAnalyze,
+            WorkshopId = workshop?.Id,
+            WorkshopName = workshop?.Name,
+        };
+    }
+
     // ===== Ghi =====
 
     public async Task<IncidentDto> CreateAsync(CreateIncidentRequest request, CancellationToken cancellationToken)

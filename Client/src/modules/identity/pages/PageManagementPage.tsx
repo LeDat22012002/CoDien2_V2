@@ -9,6 +9,7 @@ import { notify } from '@/shared/utils/notify';
 import { PageDetailPanel } from '@/modules/identity/components/PageDetailPanel';
 import { PageFormModal } from '@/modules/identity/components/PageFormModal';
 import { PageTreePanel } from '@/modules/identity/components/PageTreePanel';
+import { PAGE_AREA_OPTIONS } from '@/modules/identity/constants/pageOptions';
 import {
   PAGE_QUERY_KEYS,
   useDeletePage,
@@ -22,10 +23,6 @@ import { flattenPages, getSiblings, reorderPageTree } from '@/modules/identity/u
 
 const PARAMS = { area: 'area', page: 'page' } as const;
 
-const AREA_OPTIONS: { value: PageArea; label: string }[] = [
-  { value: 'ADMIN', label: 'Menu quản trị' },
-  { value: 'PUBLIC', label: 'Menu trang công khai' },
-];
 
 interface FormModalState {
   open: boolean;
@@ -47,7 +44,8 @@ const PageManagementPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const detailRef = useRef<HTMLDivElement>(null);
 
-  const area: PageArea = searchParams.get(PARAMS.area) === 'PUBLIC' ? 'PUBLIC' : 'ADMIN';
+  const area: PageArea =
+    PAGE_AREA_OPTIONS.find((option) => option.value === searchParams.get(PARAMS.area))?.value ?? 'ADMIN';
   const [keyword, setKeyword] = useState('');
   const [manualExpandedKeys, setManualExpandedKeys] = useState<number[] | null>(null);
   const [formModal, setFormModal] = useState<FormModalState>({ open: false });
@@ -179,7 +177,7 @@ const PageManagementPage = () => {
           title={
             <Segmented<PageArea>
               block
-              options={AREA_OPTIONS}
+              options={PAGE_AREA_OPTIONS}
               value={area}
               onChange={changeArea}
               className="my-1"

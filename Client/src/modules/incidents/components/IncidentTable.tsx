@@ -1,4 +1,4 @@
-﻿import { ExclamationCircleFilled } from '@ant-design/icons';
+import { ExclamationCircleFilled } from '@ant-design/icons';
 import { Empty, Grid, Pagination, Table, Tag, Tooltip, Typography, type TableColumnsType } from 'antd';
 import { COLUMN_WIDTH, getTableScrollX } from '@/shared/constants/tableColumns';
 import { useTableScrollY } from '@/shared/hooks/useTableScrollY';
@@ -14,6 +14,8 @@ interface IncidentTableProps {
   pageSize: number;
   isLoading: boolean;
   onPageChange: (pageIndex: number, pageSize: number) => void;
+  /** Cột thao tác thêm vào cuối bảng (trang cá nhân); bỏ trống = chỉ xem. */
+  actionColumn?: TableColumnsType<Incident>[number];
 }
 
 /**
@@ -21,7 +23,7 @@ interface IncidentTableProps {
  * chữ dài tự xuống dòng trong độ rộng cột, giữ xuống dòng người nhập gõ.
  */
 const renderFullText = (value: string | null | undefined) =>
-  value ? <div className="break-words whitespace-pre-wrap">{value}</div> : EMPTY_TEXT;
+  value ? <div className="wrap-break-word whitespace-pre-wrap">{value}</div> : EMPTY_TEXT;
 
 const renderDateTime = (value?: string | null) => formatDateTime(value);
 
@@ -55,6 +57,7 @@ export const IncidentTable = ({
   pageSize,
   isLoading,
   onPageChange,
+  actionColumn,
 }: IncidentTableProps) => {
   const { containerRef, scrollY } = useTableScrollY();
   const screens = Grid.useBreakpoint();
@@ -197,6 +200,7 @@ export const IncidentTable = ({
         ),
     },
     longTextColumn('Ghi chú', 'note'),
+    ...(actionColumn ? [actionColumn] : []),
   ];
 
   return (

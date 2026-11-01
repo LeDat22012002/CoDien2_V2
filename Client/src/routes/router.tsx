@@ -185,7 +185,81 @@ export const router = createBrowserRouter([
                   },
                 ],
               },
+              {
+                element: <PageGuard pagePath="/admin/issued-documents" />,
+                children: [
+                  {
+                    path: "admin/issued-documents",
+                    lazy: () =>
+                      import(
+                        "@/modules/documents/pages/IssuedDocumentManagementPage"
+                      ).then(toRoute),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/document-templates" />,
+                children: [
+                  {
+                    path: "admin/document-templates",
+                    lazy: () =>
+                      import(
+                        "@/modules/documents/pages/DocumentTemplateManagementPage"
+                      ).then(toRoute),
+                  },
+                ],
+              },
               // Các route quản trị khác đặt ở đây (nhớ thêm vào APP_ROUTE_PATHS ở shared/constants/routes.ts)
+
+              // Trang cá nhân (menu Area MEMBER, Sider tự đổi sang menu thành viên theo tiền tố /member)
+              {
+                element: <PageGuard pagePath="/member/incidents" />,
+                children: [
+                  {
+                    path: "member/incidents",
+                    lazy: () =>
+                      import("@/modules/incidents/pages/MyIncidentsPage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/member/documents" />,
+                children: [
+                  {
+                    path: "member/documents",
+                    lazy: () =>
+                      import("@/modules/documents/pages/MyDocumentsPage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/member/profile" />,
+                children: [
+                  {
+                    path: "member/profile",
+                    lazy: () =>
+                      import("@/modules/employees/pages/MyProfilePage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/member/change-password" />,
+                children: [
+                  {
+                    path: "member/change-password",
+                    lazy: () =>
+                      import("@/modules/identity/pages/ChangePasswordPage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
             ],
           },
         ],

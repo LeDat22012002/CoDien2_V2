@@ -28,7 +28,12 @@ import { PositionCard } from '@/shared/components/PositionCard';
 import type { OrgUnit, PositionLevel } from '@/shared/types/organization';
 import { buildUnitTree, renderUnitTreeTitle } from '@/shared/utils/orgUnitTree';
 import { useAuthStore } from '@/stores/authStore';
-import { EDUCATION_LEVEL_OPTIONS, GENDER_OPTIONS } from '@/modules/employees/constants/employeeOptions';
+import {
+  AVATAR_ACCEPT,
+  AVATAR_MAX_BYTES,
+  EDUCATION_LEVEL_OPTIONS,
+  GENDER_OPTIONS,
+} from '@/modules/employees/constants/employeeOptions';
 import {
   useCreateEmployee,
   useEmployeeDetail,
@@ -57,10 +62,6 @@ interface EmployeeFormValues {
 }
 
 const PHONE_PATTERN = /^[0-9+\s.-]{8,20}$/;
-
-/** Ảnh đại diện: khớp kiểm tra ở Server (EmployeeRequestValidator.ValidateAvatar). */
-const AVATAR_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif';
-const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
 const toPersonalRequest = (values: EmployeeFormValues): Omit<CreateEmployeeRequest, 'empCode'> => ({
   fullName: values.fullName,

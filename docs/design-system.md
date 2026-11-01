@@ -22,7 +22,7 @@
 | Border secondary | `#E2E8F0` | Đường phân cách, viền card |
 | Nền trang | `#F1F5F9` | `Layout` |
 | Nền khối | `#FFFFFF` | Card, Table, Header |
-| Sider | `#0F172A` | Menu bên trái (theme dark) |
+| Sider | `#FFFFFF` | Menu bên trái (nền sáng, viền phải `Border secondary`); mục đang chọn nền `#EFF6FF` chữ Primary, hover `#F1F5F9` |
 
 Trong Tailwind dùng tên token: `bg-primary`, `text-text-secondary`, `border-border`, `bg-sider`…
 
@@ -76,7 +76,9 @@ Dùng `StatusTag` (`shared/components`) hoặc `OPERATION_STATUS_META` (`shared/
 
 ## Layout sau đăng nhập (`PrivateLayout`: quản trị, thông tin cá nhân)
 
-- Đầu Sider: logo Hòa Phát trên dải trắng cao bằng header; Sider thu gọn thì chỉ còn biểu tượng (`LogoHP.png`). Điện thoại: logo nằm trên header.
+- Đầu Sider: logo Hòa Phát cao bằng header, cùng nền trắng với header; Sider thu gọn thì chỉ còn biểu tượng (`LogoHP.png`). Điện thoại: logo nằm trên header.
+- Không có tab chuyển khu vực trong Sider: chuyển giữa Trang quản trị / Trang cá nhân qua menu avatar ở header. Chân Sider ghi tên đơn vị.
+- Menu Sider: trang cấp 1 có trang con hiển thị thành **nhóm có tiêu đề viết hoa, luôn mở** (không dùng submenu đóng/mở); mục đang chọn có vạch dọc Primary 3px sát mép trái. Sider thu gọn thì nhóm thành vạch ngăn. Token riêng ở `SIDER_MENU_THEME` (theme.ts), CSS ở `.app-sider-menu` (index.css).
 
 - `< md` (điện thoại): menu nằm trong `Drawer`, mở bằng nút hamburger ở header.
 - `md – lg` (tablet): `Sider` thu gọn còn icon.

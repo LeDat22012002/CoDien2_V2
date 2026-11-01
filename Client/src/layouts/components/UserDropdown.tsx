@@ -1,35 +1,50 @@
 import {
+  IdcardOutlined,
   LogoutOutlined,
   SettingOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { Avatar, Button, Dropdown, type MenuProps } from "antd";
-import { useNavigate } from "react-router";
+import { useMemo } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { MEMBER_PROFILE_PATH } from "@/shared/constants/routes";
 import { useLogout } from "@/modules/identity/hooks/useLogout";
+import { collectMenuLeaves } from "@/layouts/utils/menuItems";
 import { useAuthStore } from "@/stores/authStore";
 
-interface UserDropdownProps {
-  /** Trang công khai: đường dẫn vào trang quản trị. Bỏ trống thì không hiện mục "Trang quản trị". */
-  adminPath?: string;
-}
+/** Trang đầu tiên của menu (bỏ "/" vì "/" chỉ chuyển về trang công khai mặc định). */
+const useFirstMenuPath = (area: "admin" | "member") => {
+  const menu = useAuthStore((state) =>
+    area === "member" ? state.memberMenu : state.menu,
+  );
+  return useMemo(
+    () => collectMenuLeaves(menu).find((leaf) => leaf.path !== "/")?.path,
+    [menu],
+  );
+};
 
-export const UserDropdown = ({ adminPath }: UserDropdownProps) => {
+/**
+ * Avatar + tên người dùng ở header; menu: thông tin cá nhân, chuyển qua lại trang cá nhân / trang quản trị
+ * (chỉ hiện khu vực khác với trang đang xem và khi user có ít nhất 1 trang trong đó), đăng xuất.
+ */
+export const UserDropdown = () => {
   const user = useAuthStore((state) => state.user);
   const handleLogout = useLogout();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const isAdminArea = pathname.startsWith("/admin");
+  const adminPath = useFirstMenuPath("admin");
 
   const items: MenuProps["items"] = [
     {
       key: "profile",
-      disabled: true,
-      label: (
-        <div className="flex flex-col">
-          <span className="text-text-secondary">Thông tin cá nhân</span>
-        </div>
-      ),
+      icon: <IdcardOutlined />,
+      label: "Trang cá nhân",
+      onClick: () => navigate(MEMBER_PROFILE_PATH),
     },
-    { type: "divider" },
-    ...(adminPath
+
+    ...(adminPath && !isAdminArea
       ? [
           {
             key: "admin",
@@ -39,6 +54,7 @@ export const UserDropdown = ({ adminPath }: UserDropdownProps) => {
           },
         ]
       : []),
+    { type: "divider" as const },
     {
       key: "logout",
       danger: true,

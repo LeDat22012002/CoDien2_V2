@@ -6,6 +6,7 @@ import { applyServerErrors } from '@/shared/utils/formErrors';
 import { notify } from '@/shared/utils/notify';
 import { getPermissionModuleLabel } from '@/modules/identity/constants/roleOptions';
 import { useCreatePage, useUpdatePage } from '@/modules/identity/hooks/usePageQueries';
+import { canAreaHavePermission, getPageAreaLabel } from '@/modules/identity/constants/pageOptions';
 import type { Page, PageArea, PageRequest } from '@/modules/identity/types/pages';
 import type { PermissionGroup } from '@/modules/identity/types/roles';
 import {
@@ -91,7 +92,7 @@ export const PageFormModal = ({
 
   const linkType = Form.useWatch('linkType', form) ?? (page ? getPageLinkType(page) : 'path');
   const path = Form.useWatch('path', form);
-  const isAdmin = area === 'ADMIN';
+  const canHavePermission = canAreaHavePermission(area);
   const isUnknownRoute = linkType === 'path' && PATH_PATTERN.test(path ?? '') &&
     !(APP_ROUTE_PATHS as readonly string[]).includes(path ?? '');
 
@@ -161,7 +162,7 @@ export const PageFormModal = ({
       parentId: values.parentId,
       area,
       // Nhóm menu và trang công khai không gắn quyền
-      permissionId: isAdmin && values.linkType !== 'group' ? values.permissionId : undefined,
+      permissionId: canHavePermission && values.linkType !== 'group' ? values.permissionId : undefined,
       sortOrder: isSameParent ? page.sortOrder : getNextSortOrder(siblings),
       isMenu: values.isMenu,
       isActive: values.isActive,
@@ -182,7 +183,7 @@ export const PageFormModal = ({
   return (
     <Modal
       open={open}
-      title={`${isCreate ? 'Thêm trang' : 'Sửa trang'} · ${isAdmin ? 'Menu quản trị' : 'Menu trang công khai'}`}
+      title={`${isCreate ? 'Thêm trang' : 'Sửa trang'} · ${getPageAreaLabel(area)}`}
       okText={isCreate ? 'Thêm trang' : 'Lưu thay đổi'}
       cancelText="Hủy"
       onOk={handleSubmit}
@@ -303,7 +304,7 @@ export const PageFormModal = ({
             </Form.Item>
           </Col>
 
-          {isAdmin && linkType !== 'group' && (
+          {canHavePermission && linkType !== 'group' && (
             <Col span={24}>
               <Form.Item
                 name="permissionId"
@@ -333,7 +334,7 @@ export const PageFormModal = ({
         </Row>
 
         <div className="text-sm text-text-secondary">
-          {isAdmin
+          {canHavePermission
             ? 'Ẩn khỏi menu: trang vẫn vào được bằng đường dẫn (vd trang chi tiết). Ngừng hoạt động: không hiện và không vào được.'
             : 'Menu công khai chỉ là liên kết điều hướng; quyền vào trang theo trang quản trị cùng đường dẫn.'}
         </div>

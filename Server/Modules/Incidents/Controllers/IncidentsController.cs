@@ -38,6 +38,14 @@ public class IncidentsController(
         return Ok(ApiResponse<IReadOnlyList<IncidentWorkshopDto>>.Ok(result));
     }
 
+    /// <summary>Quyền quản lý / phân tích và xưởng của người đang đăng nhập (trang cá nhân).</summary>
+    [HttpGet("my-scope")]
+    public async Task<ActionResult<ApiResponse<IncidentScopeDto>>> GetMyScope(CancellationToken cancellationToken)
+    {
+        var result = await incidentService.GetMyScopeAsync(cancellationToken);
+        return Ok(ApiResponse<IncidentScopeDto>.Ok(result));
+    }
+
     /// <summary>Toàn nhà máy (kèm thống kê theo xưởng) hoặc 1 xưởng: ?year=2026&amp;workshopId=5.</summary>
     [AllowAnonymous]
     [HttpGet("dashboard")]

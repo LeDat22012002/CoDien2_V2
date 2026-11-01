@@ -18,8 +18,12 @@ export const COLORS = {
   borderSecondary: '#E2E8F0',
   bgLayout: '#F1F5F9',
   bgContainer: '#FFFFFF',
-  sider: '#0F172A',
-  siderSubMenu: '#020617',
+  sider: '#FFFFFF',
+  siderItem: '#334155',
+  siderItemHover: '#F1F5F9',
+  siderItemSelected: '#EFF6FF',
+  /** Tiêu đề nhóm menu: #64748B trên nền trắng đạt tương phản 4.7:1. */
+  siderGroupTitle: '#64748B',
   tableHeader: '#F8FAFC',
 } as const;
 
@@ -58,13 +62,36 @@ export const THEME_CONFIG: ThemeConfig = {
       headerPadding: '0 16px',
     },
     Menu: {
-      darkItemBg: COLORS.sider,
-      darkSubMenuItemBg: COLORS.siderSubMenu,
-      darkItemSelectedBg: COLORS.primary,
       itemHeight: 44,
     },
     Table: {
       headerBg: COLORS.tableHeader,
+    },
+  },
+};
+
+/** Token riêng của menu Sider (bọc ConfigProvider trong AppMenu), không ảnh hưởng menu header trang công khai. */
+export const SIDER_MENU_THEME: ThemeConfig = {
+  components: {
+    Menu: {
+      itemBg: 'transparent',
+      subMenuItemBg: 'transparent',
+      itemColor: COLORS.siderItem,
+      itemHoverColor: COLORS.text,
+      itemHoverBg: COLORS.siderItemHover,
+      itemActiveBg: COLORS.siderItemSelected,
+      itemSelectedBg: COLORS.siderItemSelected,
+      itemSelectedColor: COLORS.primary,
+      groupTitleColor: COLORS.siderGroupTitle,
+      groupTitleFontSize: 11,
+      groupTitleLineHeight: 1.5,
+      itemMarginInline: 8,
+      itemMarginBlock: 2,
+      itemBorderRadius: 6,
+      iconSize: 16,
+      iconMarginInlineEnd: 12,
+      activeBarBorderWidth: 0,
+      collapsedIconSize: 18,
     },
   },
 };

@@ -1,130 +1,56 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ErrorState } from '@/shared/components/ErrorState';
+import { FullPageLoading } from '@/shared/components/FullPageLoading';
 import { RibbonTitle } from '@/shared/components/RibbonTitle';
-import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { showLoginRequiredAlert } from '@/shared/utils/alert';
 import { buildLoginPath } from '@/shared/utils/redirect';
 import { useAuthStore } from '@/stores/authStore';
-import { IncidentFilterBar, type IncidentFilterValues } from '@/modules/incidents/components/IncidentFilterBar';
+import { IncidentFilterBar } from '@/modules/incidents/components/IncidentFilterBar';
 import { IncidentFormModal } from '@/modules/incidents/components/IncidentFormModal';
 import { IncidentTable } from '@/modules/incidents/components/IncidentTable';
-import { INCIDENT_PAGE_SIZE } from '@/modules/incidents/constants/incidentOptions';
+import { useIncidentFilterParams } from '@/modules/incidents/hooks/useIncidentFilterParams';
 import { useIncidents, useIncidentWorkshops } from '@/modules/incidents/hooks/useIncidentQueries';
 
-const SEARCH_DEBOUNCE_MS = 400;
+/** ?view=dashboard: hiện dashboard thay danh sách; năm / xưởng của dashboard nằm ở ?year=&dw=. */
+const VIEW_PARAM = 'view';
+const DASHBOARD_VIEW = 'dashboard';
+const DASHBOARD_PARAMS = [VIEW_PARAM, 'year', 'dw'];
 
-/** Tham số trên URL để F5 / quay lại không mất bộ lọc và trang. */
-const PARAMS = {
-  shift: 'shift',
-  workshopId: 'workshop',
-  equipmentCode: 'eq',
-  incidentType: 'type',
-  stopLevel: 'stop',
-  affectsProduction: 'ahsx',
-  keyword: 'q',
-  page: 'page',
-  pageSize: 'limit',
-} as const;
-
-type ParamKey = keyof typeof PARAMS;
-type TextFilterKey = 'equipmentCode' | 'keyword';
+/** Dashboard kéo theo thư viện biểu đồ: tải riêng khi mở. */
+const IncidentDashboard = lazy(() => import('@/modules/incidents/components/dashboard/IncidentDashboard'));
 
 /**
  * Báo cáo sự cố (route /incidents, trang công khai), dựng lại theo BaoCaoSuCo hệ thống cũ:
- * lọc + bảng + phân trang, báo cáo quá hạn bổ sung / phân tích được đánh dấu đỏ.
- * Ai cũng xem được; thêm báo cáo cần đăng nhập (Server kiểm tra).
+ * lọc + bảng + phân trang, báo cáo quá hạn bổ sung / phân tích được đánh dấu đỏ; nút Dashboard chuyển sang thống kê.
+ * Ai cũng xem được; thêm báo cáo cần đăng nhập (Server kiểm tra). Sửa / phân tích / bổ sung ở trang cá nhân.
  */
 const IncidentListPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const authStatus = useAuthStore((state) => state.status);
   const [searchParams, setSearchParams] = useSearchParams();
-
-  const getParam = (key: ParamKey) => searchParams.get(PARAMS[key]) ?? undefined;
-  const equipmentCode = getParam('equipmentCode') ?? '';
-  const keyword = getParam('keyword') ?? '';
-  const affectsProduction = getParam('affectsProduction');
-  const workshopId = Number(getParam('workshopId')) || undefined;
-  const pageIndex = Number(getParam('page')) || 1;
-  const pageSize = Number(getParam('pageSize')) || INCIDENT_PAGE_SIZE;
-
-  const [textInputs, setTextInputs] = useState<Record<TextFilterKey, string>>({ equipmentCode, keyword });
-  const debouncedEquipmentCode = useDebouncedValue(textInputs.equipmentCode.trim(), SEARCH_DEBOUNCE_MS);
-  const debouncedKeyword = useDebouncedValue(textInputs.keyword.trim(), SEARCH_DEBOUNCE_MS);
+  const { filter, filterValues, pageIndex, pageSize, handleFilterChange, handleReset, handlePageChange } =
+    useIncidentFilterParams();
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const workshopsQuery = useIncidentWorkshops();
-  const incidentsQuery = useIncidents({
-    shift: getParam('shift'),
-    workshopId,
-    equipmentCode: equipmentCode || undefined,
-    incidentType: getParam('incidentType'),
-    stopLevel: getParam('stopLevel'),
-    affectsProduction: affectsProduction === undefined ? undefined : affectsProduction === 'true',
-    keyword: keyword || undefined,
-    pageIndex,
-    pageSize,
-  });
+  const incidentsQuery = useIncidents(filter);
 
-  /** Ghi tham số lên URL; đổi bộ lọc thì về trang 1. */
-  const updateParams = (patch: Partial<Record<ParamKey, string | number | undefined>>, resetPage = true) =>
-    setSearchParams(
-      (previous) => {
-        const next = new URLSearchParams(previous);
-        Object.entries(patch).forEach(([key, value]) => {
-          const param = PARAMS[key as ParamKey];
-          if (value === undefined || value === '') next.delete(param);
-          else next.set(param, String(value));
-        });
-        if (resetPage) next.delete(PARAMS.page);
-        return next;
-      },
-      { replace: true },
-    );
+  /** Mở / đóng dashboard: thêm lịch sử trình duyệt để nút Back quay lại được; bộ lọc danh sách giữ nguyên. */
+  const openDashboard = () =>
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set(VIEW_PARAM, DASHBOARD_VIEW);
+      return next;
+    });
 
-  // Ô chữ → URL (sau khi ngừng gõ)
-  useEffect(() => {
-    if (debouncedEquipmentCode !== equipmentCode || debouncedKeyword !== keyword) {
-      updateParams({ equipmentCode: debouncedEquipmentCode, keyword: debouncedKeyword });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy khi người dùng ngừng gõ
-  }, [debouncedEquipmentCode, debouncedKeyword]);
-
-  const filterValues: IncidentFilterValues = {
-    shift: getParam('shift'),
-    workshopId,
-    equipmentCode: textInputs.equipmentCode,
-    incidentType: getParam('incidentType'),
-    stopLevel: getParam('stopLevel'),
-    affectsProduction,
-    keyword: textInputs.keyword,
-  };
-
-  const handleFilterChange = (patch: Partial<IncidentFilterValues>) => {
-    const { equipmentCode: nextEquipmentCode, keyword: nextKeyword, ...selectPatch } = patch;
-    if (nextEquipmentCode !== undefined || nextKeyword !== undefined) {
-      setTextInputs((previous) => ({
-        equipmentCode: nextEquipmentCode ?? previous.equipmentCode,
-        keyword: nextKeyword ?? previous.keyword,
-      }));
-    }
-    if (Object.keys(selectPatch).length > 0) updateParams(selectPatch);
-  };
-
-  const handleReset = () => {
-    setTextInputs({ equipmentCode: '', keyword: '' });
-    setSearchParams(new URLSearchParams(), { replace: true });
-  };
-
-  const handlePageChange = (nextPage: number, nextPageSize: number) =>
-    updateParams(
-      {
-        page: nextPage === 1 ? undefined : nextPage,
-        pageSize: nextPageSize === INCIDENT_PAGE_SIZE ? undefined : nextPageSize,
-      },
-      nextPageSize !== pageSize,
-    );
+  const closeDashboard = () =>
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      DASHBOARD_PARAMS.forEach((param) => next.delete(param));
+      return next;
+    });
 
   /** Chưa đăng nhập: cảnh báo rồi chuyển sang đăng nhập, xong quay lại đúng trang này. */
   const handleCreate = () => {
@@ -136,6 +62,18 @@ const IncidentListPage = () => {
       void showLoginRequiredAlert().then(() => navigate(buildLoginPath(`${location.pathname}${location.search}`)));
     }
   };
+
+  if (searchParams.get(VIEW_PARAM) === DASHBOARD_VIEW) {
+    return (
+      <Suspense fallback={<FullPageLoading />}>
+        <IncidentDashboard
+          workshops={workshopsQuery.data ?? []}
+          isWorkshopsLoading={workshopsQuery.isLoading}
+          onBack={closeDashboard}
+        />
+      </Suspense>
+    );
+  }
 
   return (
     // ≥ lg: trang cao bằng phần dưới header (64px) để khung bảng cố định, thân bảng cuộn bên trong
@@ -151,6 +89,7 @@ const IncidentListPage = () => {
         onReset={handleReset}
         onRefresh={() => incidentsQuery.refetch()}
         onCreate={handleCreate}
+        onOpenDashboard={openDashboard}
       />
 
       {incidentsQuery.isError && !incidentsQuery.data ? (

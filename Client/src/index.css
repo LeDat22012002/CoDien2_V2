@@ -66,11 +66,30 @@
   --app-scrollbar-thumb-hover: #64748b;
 }
 
-/* Menu nền tối (Sider, Drawer menu): thanh cuộn trắng mờ */
-.ant-layout-sider,
-.ant-menu-dark {
-  --app-scrollbar-thumb: rgb(255 255 255 / 0.18);
-  --app-scrollbar-thumb-hover: rgb(255 255 255 / 0.32);
+/*
+ * Menu Sider: mục đang chọn có vạch dọc màu chính sát mép trái Sider (lùi bằng itemMarginInline 8px).
+ * Tiêu đề nhóm viết hoa, giãn chữ để tách nhóm mà không cần submenu đóng/mở.
+ */
+.app-sider-menu .ant-menu-item-selected {
+  position: relative;
+  font-weight: 600;
+}
+
+.app-sider-menu .ant-menu-item-selected::before {
+  content: '';
+  position: absolute;
+  inset-block: 10px;
+  left: -8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--app-color-primary);
+}
+
+.app-sider-menu .ant-menu-item-group-title {
+  padding-top: 16px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 @supports not (scrollbar-color: auto) {

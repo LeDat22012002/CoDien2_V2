@@ -31,7 +31,7 @@ public static partial class PageRequestValidator
 
         if (!PageAreas.All.Contains(request.Area))
         {
-            errors["area"] = ["Khu vực menu không hợp lệ (ADMIN hoặc PUBLIC)."];
+            errors["area"] = ["Khu vực menu không hợp lệ (ADMIN, PUBLIC hoặc MEMBER)."];
         }
 
         if (request.Path is not null && (request.Path.Length > 200 || !PathRegex().IsMatch(request.Path)))
@@ -77,7 +77,7 @@ public static partial class PageRequestValidator
 
         if (!PageAreas.All.Contains(request.Area))
         {
-            errors["area"] = ["Khu vực menu không hợp lệ (ADMIN hoặc PUBLIC)."];
+            errors["area"] = ["Khu vực menu không hợp lệ (ADMIN, PUBLIC hoặc MEMBER)."];
         }
 
         if (request.OrderedIds.Count == 0 || request.OrderedIds.Distinct().Count() != request.OrderedIds.Count)

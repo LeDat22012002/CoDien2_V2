@@ -30,8 +30,9 @@ public interface IIssuedDocumentRepository
 
     Task<IReadOnlyList<string>> GetContractNumbersAsync(int templateId, CancellationToken cancellationToken);
 
-    /// <summary>Văn bản để xuất Excel, kèm biểu mẫu; year null = mọi năm.</summary>
-    Task<IReadOnlyList<IssuedDocument>> GetForExportAsync(int? year, CancellationToken cancellationToken);
+    /// <summary>Văn bản để xuất Excel theo cùng bộ lọc sổ (bỏ phân trang), kèm biểu mẫu; year null = mọi năm.</summary>
+    Task<IReadOnlyList<IssuedDocument>> GetForExportAsync(
+        IssuedDocumentFilterRequest filter, int? year, CancellationToken cancellationToken);
 
     /// <summary>Đọc bảng Employee (chỉ đọc) để lấy thông tin người lấy số.</summary>
     Task<Employee?> GetEmployeeByEmpCodeAsync(string empCode, CancellationToken cancellationToken);

@@ -1,4 +1,4 @@
-import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { BarChartOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Input, Select, Tooltip } from 'antd';
 import type { ReactNode } from 'react';
 import {
@@ -29,6 +29,10 @@ interface IncidentFilterBarProps {
   onReset: () => void;
   onRefresh: () => void;
   onCreate: () => void;
+  /** Bỏ trống = không hiện nút Dashboard (trang cá nhân). */
+  onOpenDashboard?: () => void;
+  /** Khóa ô Xưởng (người phân tích chỉ xem xưởng của mình). */
+  isWorkshopLocked?: boolean;
 }
 
 const ALL_PLACEHOLDER = '-- Tất cả --';
@@ -44,7 +48,7 @@ const Field = ({ label, htmlFor, children }: { label: string; htmlFor: string; c
 
 /**
  * Bộ lọc giống hệ thống cũ: Kíp, Xưởng, Mã Equipment, Loại sự cố, Dừng đến cấp, Ảnh hưởng SX, Tìm kiếm,
- * nút đặt lại bộ lọc và Thêm báo cáo. Màn hình nhỏ: các ô chia 2 cột.
+ * nút đặt lại bộ lọc, Thêm báo cáo và Dashboard. Màn hình nhỏ: các ô chia 2 cột.
  */
 export const IncidentFilterBar = ({
   values,
@@ -55,6 +59,8 @@ export const IncidentFilterBar = ({
   onReset,
   onRefresh,
   onCreate,
+  onOpenDashboard,
+  isWorkshopLocked = false,
 }: IncidentFilterBarProps) => (
   <div className="grid grid-cols-2 items-end gap-3 border border-solid border-gray-300 bg-bg-container p-4 md:grid-cols-4 xl:flex xl:flex-wrap">
     <Field label="Kíp" htmlFor="incident-shift">
@@ -71,7 +77,8 @@ export const IncidentFilterBar = ({
     <Field label="Xưởng" htmlFor="incident-workshop">
       <Select
         id="incident-workshop"
-        allowClear
+        allowClear={!isWorkshopLocked}
+        disabled={isWorkshopLocked}
         showSearch={{ optionFilterProp: 'label' }}
         placeholder={ALL_PLACEHOLDER}
         value={values.workshopId}
@@ -148,6 +155,11 @@ export const IncidentFilterBar = ({
       <Button type="primary" icon={<PlusOutlined />} onClick={onCreate} className="flex-1 xl:flex-none">
         Thêm báo cáo
       </Button>
+      {onOpenDashboard && (
+        <Button danger icon={<BarChartOutlined />} onClick={onOpenDashboard}>
+          Dashboard
+        </Button>
+      )}
     </div>
   </div>
 );

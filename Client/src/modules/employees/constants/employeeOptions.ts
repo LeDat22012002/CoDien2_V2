@@ -18,6 +18,10 @@ export const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'Nữ', label: 'Nữ' },
 ];
 
+/** Ảnh đại diện: khớp kiểm tra ở Server (EmployeeRequestValidator.ValidateAvatar). */
+export const AVATAR_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif';
+export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+
 /** Trình độ hợp lệ (Server kiểm tra theo danh sách này). */
 export const EDUCATION_LEVEL_OPTIONS: { value: EducationLevel; label: string }[] = [
   { value: 'ĐH', label: 'ĐH' },

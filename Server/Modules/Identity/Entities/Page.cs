@@ -45,5 +45,8 @@ public static class PageAreas
     /// <summary>Menu header của trang công khai (landing), ai cũng xem được.</summary>
     public const string Public = "PUBLIC";
 
-    public static readonly IReadOnlySet<string> All = new HashSet<string> { Admin, Public };
+    /// <summary>Menu Sider trang cá nhân (/member): báo cáo sự cố của tôi, văn bản đã lấy, thông tin cá nhân…</summary>
+    public const string Member = "MEMBER";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string> { Admin, Public, Member };
 }

@@ -42,7 +42,32 @@ export const toMenuItems = (items: MenuItem[], options: ToMenuItemsOptions = {})
   }));
 };
 
-export const collectMenuLeaves = (items: MenuItem[], ancestorKeys: string[] = []): MenuLeaf[] =>
+/**
+ * Menu Sider: trang cấp 1 có trang con hiển thị thành nhóm có tiêu đề (luôn mở) thay vì submenu đóng/mở;
+ * các trang cấp 1 đứng liền nhau gom vào một nhóm không tiêu đề. Sider thu gọn thì nhóm thành vạch ngăn.
+ */
+export const toSiderMenuItems = (items: MenuItem[], isCollapsed: boolean): AntdMenuItem[] => {
+  const sections: { key: string; title?: string; items: MenuItem[] }[] = [];
+  items.forEach((item) => {
+    if (item.children.length > 0) {
+      sections.push({ key: getMenuItemKey(item), title: item.title, items: item.children });
+      return;
+    }
+    const last = sections.at(-1);
+    if (last && !last.title) last.items.push(item);
+    else sections.push({ key: `section-${getMenuItemKey(item)}`, items: [item] });
+  });
+
+  return sections.flatMap((section, index): AntdMenuItem[] => {
+    const children = toMenuItems(section.items);
+    if (isCollapsed) {
+      return index > 0 ? [{ type: 'divider', key: `divider-${section.key}` }, ...children] : children;
+    }
+    return section.title ? [{ type: 'group', key: section.key, label: section.title, children }] : children;
+  });
+};
+
+export const collectMenuLeaves =(items: MenuItem[], ancestorKeys: string[] = []): MenuLeaf[] =>
   items.flatMap((item) =>
     item.children.length > 0
       ? collectMenuLeaves(item.children, [...ancestorKeys, getMenuItemKey(item)])

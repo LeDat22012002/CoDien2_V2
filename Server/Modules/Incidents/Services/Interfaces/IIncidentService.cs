@@ -12,6 +12,9 @@ public interface IIncidentService
     /// <summary>Xưởng đang hoạt động (đơn vị cấp 1) cho bộ lọc và form báo cáo.</summary>
     Task<IReadOnlyList<IncidentWorkshopDto>> GetWorkshopsAsync(CancellationToken cancellationToken);
 
+    /// <summary>Quyền quản lý / phân tích và xưởng của người đang đăng nhập.</summary>
+    Task<IncidentScopeDto> GetMyScopeAsync(CancellationToken cancellationToken);
+
     /// <summary>Người nhập và thời điểm nhập lấy theo tài khoản đăng nhập và giờ server.</summary>
     Task<IncidentDto> CreateAsync(CreateIncidentRequest request, CancellationToken cancellationToken);
 

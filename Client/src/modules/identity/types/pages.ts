@@ -1,5 +1,5 @@
-/** ADMIN = menu Sider trang quản trị; PUBLIC = menu header trang công khai. */
-export type PageArea = 'ADMIN' | 'PUBLIC';
+/** ADMIN = menu Sider trang quản trị; MEMBER = menu Sider trang cá nhân (/member); PUBLIC = menu header trang công khai. */
+export type PageArea = 'ADMIN' | 'MEMBER' | 'PUBLIC';
 
 /** Trang / mục menu (cây, children đã sắp theo sortOrder). */
 export interface Page {
@@ -13,7 +13,7 @@ export interface Page {
   icon?: string | null;
   parentId?: number | null;
   area: PageArea;
-  /** Quyền cần để thấy trang (chỉ trang ADMIN); null = ai đăng nhập cũng thấy. */
+  /** Quyền cần để thấy trang (trang ADMIN / MEMBER); null = ai đăng nhập cũng thấy. */
   permissionId?: number | null;
   permissionCode?: string | null;
   sortOrder: number;

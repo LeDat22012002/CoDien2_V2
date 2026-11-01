@@ -56,6 +56,16 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
         return Ok(ApiResponse.Ok("Xóa nhân viên thành công."));
     }
 
+    /// <summary>Người đang đăng nhập tự đổi ảnh đại diện (trang cá nhân).</summary>
+    [HttpPost("me/avatar")]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<ActionResult<ApiResponse<EmployeeDto>>> UpdateMyAvatar(
+        IFormFile? file, CancellationToken cancellationToken)
+    {
+        var result = await employeeService.UpdateMyAvatarAsync(file, cancellationToken);
+        return Ok(ApiResponse<EmployeeDto>.Ok(result, "Đổi ảnh đại diện thành công."));
+    }
+
     [HasPermission(PermissionCodes.Employees.Update)]
     [HttpPost("{id:int}/avatar")]
     [RequestSizeLimit(6 * 1024 * 1024)]

@@ -36,7 +36,10 @@ export interface Me {
   isSuperAdmin: boolean;
   roles: RoleSummary[];
   permissions: string[];
+  /** Menu Sider trang quản trị (Area ADMIN). */
   menu: MenuItem[];
-  /** Mọi route user được vào, kể cả trang không hiện trên menu. */
+  /** Menu Sider trang cá nhân /member (Area MEMBER). */
+  memberMenu: MenuItem[];
+  /** Mọi route user được vào (cả trang quản trị và trang cá nhân), kể cả trang không hiện trên menu. */
   routes: string[];
 }

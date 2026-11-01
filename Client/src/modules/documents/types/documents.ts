@@ -3,7 +3,7 @@ import type { PagedRequest } from '@/shared/types/api';
 
 // ===== Biểu mẫu =====
 
-export interface DocumentTemplateOption {
+export interface DocumentTemplate {
   id: number;
   code: string;
   name: string;
@@ -12,6 +12,19 @@ export interface DocumentTemplateOption {
   startNumber?: number | null;
   process?: string | null;
 }
+
+/** Thêm / sửa biểu mẫu (danh sách văn bản cần lấy số). */
+export interface DocumentTemplateRequest {
+  code: string;
+  name: string;
+  numberSuffix: string;
+  description?: string;
+  startNumber?: number;
+  process?: string;
+}
+
+/** Keyword tìm theo tên hoặc mã biểu mẫu. */
+export type DocumentTemplateFilter = PagedRequest;
 
 // ===== Sổ văn bản đã cấp =====
 
@@ -39,12 +52,22 @@ export interface IssuedDocument {
   numberSuffix: string;
 }
 
+/** Keyword tìm theo họ tên, mã NV người lấy số, số hiệu, trích yếu. */
 export interface IssuedDocumentFilter extends PagedRequest {
   documentTemplateId?: number;
   issuerEmpCode?: string;
   fromDate?: string;
   toDate?: string;
   note?: string;
+  publishStatus?: PublishStatus;
+}
+
+/** Trường để trống thì Server giữ nguyên giá trị cũ (như hệ thống cũ). */
+export interface UpdateIssuedDocumentRequest {
+  subject?: string;
+  note?: string;
+  publishStatus?: PublishStatus;
+  eOfficeLink?: string;
 }
 
 // ===== Cấp số =====

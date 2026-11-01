@@ -14,12 +14,12 @@ interface SiderBrandProps {
   isCollapsed?: boolean;
 }
 
-/** Logo đầu Sider trên dải trắng cao bằng header (logo màu xanh không đọc được trên nền Sider navy). */
+/** Logo đầu Sider cao bằng header, cùng nền trắng để Sider và header liền một khối. */
 const SiderBrand = ({ isCollapsed }: SiderBrandProps) => (
   <Link
     to="/"
     aria-label="Về trang chủ"
-    className="flex h-14 items-center justify-center border-b border-border bg-bg-container px-3"
+    className="flex h-14 shrink-0 items-center justify-center border-b border-border px-3"
   >
     {isCollapsed ? (
       <img src={logoIcon} alt={LOGO_ALT} className="h-8 w-auto" />
@@ -27,6 +27,27 @@ const SiderBrand = ({ isCollapsed }: SiderBrandProps) => (
       <img src={logo} alt={LOGO_ALT} className="h-10 w-auto max-w-full object-contain" />
     )}
   </Link>
+);
+
+interface SiderContentProps {
+  isCollapsed?: boolean;
+  onNavigate?: () => void;
+}
+
+/** Ruột Sider / Drawer: logo, menu (cuộn riêng), chân ghi tên đơn vị. */
+const SiderContent = ({ isCollapsed = false, onNavigate }: SiderContentProps) => (
+  <div className="flex h-full flex-col">
+    <SiderBrand isCollapsed={isCollapsed} />
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <AppMenu isCollapsed={isCollapsed} onNavigate={onNavigate} />
+    </div>
+    {!isCollapsed && (
+      <div className="shrink-0 border-t border-border px-4 py-3 text-xs leading-snug text-text-secondary">
+        <div className="font-semibold text-text">Nhà máy Cơ điện 2</div>
+        <div>Hòa Phát Dung Quất</div>
+      </div>
+    )}
+  </div>
 );
 
 /**
@@ -59,8 +80,7 @@ const PrivateLayout = () => {
           styles={{ body: { padding: 0 } }}
           classNames={{ body: 'bg-sider' }}
         >
-          <SiderBrand />
-          <AppMenu onNavigate={() => setIsDrawerOpen(false)} />
+          <SiderContent onNavigate={() => setIsDrawerOpen(false)} />
         </Drawer>
       ) : (
         <Layout.Sider
@@ -70,10 +90,10 @@ const PrivateLayout = () => {
           collapsed={isCollapsed}
           onBreakpoint={setIsCollapsed}
           trigger={null}
-          className="sticky top-0 h-dvh overflow-y-auto"
+          theme="light"
+          className="sticky top-0 h-dvh border-e border-border"
         >
-          <SiderBrand isCollapsed={isCollapsed} />
-          <AppMenu />
+          <SiderContent isCollapsed={isCollapsed} />
         </Layout.Sider>
       )}
 
@@ -91,7 +111,8 @@ const PrivateLayout = () => {
               <img src={logo} alt={LOGO_ALT} className="h-8 w-auto" />
             </Link>
           )}
-          <div className="ml-auto">
+          {/* flex để nút không căn theo line-height 56px của Header (lệch lên trên) */}
+          <div className="ml-auto flex items-center">
             <UserDropdown />
           </div>
         </Layout.Header>

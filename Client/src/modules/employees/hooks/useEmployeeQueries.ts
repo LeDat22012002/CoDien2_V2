@@ -6,6 +6,7 @@ import {
   getEmployees,
   updateEmployee,
   uploadEmployeeAvatar,
+  uploadMyAvatar,
 } from '@/modules/employees/api/employeesApi';
 import type { EmployeeFilter, UpdateEmployeeRequest } from '@/modules/employees/types/employees';
 
@@ -48,12 +49,22 @@ export const useUpdateEmployee = () => {
 };
 
 /** Ảnh đại diện hiện ở danh sách nhân viên, tài khoản và sơ đồ tổ chức. */
-export const useUploadEmployeeAvatar = () => {
+const useInvalidateAvatar = () => {
   const invalidate = useInvalidateAssignments();
   const queryClient = useQueryClient();
+  return () => Promise.all([invalidate(), queryClient.invalidateQueries({ queryKey: ['users'] })]);
+};
+
+export const useUploadEmployeeAvatar = () => {
+  const invalidate = useInvalidateAvatar();
   return useMutation({
     mutationFn: ({ id, file }: { id: number; file: File }) => uploadEmployeeAvatar(id, file),
-    onSuccess: () =>
-      Promise.all([invalidate(), queryClient.invalidateQueries({ queryKey: ['users'] })]),
+    onSuccess: invalidate,
   });
+};
+
+/** Tự đổi ảnh của mình; trang gọi tự cập nhật avatar trên header. */
+export const useUploadMyAvatar = () => {
+  const invalidate = useInvalidateAvatar();
+  return useMutation({ mutationFn: uploadMyAvatar, onSuccess: invalidate });
 };

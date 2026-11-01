@@ -111,7 +111,10 @@ public class UpdateIssuedDocumentRequest
     public string? EOfficeLink { get; set; }
 }
 
-/// <summary>Lọc sổ văn bản: Keyword không dùng; FromDate/ToDate theo ngày ban hành.</summary>
+/// <summary>
+/// Lọc sổ văn bản: Keyword tìm theo họ tên, mã NV người lấy số, số hiệu, trích yếu;
+/// FromDate/ToDate theo ngày ban hành.
+/// </summary>
 public class IssuedDocumentFilterRequest : PagedRequest
 {
     public int? DocumentTemplateId { get; set; }
@@ -119,4 +122,7 @@ public class IssuedDocumentFilterRequest : PagedRequest
     public DateOnly? FromDate { get; set; }
     public DateOnly? ToDate { get; set; }
     public string? Note { get; set; }
+
+    /// <summary>PENDING | PUBLISHED | CANCELLED.</summary>
+    public string? PublishStatus { get; set; }
 }

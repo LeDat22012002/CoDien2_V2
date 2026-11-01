@@ -38,11 +38,13 @@ public class IssuedDocumentsController(IIssuedDocumentService documentService) :
         return Ok(ApiResponse<IReadOnlyList<string>>.Ok(result));
     }
 
+    /// <summary>Xuất Excel theo cùng bộ lọc với danh sách (bỏ phân trang).</summary>
     [HasPermission(PermissionCodes.Documents.View)]
     [HttpGet("export")]
-    public async Task<IActionResult> ExportExcel([FromQuery] int? year, CancellationToken cancellationToken)
+    public async Task<IActionResult> ExportExcel(
+        [FromQuery] IssuedDocumentFilterRequest filter, [FromQuery] int? year, CancellationToken cancellationToken)
     {
-        var fileBytes = await documentService.ExportExcelAsync(year, cancellationToken);
+        var fileBytes = await documentService.ExportExcelAsync(filter, year, cancellationToken);
         return File(fileBytes, ExcelContentType, $"SoVanBanDaCap_{DateTime.Now:yyyy-MM-dd}.xlsx");
     }
 
