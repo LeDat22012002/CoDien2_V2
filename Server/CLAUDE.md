@@ -79,6 +79,7 @@ server/
 - Token: access token 15 phút trong JSON (claims `sub`, `emp_code`, `full_name`, `stamp`, **không chứa quyền**); refresh token 7 ngày trong cookie HttpOnly `refresh_token` (Path `/api/auth`), DB chỉ lưu SHA-256, xoay vòng mỗi lần refresh, dùng lại token cũ → thu hồi mọi phiên.
 - Quyền và trạng thái user được cache (`IMemoryCache`, 10 phút). Đổi role/quyền/khóa/mật khẩu phải gọi `IPermissionService.InvalidateUser` hoặc `InvalidateAll` để có hiệu lực ngay; đổi mật khẩu/ngừng tài khoản gọi `user.RenewSecurityStamp()` để vô hiệu access token cũ.
 - Chống leo thang: không tự sửa role/trạng thái của mình; phải còn ≥ 1 SUPER_ADMIN hoạt động; người không phải SUPER_ADMIN không đụng tới role/tài khoản SUPER_ADMIN và chỉ cấp được quyền mình đang có.
+- Tài khoản cũ chuyển 1 lần từ `TEST.dbo.Tbl_TaiKhoan` bằng `Data/Scripts/MigrateUsersFromTest.sql` (vai trò `NGUOI_DUNG`). Mật khẩu cũ giữ dạng `MD5:<hex>`; `UserPasswordHasher` nhận hash này và tự đổi sang PBKDF2 ở lần đăng nhập đầu tiên.
 - Viết SQL tay bằng `sqlcmd` phải thêm cờ `-I` (bật QUOTED_IDENTIFIER) vì bảng có filtered index.
 
 ## Cơ cấu tổ chức (module Organization)
@@ -90,7 +91,7 @@ server/
 - Xóa đơn vị = `IsActive = false`; chặn khi còn đơn vị con hoặc còn người giữ vị trí. GD luôn hàng 1, PGD luôn hàng 2 trên sơ đồ.
 - Báo cáo sự cố: `GET /api/incidents/my-scope` (cần đăng nhập) trả quyền quản lý / phân tích và xưởng (đơn vị cấp 1 loại WORKSHOP) của người đang đăng nhập, để FE ẩn/hiện nút từng dòng; quyền thật vẫn kiểm tra trong `IncidentService`.
 - Trang Sơ đồ tổ chức là trang công khai: `GET /api/org-chart` và `GET /api/org-chart/units/{id}/members` gắn `[AllowAnonymous]` (gồm cả email, SĐT nhân viên); `lookups` vẫn cần `org-chart.view`.
-- Secret lấy từ User Secrets hoặc biến môi trường. Connection string và `Jwt:SecretKey` đang nằm trong User Secrets, không ghi vào appsettings.
+- Secret lấy từ User Secrets (máy dev) hoặc `appsettings.Production.json` / biến môi trường (IIS). Connection string và `Jwt:SecretKey` không ghi vào `appsettings.json`. Hướng dẫn cấu hình: `README.md` gốc.
 
 ## Cấp số văn bản (module Documents)
 

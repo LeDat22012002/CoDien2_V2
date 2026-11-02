@@ -15,8 +15,8 @@ public static class IdentityModule
         services.AddOptions<AuthOptions>().BindConfiguration(AuthOptions.SectionName);
         services.AddMemoryCache();
 
-        // Băm mật khẩu PBKDF2, có sẵn trong ASP.NET Core
-        services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+        // Băm mật khẩu PBKDF2, có sẵn trong ASP.NET Core; nhận thêm hash MD5 của tài khoản chuyển từ hệ thống cũ
+        services.AddScoped<IPasswordHasher<User>, UserPasswordHasher>();
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
