@@ -17,6 +17,7 @@ namespace Server.Modules.Employees.Services;
 public class EmployeeService(
     IEmployeeRepository employeeRepository,
     IAssignmentService assignmentService,
+    IOrgChartService orgChartService,
     IPermissionChecker permissionChecker,
     ICurrentUserService currentUserService,
     IFileStorageService fileStorageService,
@@ -39,11 +40,13 @@ public class EmployeeService(
             : null;
 
         var (items, totalCount) = await employeeRepository.GetPagedAsync(filter, employeeIds, cancellationToken);
-        var assignments = await GetAssignmentsByEmployeeAsync(items.Select(x => x.Id).ToList(), cancellationToken);
+        var pageEmployeeIds = items.Select(x => x.Id).ToList();
+        var assignments = await GetAssignmentsByEmployeeAsync(pageEmployeeIds, cancellationToken);
+        var hiddenIds = (await orgChartService.GetHiddenEmployeeIdsAsync(pageEmployeeIds, cancellationToken)).ToHashSet();
 
         return new PagedResult<EmployeeDto>
         {
-            Items = items.Select(x => ToDto(x, assignments[x.Id].ToList())).ToList(),
+            Items = items.Select(x => ToDto(x, assignments[x.Id].ToList(), hiddenIds.Contains(x.Id))).ToList(),
             TotalCount = totalCount,
             PageIndex = filter.PageIndex,
             PageSize = filter.PageSize,
@@ -64,10 +67,9 @@ public class EmployeeService(
         EmployeeRequestValidator.Validate(request);
         await EnsureEmpCodeAvailableAsync(request.EmpCode, null, cancellationToken);
 
-        if (request.InitialAssignment is not null)
-        {
-            await EnsureCanManageAssignmentsAsync(cancellationToken);
-        }
+        // Vị trí ban đầu bắt buộc (validator đã kiểm tra) nên tạo nhân viên luôn cần thêm quyền xếp vị trí
+        await EnsureCanManageAssignmentsAsync(cancellationToken);
+        var assignment = request.InitialAssignment!;
 
         var now = DateTime.UtcNow;
         var employee = new Employee
@@ -84,9 +86,12 @@ public class EmployeeService(
             employeeRepository.Add(employee);
             await unitOfWork.SaveChangesAsync(ct);
 
-            if (request.InitialAssignment is { } assignment)
+            await AssignInitialPositionAsync(employee.EmpCode, assignment, ct);
+
+            if (assignment.IsHiddenOnOrgChart)
             {
-                await AssignInitialPositionAsync(employee.EmpCode, assignment, ct);
+                await orgChartService.SetHiddenAsync(employee.Id, true, ct);
+                await unitOfWork.SaveChangesAsync(ct);
             }
         }, cancellationToken);
 
@@ -102,6 +107,14 @@ public class EmployeeService(
             ?? throw new NotFoundException("Không tìm thấy nhân viên.");
 
         await EnsureEmpCodeAvailableAsync(request.EmpCode, id, cancellationToken);
+
+        // Ẩn / hiện trên sơ đồ: chỉ kiểm tra quyền khi thật sự đổi
+        if (request.IsHiddenOnOrgChart is { } isHidden
+            && isHidden != await IsHiddenOnOrgChartAsync(id, cancellationToken))
+        {
+            await EnsureCanManageAssignmentsAsync(cancellationToken);
+            await orgChartService.SetHiddenAsync(id, isHidden, cancellationToken);
+        }
 
         // Nghỉ việc: kết thúc mọi vị trí đang giữ, lưu chung 1 lần SaveChanges với thông tin nhân viên
         if (employee.Status == EmployeeStatus.Active && request.Status == EmployeeStatus.Inactive)
@@ -223,8 +236,11 @@ public class EmployeeService(
     private async Task<EmployeeDto> ToDtoWithAssignmentsAsync(Employee employee, CancellationToken cancellationToken)
     {
         var assignments = await assignmentService.GetCurrentAssignmentsAsync([employee.Id], cancellationToken);
-        return ToDto(employee, assignments);
+        return ToDto(employee, assignments, await IsHiddenOnOrgChartAsync(employee.Id, cancellationToken));
     }
+
+    private async Task<bool> IsHiddenOnOrgChartAsync(int employeeId, CancellationToken cancellationToken) =>
+        (await orgChartService.GetHiddenEmployeeIdsAsync([employeeId], cancellationToken)).Count > 0;
 
     private async Task EnsureEmpCodeAvailableAsync(string empCode, int? excludeId, CancellationToken cancellationToken)
     {
@@ -280,9 +296,11 @@ public class EmployeeService(
         employee.AvatarUrl = request.AvatarUrl;
     }
 
-    private static EmployeeDto ToDto(Employee employee, IReadOnlyList<CurrentAssignmentDto> assignments) => new()
+    private static EmployeeDto ToDto(
+        Employee employee, IReadOnlyList<CurrentAssignmentDto> assignments, bool isHiddenOnOrgChart) => new()
     {
         CurrentAssignments = assignments,
+        IsHiddenOnOrgChart = isHiddenOnOrgChart,
         Id = employee.Id,
         EmpCode = employee.EmpCode,
         FullName = employee.FullName,

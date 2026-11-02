@@ -13,13 +13,13 @@ public class OrgChartRepository(AppDbContext dbContext) : IOrgChartRepository
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<VUnitMember>> GetAllMembersAsync(CancellationToken cancellationToken) =>
-        await dbContext.Set<VUnitMember>().AsNoTracking()
+        await GetVisibleMembers()
             .OrderBy(x => x.Rank).ThenBy(x => x.IsActing).ThenBy(x => x.FullName)
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<VUnitMember>> GetMembersByUnitAsync(
         int orgUnitId, CancellationToken cancellationToken) =>
-        await dbContext.Set<VUnitMember>().AsNoTracking()
+        await GetVisibleMembers()
             .Where(x => x.OrgUnitId == orgUnitId)
             .OrderBy(x => x.Rank).ThenBy(x => x.IsActing).ThenBy(x => x.FullName)
             .ToListAsync(cancellationToken);
@@ -43,4 +43,9 @@ public class OrgChartRepository(AppDbContext dbContext) : IOrgChartRepository
             .Where(x => x.IsActive)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
+
+    /// <summary>Người đang giữ vị trí, bỏ những nhân viên được đánh dấu ẩn khỏi sơ đồ.</summary>
+    private IQueryable<VUnitMember> GetVisibleMembers() =>
+        dbContext.Set<VUnitMember>().AsNoTracking()
+            .Where(x => !dbContext.Set<OrgChartHiddenEmployee>().Any(h => h.EmployeeId == x.EmployeeId));
 }

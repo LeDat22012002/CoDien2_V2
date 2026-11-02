@@ -13,7 +13,9 @@ namespace Server.Modules.Organization.Services;
 ///   MEMBER → gộp thành khối theo cấp bậc (Kỹ sư, Chuyên viên, Nhân viên…).
 /// - Các Tổ con gộp thành 1 khối "Tổ trưởng" (mỗi Tổ kèm Tổ trưởng; Tổ trống vẫn liệt kê).
 /// </summary>
-public class OrgChartService(IOrgChartRepository orgChartRepository) : IOrgChartService
+public class OrgChartService(
+    IOrgChartRepository orgChartRepository,
+    IOrgChartHiddenEmployeeRepository hiddenEmployeeRepository) : IOrgChartService
 {
     private const string LevelBlockKind = "LEVEL";
     private const string GroupsBlockKind = "GROUPS";
@@ -90,6 +92,26 @@ public class OrgChartService(IOrgChartRepository orgChartRepository) : IOrgChart
             PositionLevels = levels.Select(PositionLevelService.ToDto).ToList(),
             Disciplines = disciplines.Select(x => new LookupItemDto { Code = x.Code, Name = x.Name }).ToList(),
         };
+    }
+
+    public async Task<IReadOnlyList<int>> GetHiddenEmployeeIdsAsync(
+        IReadOnlyCollection<int> employeeIds, CancellationToken cancellationToken) =>
+        employeeIds.Count == 0
+            ? []
+            : await hiddenEmployeeRepository.GetHiddenEmployeeIdsAsync(employeeIds, cancellationToken);
+
+    public async Task SetHiddenAsync(int employeeId, bool isHidden, CancellationToken cancellationToken)
+    {
+        var current = await hiddenEmployeeRepository.FindByEmployeeIdAsync(employeeId, cancellationToken);
+
+        if (isHidden && current is null)
+        {
+            hiddenEmployeeRepository.Add(new OrgChartHiddenEmployee { EmployeeId = employeeId });
+        }
+        else if (!isHidden && current is not null)
+        {
+            hiddenEmployeeRepository.Remove(current);
+        }
     }
 
     /// <summary>Dựng cây trong bộ nhớ từ danh sách phẳng.</summary>

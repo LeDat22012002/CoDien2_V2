@@ -13,6 +13,7 @@ public static class OrganizationModule
         services.AddScoped<IOrgUnitRepository, OrgUnitRepository>();
         services.AddScoped<IPositionLevelRepository, PositionLevelRepository>();
         services.AddScoped<IAssignmentRepository, AssignmentRepository>();
+        services.AddScoped<IOrgChartHiddenEmployeeRepository, OrgChartHiddenEmployeeRepository>();
 
         services.AddScoped<IOrgChartService, OrgChartService>();
         services.AddScoped<IOrgUnitService, OrgUnitService>();

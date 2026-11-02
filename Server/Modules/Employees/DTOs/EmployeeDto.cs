@@ -23,6 +23,9 @@ public class EmployeeDto
 
     /// <summary>Vị trí đang giữ trên sơ đồ tổ chức, vị trí chính đứng đầu; rỗng = chưa xếp vị trí.</summary>
     public IReadOnlyList<CurrentAssignmentDto> CurrentAssignments { get; init; } = [];
+
+    /// <summary>Không hiện trên sơ đồ tổ chức (vẫn thuộc đơn vị theo vị trí đang giữ).</summary>
+    public bool IsHiddenOnOrgChart { get; init; }
 }
 
 // ===== Request =====
@@ -44,13 +47,19 @@ public abstract class EmployeeRequestBase
 /// <summary>Nhân viên mới luôn có Status = ACTIVE.</summary>
 public class CreateEmployeeRequest : EmployeeRequestBase
 {
-    /// <summary>Vị trí ban đầu trên sơ đồ tổ chức (bổ nhiệm, hiệu lực từ hôm nay); null = chưa xếp vị trí.</summary>
+    /// <summary>
+    /// Vị trí ban đầu (bổ nhiệm, hiệu lực từ hôm nay), bắt buộc: đơn vị của vị trí xác định nhân viên thuộc xưởng nào.
+    /// Null chỉ để báo lỗi rõ ràng khi client không gửi.
+    /// </summary>
     public InitialAssignmentRequest? InitialAssignment { get; set; }
 }
 
 public class UpdateEmployeeRequest : EmployeeRequestBase
 {
     public string Status { get; set; } = string.Empty;
+
+    /// <summary>Null = giữ nguyên; đổi giá trị cần quyền assignments.manage.</summary>
+    public bool? IsHiddenOnOrgChart { get; set; }
 }
 
 /// <summary>Vị trí ban đầu khi tạo nhân viên.</summary>
@@ -65,6 +74,9 @@ public class InitialAssignmentRequest
 
     public string? DecisionNo { get; set; }
     public string? Note { get; set; }
+
+    /// <summary>Vẫn giữ vị trí và thuộc đơn vị, nhưng không hiện trên sơ đồ tổ chức.</summary>
+    public bool IsHiddenOnOrgChart { get; set; }
 }
 
 /// <summary>Keyword tìm theo mã, họ tên, email, số điện thoại.</summary>

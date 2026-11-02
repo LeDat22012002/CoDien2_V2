@@ -1,6 +1,7 @@
 import {
   DisconnectOutlined,
   EditOutlined,
+  EyeInvisibleOutlined,
   HistoryOutlined,
   MoreOutlined,
   SwapOutlined,
@@ -153,7 +154,14 @@ export const EmployeeTable = ({
       render: (_, employee) => {
         const position = getPrimaryAssignment(employee.currentAssignments);
         return position ? (
-          renderTruncated(position.orgUnitName)
+          <div className="flex min-w-0 flex-col">
+            {renderTruncated(position.orgUnitName)}
+            {employee.isHiddenOnOrgChart && (
+              <span className="text-xs text-text-secondary">
+                <EyeInvisibleOutlined /> Ẩn trên sơ đồ
+              </span>
+            )}
+          </div>
         ) : (
           <span className="italic text-text-secondary">Chưa xếp vị trí</span>
         );

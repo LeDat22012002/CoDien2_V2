@@ -23,6 +23,8 @@ export interface Employee {
   updatedAt: string;
   /** Vị trí chính đứng đầu; rỗng = chưa xếp vị trí. */
   currentAssignments: CurrentAssignment[];
+  /** Không hiện trên sơ đồ tổ chức (vẫn thuộc đơn vị theo vị trí đang giữ). */
+  isHiddenOnOrgChart: boolean;
 }
 
 export interface EmployeeFilter extends PagedRequest {
@@ -39,6 +41,8 @@ export interface InitialAssignmentRequest {
   isActing: boolean;
   decisionNo?: string;
   note?: string;
+  /** Vẫn giữ vị trí và thuộc đơn vị, nhưng không hiện trên sơ đồ tổ chức. */
+  isHiddenOnOrgChart: boolean;
 }
 
 interface EmployeeRequestBase {
@@ -53,11 +57,14 @@ interface EmployeeRequestBase {
   avatarUrl?: string;
 }
 
+/** Vị trí ban đầu bắt buộc (đơn vị của vị trí xác định nhân viên thuộc xưởng nào), cần quyền assignments.manage. */
 export interface CreateEmployeeRequest extends EmployeeRequestBase {
-  initialAssignment?: InitialAssignmentRequest;
+  initialAssignment: InitialAssignmentRequest;
 }
 
 /** Server yêu cầu gửi đủ các trường; chuyển ACTIVE → INACTIVE thì Server tự kết thúc mọi vị trí đang giữ. */
 export interface UpdateEmployeeRequest extends EmployeeRequestBase {
   status: EmployeeStatus;
+  /** Bỏ trống = giữ nguyên; đổi giá trị cần quyền assignments.manage. */
+  isHiddenOnOrgChart?: boolean;
 }

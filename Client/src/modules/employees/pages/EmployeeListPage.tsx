@@ -137,7 +137,9 @@ const EmployeeListPage = () => {
         title="Quản lý nhân viên"
         description="Thêm, sửa thông tin, điều chuyển và cho nghỉ việc. Mọi thay đổi có hiệu lực ngay khi lưu."
         extra={
-          canCreate && (
+          // Thêm nhân viên bắt buộc xếp vị trí ban đầu → cần cả quyền xếp vị trí
+          canCreate &&
+          canAssign && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setFormModal({ open: true })}>
               Thêm nhân viên
             </Button>

@@ -17,8 +17,14 @@ public static class EmployeeRequestValidator
     {
         var errors = ValidateCommon(request);
 
-        // Key lỗi phẳng, trùng tên ô nhập vị trí trên form tạo nhân viên
-        if (request.InitialAssignment is { } assignment)
+        // Key lỗi phẳng, trùng tên ô nhập vị trí trên form tạo nhân viên.
+        // Vị trí bắt buộc: không có vị trí thì nhân viên không thuộc đơn vị/xưởng nào.
+        if (request.InitialAssignment is not { } assignment)
+        {
+            errors["orgUnitCode"] = ["Đơn vị không được để trống."];
+            errors["levelCode"] = ["Cấp bậc không được để trống."];
+        }
+        else
         {
             if (string.IsNullOrWhiteSpace(assignment.OrgUnitCode))
             {

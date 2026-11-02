@@ -13,7 +13,6 @@ import {
   Row,
   Select,
   Spin,
-  Switch,
   TreeSelect,
   Upload,
 } from 'antd';
@@ -31,6 +30,7 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   AVATAR_ACCEPT,
   AVATAR_MAX_BYTES,
+  DEFAULT_LEVEL_CODE,
   EDUCATION_LEVEL_OPTIONS,
   GENDER_OPTIONS,
 } from '@/modules/employees/constants/employeeOptions';
@@ -51,19 +51,22 @@ interface EmployeeFormValues {
   major?: string;
   email?: string;
   phone?: string;
-  // Vị trí ban đầu (chỉ khi thêm mới)
-  withAssignment?: boolean;
+  // Vị trí ban đầu (chỉ khi thêm mới, bắt buộc)
   orgUnitCode?: string;
   levelCode?: string;
   jobTitle?: string;
   decisionNo?: string;
   note?: string;
   isActing?: boolean;
+  // Thêm mới và sửa (cần quyền assignments.manage)
+  isHiddenOnOrgChart?: boolean;
 }
 
 const PHONE_PATTERN = /^[0-9+\s.-]{8,20}$/;
 
-const toPersonalRequest = (values: EmployeeFormValues): Omit<CreateEmployeeRequest, 'empCode'> => ({
+const toPersonalRequest = (
+  values: EmployeeFormValues,
+): Omit<CreateEmployeeRequest, 'empCode' | 'initialAssignment'> => ({
   fullName: values.fullName,
   gender: values.gender,
   birthDate: toIsoDate(values.birthDate),
@@ -79,20 +82,23 @@ interface EmployeeFormModalProps {
   employeeId?: number;
   units: OrgUnit[];
   levels: PositionLevel[];
-  /** Có quyền xếp vị trí trên sơ đồ tổ chức (assignments.manage) và đã tải được danh mục đơn vị. */
+  /**
+   * Có quyền xếp vị trí trên sơ đồ tổ chức (assignments.manage) và đã tải được danh mục đơn vị.
+   * Thêm mới luôn cần (vị trí bắt buộc); sửa: chỉ quyết định có được đổi Ẩn trên sơ đồ hay không.
+   */
   canAssign: boolean;
   onClose: () => void;
 }
 
 /**
  * Modal thêm / sửa nhân viên (giống hệ thống cũ):
- * - Thêm mới: thông tin cá nhân + (tùy chọn) vị trí ban đầu trên sơ đồ tổ chức.
- * - Sửa: chỉ sửa thông tin cá nhân; vị trí đang giữ chỉ để xem (đổi vị trí dùng chức năng Điều chuyển).
+ * - Thêm mới: thông tin cá nhân + vị trí ban đầu (bắt buộc, vì đơn vị của vị trí xác định nhân viên thuộc xưởng nào).
+ * - Sửa: sửa thông tin cá nhân; vị trí đang giữ chỉ để xem (đổi vị trí dùng chức năng Điều chuyển).
+ * - "Ẩn trên sơ đồ tổ chức": vẫn giữ vị trí và thuộc đơn vị, chỉ không hiện trên sơ đồ.
  */
 export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, onClose }: EmployeeFormModalProps) => {
   const [form] = Form.useForm<EmployeeFormValues>();
   const isCreate = employeeId === undefined;
-  const withAssignment = Form.useWatch('withAssignment', form);
 
   // Sửa: tải chi tiết mới nhất để điền form và xem vị trí đang giữ
   const detailQuery = useEmployeeDetail(open && !isCreate ? employeeId : undefined);
@@ -133,12 +139,17 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
         .map((level) => ({ value: level.code, label: `${level.name} (${level.code})` })),
     [levels],
   );
+  const hasDefaultLevel = levels.some((level) => level.code === DEFAULT_LEVEL_CODE);
 
   useEffect(() => {
     if (!open) return;
     form.resetFields();
     if (isCreate) {
-      form.setFieldsValue({ withAssignment: canAssign, isActing: false });
+      form.setFieldsValue({
+        levelCode: hasDefaultLevel ? DEFAULT_LEVEL_CODE : undefined,
+        isActing: false,
+        isHiddenOnOrgChart: false,
+      });
     } else if (detail) {
       form.setFieldsValue({
         empCode: detail.empCode,
@@ -149,9 +160,10 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
         major: detail.major ?? undefined,
         email: detail.email ?? undefined,
         phone: detail.phone ?? undefined,
+        isHiddenOnOrgChart: detail.isHiddenOnOrgChart,
       });
     }
-  }, [open, isCreate, detail, canAssign, form]);
+  }, [open, isCreate, detail, hasDefaultLevel, form]);
 
   const handleSubmit = async () => {
     let values: EmployeeFormValues;
@@ -166,17 +178,15 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
         await createMutation.mutateAsync({
           empCode: values.empCode,
           ...toPersonalRequest(values),
-          initialAssignment:
-            canAssign && values.withAssignment && values.orgUnitCode && values.levelCode
-              ? {
-                  orgUnitCode: values.orgUnitCode,
-                  levelCode: values.levelCode,
-                  jobTitle: values.jobTitle,
-                  isActing: Boolean(values.isActing),
-                  decisionNo: values.decisionNo,
-                  note: values.note,
-                }
-              : undefined,
+          initialAssignment: {
+            orgUnitCode: values.orgUnitCode ?? '',
+            levelCode: values.levelCode ?? '',
+            jobTitle: values.jobTitle,
+            isActing: Boolean(values.isActing),
+            decisionNo: values.decisionNo,
+            note: values.note,
+            isHiddenOnOrgChart: Boolean(values.isHiddenOnOrgChart),
+          },
         });
         notify.success('Thêm nhân viên thành công.');
       } else {
@@ -188,6 +198,7 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
             ...toPersonalRequest(values),
             avatarUrl: detail.avatarUrl ?? undefined,
             status: detail.status,
+            isHiddenOnOrgChart: canAssign ? Boolean(values.isHiddenOnOrgChart) : undefined,
           },
         });
         if (avatarFile) {
@@ -325,72 +336,78 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
 
           {/* ----- Vị trí ----- */}
           {isCreate ? (
-            canAssign && (
-              <>
-                <Divider titlePlacement="start" className="mt-1 mb-3">
-                  <span className="mr-2 text-sm">Vị trí trên sơ đồ tổ chức</span>
-                  <Form.Item name="withAssignment" valuePropName="checked" noStyle>
-                    <Switch size="small" aria-label="Xếp vị trí trên sơ đồ tổ chức" />
-                  </Form.Item>
-                </Divider>
+            <>
+              <Divider titlePlacement="start" className="mt-1 mb-3">
+                <span className="text-sm">Vị trí công tác</span>
+              </Divider>
 
-                {withAssignment && (
-                  <Row gutter={12}>
-                    <Col xs={24} md={14}>
-                      <Form.Item
-                        name="orgUnitCode"
-                        label="Đơn vị"
-                        rules={[{ required: true, message: 'Chọn đơn vị' }]}
-                      >
-                        <TreeSelect
-                          showSearch
-                          treeData={unitTree}
-                          treeNodeFilterProp="searchText"
-                          treeDefaultExpandedKeys={unitTree.map((node) => node.value)}
-                          placeholder="Chọn Xưởng / Đội / Tổ…"
-                          listHeight={360}
-                          treeTitleRender={renderUnitTreeTitle}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={10}>
-                      <Form.Item
-                        name="levelCode"
-                        label="Cấp bậc"
-                        rules={[{ required: true, message: 'Chọn cấp bậc' }]}
-                      >
-                        <Select showSearch optionFilterProp="label" options={levelOptions} placeholder="Chọn cấp bậc" />
-                      </Form.Item>
-                    </Col>
-                    <Col span={24}>
-                      <Form.Item
-                        name="jobTitle"
-                        label="Chức danh"
-                        rules={[{ max: 255, message: 'Tối đa 255 ký tự' }]}
-                        extra="Ghi đầy đủ như trong quyết định, vd: Kỹ sư Điện - Lò cao 5 - Xưởng Cơ điện Luyện gang 2"
-                      >
-                        <Input />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={16}>
-                      <Form.Item name="decisionNo" label="Số quyết định" rules={[{ max: 100, message: 'Tối đa 100 ký tự' }]}>
-                        <Input placeholder="VD: 123/QĐ-HPDQ" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={8}>
-                      <Form.Item name="isActing" label=" " valuePropName="checked">
-                        <Checkbox>Giao quyền</Checkbox>
-                      </Form.Item>
-                    </Col>
-                    <Col span={24}>
-                      <Form.Item name="note" label="Ghi chú" rules={[{ max: 500, message: 'Tối đa 500 ký tự' }]}>
-                        <Input.TextArea rows={2} maxLength={500} placeholder="Ghi chú…" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                )}
-              </>
-            )
+              <Row gutter={12}>
+                <Col xs={24} md={14}>
+                  <Form.Item
+                    name="orgUnitCode"
+                    label="Đơn vị"
+                    rules={[{ required: true, message: 'Chọn đơn vị' }]}
+                    extra="Xác định nhân viên thuộc xưởng nào"
+                  >
+                    <TreeSelect
+                      showSearch
+                      treeData={unitTree}
+                      treeNodeFilterProp="searchText"
+                      treeDefaultExpandedKeys={unitTree.map((node) => node.value)}
+                      placeholder="Chọn Xưởng / Đội / Tổ…"
+                      listHeight={360}
+                      treeTitleRender={renderUnitTreeTitle}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={10}>
+                  <Form.Item
+                    name="levelCode"
+                    label="Cấp bậc"
+                    rules={[{ required: true, message: 'Chọn cấp bậc' }]}
+                  >
+                    {/* listHeight đủ cho cả 11 cấp bậc, không phải cuộn mới thấy "Nhân viên" ở cuối */}
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      options={levelOptions}
+                      placeholder="Chọn cấp bậc"
+                      listHeight={400}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={24}>
+                  <Form.Item
+                    name="jobTitle"
+                    label="Chức danh"
+                    rules={[{ max: 255, message: 'Tối đa 255 ký tự' }]}
+                    extra="Ghi đầy đủ như trong quyết định, vd: Kỹ sư Điện - Lò cao 5 - Xưởng Cơ điện Luyện gang 2"
+                  >
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="decisionNo" label="Số quyết định" rules={[{ max: 100, message: 'Tối đa 100 ký tự' }]}>
+                    <Input placeholder="VD: 123/QĐ-HPDQ" />
+                  </Form.Item>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="isActing" label=" " valuePropName="checked">
+                    <Checkbox>Giao quyền</Checkbox>
+                  </Form.Item>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="isHiddenOnOrgChart" label=" " valuePropName="checked">
+                    <Checkbox>Ẩn trên sơ đồ</Checkbox>
+                  </Form.Item>
+                </Col>
+                <Col span={24}>
+                  <Form.Item name="note" label="Ghi chú" rules={[{ max: 500, message: 'Tối đa 500 ký tự' }]}>
+                    <Input.TextArea rows={2} maxLength={500} placeholder="Ghi chú…" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </>
           ) : (
             <>
               <Divider titlePlacement="start" className="mt-1 mb-2">
@@ -417,6 +434,16 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
               <div className="mt-2 text-sm text-text-secondary">
                 Đổi đơn vị / chức vụ dùng chức năng Điều chuyển để lưu lịch sử, không sửa ở đây.
               </div>
+              {canAssign && (
+                <Form.Item
+                  name="isHiddenOnOrgChart"
+                  valuePropName="checked"
+                  className="mt-3 mb-0"
+                  extra="Vẫn giữ vị trí và thuộc đơn vị, chỉ không hiện trên sơ đồ tổ chức."
+                >
+                  <Checkbox>Ẩn trên sơ đồ tổ chức</Checkbox>
+                </Form.Item>
+              )}
             </>
           )}
         </Form>

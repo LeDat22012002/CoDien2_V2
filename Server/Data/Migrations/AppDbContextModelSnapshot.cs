@@ -816,6 +816,43 @@ namespace Server.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Server.Modules.Organization.Entities.OrgChartHiddenEmployee", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("OrgChartHiddenEmployee", "dbo");
+                });
+
             modelBuilder.Entity("Server.Modules.Organization.Entities.OrgUnit", b =>
                 {
                     b.Property<int>("Id")
@@ -1297,6 +1334,17 @@ namespace Server.Data.Migrations
                     b.Navigation("Level");
 
                     b.Navigation("OrgUnit");
+                });
+
+            modelBuilder.Entity("Server.Modules.Organization.Entities.OrgChartHiddenEmployee", b =>
+                {
+                    b.HasOne("Server.Modules.Employees.Entities.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("Server.Modules.Organization.Entities.OrgUnit", b =>

@@ -18,6 +18,9 @@ export const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'Nữ', label: 'Nữ' },
 ];
 
+/** Cấp bậc chọn sẵn khi thêm nhân viên (người chưa có chức vụ): Nhân viên. */
+export const DEFAULT_LEVEL_CODE = 'NV';
+
 /** Ảnh đại diện: khớp kiểm tra ở Server (EmployeeRequestValidator.ValidateAvatar). */
 export const AVATAR_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif';
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
