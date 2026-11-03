@@ -46,8 +46,9 @@ export const UserCreateModal = ({ open, roles, onClose }: UserCreateModalProps) 
       description: [employee.jobTitle, employee.orgUnitName].filter(Boolean).join(' · '),
     }));
   }, [employees, picked]);
+  // Quản trị viên tổng (vai trò hệ thống) chỉ có 1 người, không gán thêm khi tạo tài khoản
   const roleOptions = roles
-    .filter((role) => role.isActive)
+    .filter((role) => role.isActive && !role.isSystem)
     .map((role) => ({ value: role.id, label: role.name, description: role.code }));
 
   const handleClose = () => {

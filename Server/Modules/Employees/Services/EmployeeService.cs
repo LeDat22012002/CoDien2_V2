@@ -236,7 +236,11 @@ public class EmployeeService(
     private async Task<EmployeeDto> ToDtoWithAssignmentsAsync(Employee employee, CancellationToken cancellationToken)
     {
         var assignments = await assignmentService.GetCurrentAssignmentsAsync([employee.Id], cancellationToken);
-        return ToDto(employee, assignments, await IsHiddenOnOrgChartAsync(employee.Id, cancellationToken));
+        return ToDto(
+            employee,
+            assignments,
+            await IsHiddenOnOrgChartAsync(employee.Id, cancellationToken),
+            await assignmentService.GetTopLevelUnitNameAsync(employee.Id, cancellationToken));
     }
 
     private async Task<bool> IsHiddenOnOrgChartAsync(int employeeId, CancellationToken cancellationToken) =>
@@ -297,10 +301,14 @@ public class EmployeeService(
     }
 
     private static EmployeeDto ToDto(
-        Employee employee, IReadOnlyList<CurrentAssignmentDto> assignments, bool isHiddenOnOrgChart) => new()
+        Employee employee,
+        IReadOnlyList<CurrentAssignmentDto> assignments,
+        bool isHiddenOnOrgChart,
+        string? workshopName = null) => new()
     {
         CurrentAssignments = assignments,
         IsHiddenOnOrgChart = isHiddenOnOrgChart,
+        WorkshopName = workshopName,
         Id = employee.Id,
         EmpCode = employee.EmpCode,
         FullName = employee.FullName,

@@ -20,13 +20,16 @@ const Count = ({ value }: { value: number }) => (
   <span className="shrink-0 rounded bg-black/10 px-1 text-[9.5px] leading-[14px] font-semibold">{value}</span>
 );
 
+/** Avatar nhỏ trong ô Xưởng / Đội / khối người; lớn hơn nữa sẽ tràn ô Xưởng (cao 56px, tên 2 dòng). */
+const SMALL_AVATAR_SIZE = 18;
+
 /** Người đứng đầu ô (hoặc "Chưa bổ nhiệm …"), 1 dòng. */
-const HeadLine = ({ people, vacantText, avatarSize = 16 }: { people: ChartPerson[]; vacantText: string; avatarSize?: number }) => {
+const HeadLine = ({ people, vacantText }: { people: ChartPerson[]; vacantText: string }) => {
   if (!people.length) return <div className="truncate text-[10px] italic opacity-60">{vacantText}</div>;
   const first = people[0];
   return (
     <div className="flex min-w-0 items-center gap-1">
-      <PersonAvatar person={first} size={avatarSize} />
+      <PersonAvatar person={first} size={SMALL_AVATAR_SIZE} />
       <span className="truncate text-[10.5px] font-semibold">{getShortName(first.fullName)}</span>
       {first.isActing && (
         <span className="shrink-0 rounded bg-white/70 px-0.5 text-[8.5px] font-semibold text-warning">Q</span>
@@ -73,7 +76,7 @@ const WorkshopCard = ({ unit }: { unit: OrgChartNode }) => (
 const TeamCard = ({ unit }: { unit: OrgChartNode }) => (
   <div className="flex h-full flex-col justify-between px-1.5 py-1">
     <div className="line-clamp-3 text-[10.5px] leading-[1.15] font-bold">{stripUnitPrefix(unit.name)}</div>
-    <HeadLine people={unit.heads} vacantText={`Chưa bổ nhiệm ${unit.headLevelName}`} avatarSize={15} />
+    <HeadLine people={unit.heads} vacantText={`Chưa bổ nhiệm ${unit.headLevelName}`} />
   </div>
 );
 
@@ -86,11 +89,24 @@ const PeopleCard = ({ title, people, isNarrow }: { title: string; people: ChartP
     ) : people.length ? (
       <div className="flex items-center gap-1">
         <Avatar.Group
-          max={{ count: 2, style: { width: 15, height: 15, lineHeight: '13px', fontSize: 8 } }}
-          size={15}
+          max={{
+            count: 2,
+            style: {
+              width: SMALL_AVATAR_SIZE,
+              height: SMALL_AVATAR_SIZE,
+              lineHeight: `${SMALL_AVATAR_SIZE - 2}px`,
+              fontSize: 9,
+            },
+          }}
+          size={SMALL_AVATAR_SIZE}
         >
           {people.map((person) => (
-            <PersonAvatar key={person.assignmentId} person={person} size={15} style={{ borderColor: '#fff' }} />
+            <PersonAvatar
+              key={person.assignmentId}
+              person={person}
+              size={SMALL_AVATAR_SIZE}
+              style={{ borderColor: '#fff' }}
+            />
           ))}
         </Avatar.Group>
         <span className="text-[10px] font-semibold whitespace-nowrap opacity-70">{people.length} người</span>

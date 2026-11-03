@@ -26,6 +26,12 @@ public class EmployeeDto
 
     /// <summary>Không hiện trên sơ đồ tổ chức (vẫn thuộc đơn vị theo vị trí đang giữ).</summary>
     public bool IsHiddenOnOrgChart { get; init; }
+
+    /// <summary>
+    /// Xưởng = đơn vị cấp 1 chứa vị trí chính (Ban Giám đốc: tên Nhà máy); null = chưa xếp vị trí.
+    /// Chỉ điền khi lấy 1 nhân viên (chi tiết, sau thêm/sửa), danh sách để null.
+    /// </summary>
+    public string? WorkshopName { get; init; }
 }
 
 // ===== Request =====
