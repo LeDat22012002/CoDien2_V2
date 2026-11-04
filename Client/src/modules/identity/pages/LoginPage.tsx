@@ -16,7 +16,7 @@ import type { LoginRequest } from "@/modules/identity/types/identity";
 import { useLogin } from "@/modules/identity/hooks/useLogin";
 import { useRememberedLogin } from "@/modules/identity/hooks/useRememberedLogin";
 
-interface LoginFormValues extends LoginRequest {
+interface LoginFormValues extends Omit<LoginRequest, 'isRemembered'> {
   isRemembered: boolean;
 }
 
@@ -64,22 +64,26 @@ const LoginPage = () => {
   const [form] = Form.useForm<LoginFormValues>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { mutate: submitLogin, isPending } = useLogin();
+  const { mutateAsync: submitLogin, isPending } = useLogin();
   const { rememberedEmpCode, saveLogin } = useRememberedLogin();
 
-  const handleSubmit = ({ isRemembered, ...request }: LoginFormValues) => {
-    submitLogin(request, {
-      onSuccess: () => {
-        notify.dismiss(LOGIN_ERROR_TOAST_ID);
-        void saveLogin(request, isRemembered);
-        navigate(getSafeRedirect(searchParams.get(REDIRECT_PARAM)), {
-          replace: true,
-        });
-      },
-      onError: (loginError) => {
-        applyServerErrors(form, loginError);
-        notify.apiError(loginError, { toastId: LOGIN_ERROR_TOAST_ID });
-      },
+  /**
+   * Dùng mutateAsync thay cho callback của mutate: đăng nhập xong GuestRoute chuyển trang ngay và gỡ trang này,
+   * callback onSuccess của mutate khi đó không được gọi (mất bước nhớ mã NV / mật khẩu); promise thì vẫn trả về.
+   */
+  const handleSubmit = async ({ isRemembered, ...request }: LoginFormValues) => {
+    try {
+      await submitLogin({ ...request, isRemembered });
+    } catch (loginError) {
+      applyServerErrors(form, loginError);
+      notify.apiError(loginError, { toastId: LOGIN_ERROR_TOAST_ID });
+      return;
+    }
+
+    notify.dismiss(LOGIN_ERROR_TOAST_ID);
+    void saveLogin(request, isRemembered);
+    navigate(getSafeRedirect(searchParams.get(REDIRECT_PARAM)), {
+      replace: true,
     });
   };
 
@@ -155,6 +159,7 @@ const LoginPage = () => {
               </Form.Item>
 
               <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                {/* Tick: giữ đăng nhập 30 ngày (kể cả đóng trình duyệt) và nhớ mã NV; không tick: đóng trình duyệt là đăng xuất */}
                 <Form.Item name="isRemembered" valuePropName="checked" noStyle>
                   <Checkbox>Nhớ mật khẩu</Checkbox>
                 </Form.Item>

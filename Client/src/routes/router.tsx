@@ -53,6 +53,8 @@ export const router = createBrowserRouter([
           },
           {
             path: "documents/issue",
+            // Bảng nhiều cột: dùng hết bề rộng màn hình
+            handle: { isFullScreen: true } satisfies PublicRouteHandle,
             lazy: () =>
               import("@/modules/documents/pages/DocumentIssuePage").then(
                 toRoute,
@@ -206,6 +208,30 @@ export const router = createBrowserRouter([
                       import(
                         "@/modules/documents/pages/DocumentTemplateManagementPage"
                       ).then(toRoute),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/equipments" />,
+                children: [
+                  {
+                    path: "admin/equipments",
+                    lazy: () =>
+                      import(
+                        "@/modules/equipments/pages/EquipmentManagementPage"
+                      ).then(toRoute),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/audit-logs" />,
+                children: [
+                  {
+                    path: "admin/audit-logs",
+                    lazy: () =>
+                      import("@/modules/auditLogs/pages/AuditLogListPage").then(
+                        toRoute,
+                      ),
                   },
                 ],
               },

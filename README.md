@@ -3,6 +3,8 @@
 - `Server/` — .NET 8 Web API + SQL Server (database `NM_CD2`)
 - `Client/` — React + TypeScript
 
+Deploy lên IIS trong mạng nội bộ (2 site FE / BE theo IP và cổng tùy chỉnh): xem [docs/deploy-iis.md](docs/deploy-iis.md).
+
 ## Cấu hình Server
 
 `Server/appsettings.json` trong repo **không chứa secret**: chuỗi kết nối DB và `Jwt:SecretKey` để rỗng. Mỗi máy tự khai báo giá trị thật theo môi trường:

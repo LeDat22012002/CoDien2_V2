@@ -5,6 +5,7 @@ import { ErrorState } from '@/shared/components/ErrorState';
 import { StatusTag } from '@/shared/components/StatusTag';
 import { LEVEL_TAG_COLOR } from '@/shared/constants/organization';
 import { getPrimaryAssignment } from '@/shared/utils/assignmentRules';
+import { toFileUrl } from '@/shared/utils/fileUrl';
 import { EMPTY_TEXT, formatDate } from '@/shared/utils/format';
 import { notify } from '@/shared/utils/notify';
 import { useAuthStore } from '@/stores/authStore';
@@ -214,7 +215,7 @@ const MyProfilePage = () => {
             <div className="relative">
               <Avatar
                 size={AVATAR_SIZE}
-                src={avatarPreview ?? user?.avatarUrl ?? undefined}
+                src={avatarPreview ?? toFileUrl(user?.avatarUrl)}
                 icon={<UserOutlined />}
                 className="border-4 border-solid border-white shadow-xl"
               />

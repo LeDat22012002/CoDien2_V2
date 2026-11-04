@@ -1,4 +1,5 @@
 import { Avatar } from 'antd';
+import { toFileUrl } from '@/shared/utils/fileUrl';
 
 interface UserAvatarProps {
   fullName: string;
@@ -11,7 +12,7 @@ const getInitial = (fullName: string) => fullName.trim().split(/\s+/).pop()?.cha
 
 /** Ảnh đại diện; chưa có ảnh thì hiện chữ cái đầu của tên. */
 export const UserAvatar = ({ fullName, avatarUrl, size = 32 }: UserAvatarProps) => (
-  <Avatar size={size} src={avatarUrl || undefined} alt={fullName} className="shrink-0 bg-primary">
+  <Avatar size={size} src={toFileUrl(avatarUrl)} alt={fullName} className="shrink-0 bg-primary">
     {getInitial(fullName)}
   </Avatar>
 );

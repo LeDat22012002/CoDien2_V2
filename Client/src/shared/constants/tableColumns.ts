@@ -18,6 +18,8 @@ export const COLUMN_WIDTH = {
   date: 120,
   /** Ngày giờ DD/MM/YYYY HH:mm. */
   dateTime: 150,
+  /** Ngày giờ kèm giây DD/MM/YYYY HH:mm:ss (nhật ký). */
+  dateTimeSeconds: 170,
   /** Số lượng, tiền. */
   number: 120,
   /** Tag ngắn: cấp bậc, loại… */

@@ -1,6 +1,7 @@
 import { MailOutlined, PhoneOutlined } from '@ant-design/icons';
 import { Avatar, Empty, Tag } from 'antd';
 import type { CSSProperties } from 'react';
+import { toFileUrl } from '@/shared/utils/fileUrl';
 import { getLevelColor } from '@/modules/organization/constants/orgChart';
 import type { OrgChartGroup } from '@/modules/organization/types/orgChart';
 import { getInitials, getShortJobTitle, stripUnitPrefix } from '@/modules/organization/utils/orgChartText';
@@ -28,7 +29,7 @@ interface PersonAvatarProps {
 export const PersonAvatar = ({ person, size = 32, style }: PersonAvatarProps) => (
   <Avatar
     size={size}
-    src={person?.avatarUrl || undefined}
+    src={toFileUrl(person?.avatarUrl)}
     alt={person?.fullName}
     className="shrink-0 font-semibold"
     style={{
@@ -76,10 +77,10 @@ interface PersonProfileProps {
   levelName?: string | null;
 }
 
-/** Thẻ thông tin 1 người, avatar lớn (hover ô Ban Giám đốc). */
+/** Thẻ thông tin 1 người (hover ô Ban Giám đốc); avatar chỉ lớn hơn avatar trên ô (46px) một chút. */
 export const PersonProfile = ({ person, levelName }: PersonProfileProps) => (
   <div className="flex w-80 max-w-[80vw] items-start gap-3">
-    <PersonAvatar person={person} size={80} />
+    <PersonAvatar person={person} size={56} />
     <div className="min-w-0 flex-1 leading-snug">
       <div className="text-base font-semibold text-text">{person.fullName}</div>
       <div className="flex flex-wrap items-center gap-1 text-sm text-text-secondary">

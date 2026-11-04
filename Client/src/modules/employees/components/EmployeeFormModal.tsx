@@ -20,6 +20,7 @@ import type { Dayjs } from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { getErrorMessage } from '@/shared/api/axiosClient';
 import dayjs from '@/shared/utils/dayjs';
+import { toFileUrl } from '@/shared/utils/fileUrl';
 import { DATE_FORMAT, toIsoDate } from '@/shared/utils/format';
 import { applyServerErrors } from '@/shared/utils/formErrors';
 import { notify } from '@/shared/utils/notify';
@@ -317,7 +318,7 @@ export const EmployeeFormModal = ({ open, employeeId, units, levels, canAssign, 
               <Col span={24}>
                 <Form.Item label="Ảnh đại diện" extra="PNG, JPG, WEBP hoặc GIF, tối đa 5MB. Ảnh mới được lưu khi bấm Lưu thay đổi.">
                   <div className="flex items-center gap-3">
-                    <Avatar size={64} src={avatarPreview ?? detail?.avatarUrl ?? undefined} className="shrink-0 bg-primary">
+                    <Avatar size={64} src={avatarPreview ?? toFileUrl(detail?.avatarUrl)} className="shrink-0 bg-primary">
                       {detail?.fullName.trim().split(/\s+/).pop()?.charAt(0).toUpperCase()}
                     </Avatar>
                     <Upload accept={AVATAR_ACCEPT} showUploadList={false} beforeUpload={handlePickAvatar}>

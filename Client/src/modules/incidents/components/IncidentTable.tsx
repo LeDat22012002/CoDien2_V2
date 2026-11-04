@@ -53,6 +53,22 @@ const longTextColumn = (title: string, dataIndex: keyof Incident) => ({
   render: renderFullText,
 });
 
+/** Người phân tích / bổ sung: họ tên + mã NV, dòng dưới là thời điểm cập nhật gần nhất. */
+const renderActor = (
+  name?: string | null,
+  empCode?: string | null,
+  updatedAt?: string | null,
+) =>
+  name ? (
+    <div className="flex flex-col">
+      <span className="wrap-break-word">{name}</span>
+      {empCode && <span className="text-text-secondary">{empCode}</span>}
+      {updatedAt && (
+        <span className="text-text-secondary">{formatDateTime(updatedAt)}</span>
+      )}
+    </div>
+  ) : null;
+
 const dateTimeColumn = (title: string, dataIndex: keyof Incident) => ({
   title,
   dataIndex,
@@ -202,6 +218,13 @@ export const IncidentTable = ({
     longTextColumn("Nguyên nhân gốc sau phân tích", "rootCause"),
     longTextColumn("Hành động", "correctiveAction"),
     {
+      title: "Người phân tích",
+      key: "analyst",
+      width: COLUMN_WIDTH.name,
+      render: (_, incident) =>
+        renderActor(incident.analystName, incident.analystEmpCode, incident.analyzedAt),
+    },
+    {
       title: "Kết quả",
       dataIndex: "result",
       key: "result",
@@ -222,17 +245,32 @@ export const IncidentTable = ({
       dataIndex: "reportLink",
       key: "reportLink",
       width: COLUMN_WIDTH.text,
+      // Link thường rất dài: chỉ 1 dòng, cắt "…", hover xem đủ
       render: (link?: string | null) =>
         link ? (
-          <Typography.Link
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="break-all"
-          >
-            {link}
-          </Typography.Link>
+          <Tooltip title={link}>
+            <Typography.Link
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              ellipsis
+              className="block"
+            >
+              {link}
+            </Typography.Link>
+          </Tooltip>
         ) : null,
+    },
+    {
+      title: "Người bổ sung",
+      key: "supplementer",
+      width: COLUMN_WIDTH.name,
+      render: (_, incident) =>
+        renderActor(
+          incident.supplementerName,
+          incident.supplementerEmpCode,
+          incident.supplementedAt,
+        ),
     },
     longTextColumn("Ghi chú", "note"),
     ...(actionColumn ? [actionColumn] : []),

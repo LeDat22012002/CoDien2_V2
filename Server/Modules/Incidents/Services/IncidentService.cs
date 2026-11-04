@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using Server.Data;
+using Server.Modules.Employees.Entities;
 using Server.Modules.Equipments.Services.Interfaces;
 using Server.Modules.Incidents.DTOs;
 using Server.Modules.Incidents.Entities;
@@ -100,9 +101,7 @@ public class IncidentService(
         IncidentRequestValidator.Validate(request);
         await ValidateReferencesAsync(request, null, cancellationToken);
 
-        var empCode = currentUserService.UserName ?? throw new UnauthorizedException(InvalidSessionMessage);
-        var employee = await incidentRepository.GetEmployeeByEmpCodeAsync(empCode, cancellationToken)
-            ?? throw new UnauthorizedException(InvalidSessionMessage);
+        var employee = await GetCurrentEmployeeAsync(cancellationToken);
 
         var incident = new Incident
         {
@@ -111,6 +110,11 @@ public class IncidentService(
             ReporterName = employee.FullName,
         };
         Apply(incident, request);
+        // Người nhập điền luôn số order / link khi tạo thì cũng là người bổ sung
+        if (incident.OrderNumber is not null || incident.ReportLink is not null)
+        {
+            SetSupplementer(incident, employee);
+        }
 
         incidentRepository.Add(incident);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -126,7 +130,14 @@ public class IncidentService(
         var incident = await FindAsync(id, cancellationToken);
         await ValidateReferencesAsync(request, incident, cancellationToken);
 
+        // Sửa đầy đủ có đổi số order / link thì ghi nhận người sửa là người bổ sung
+        var isSupplementChanged = incident.OrderNumber != request.OrderNumber || incident.ReportLink != request.ReportLink;
         Apply(incident, request);
+        if (isSupplementChanged)
+        {
+            SetSupplementer(incident, await GetCurrentEmployeeAsync(cancellationToken));
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
@@ -173,6 +184,11 @@ public class IncidentService(
         incident.Cause = request.Cause;
         incident.RootCause = request.RootCause;
         incident.CorrectiveAction = request.CorrectiveAction;
+
+        var employee = await GetCurrentEmployeeAsync(cancellationToken);
+        incident.AnalystEmpCode = employee.EmpCode;
+        incident.AnalystName = employee.FullName;
+        incident.AnalyzedAt = DateTime.Now;
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
@@ -193,6 +209,7 @@ public class IncidentService(
 
         incident.OrderNumber = request.OrderNumber;
         incident.ReportLink = request.ReportLink;
+        SetSupplementer(incident, await GetCurrentEmployeeAsync(cancellationToken));
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
@@ -361,6 +378,20 @@ public class IncidentService(
         (await orgUnitService.GetTopLevelUnitsAsync(includeInactive: false, cancellationToken))
         .Where(x => x.TypeCode == OrgUnitTypeCodes.Workshop)
         .ToList();
+
+    private async Task<Employee> GetCurrentEmployeeAsync(CancellationToken cancellationToken)
+    {
+        var empCode = currentUserService.UserName ?? throw new UnauthorizedException(InvalidSessionMessage);
+        return await incidentRepository.GetEmployeeByEmpCodeAsync(empCode, cancellationToken)
+            ?? throw new UnauthorizedException(InvalidSessionMessage);
+    }
+
+    private static void SetSupplementer(Incident incident, Employee employee)
+    {
+        incident.SupplementerEmpCode = employee.EmpCode;
+        incident.SupplementerName = employee.FullName;
+        incident.SupplementedAt = DateTime.Now;
+    }
 
     private bool IsReporter(Incident incident) =>
         incident.ReporterEmpCode is not null

@@ -9,6 +9,7 @@ export const PERMISSION_MODULE_LABELS: Record<string, string> = {
   documents: 'Văn bản',
   equipments: 'Thiết bị',
   incidents: 'Sự cố',
+  'audit-logs': 'Nhật ký hệ thống',
 };
 
 export const getPermissionModuleLabel = (module: string) => PERMISSION_MODULE_LABELS[module] ?? module;

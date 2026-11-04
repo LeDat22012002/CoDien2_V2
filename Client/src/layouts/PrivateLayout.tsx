@@ -7,6 +7,7 @@ import logoIcon from '@/assets/images/LogoHP.png';
 import { SIDER_WIDTH } from '@/shared/theme/theme';
 import { AppMenu } from '@/layouts/components/AppMenu';
 import { UserDropdown } from '@/layouts/components/UserDropdown';
+import { usePageViewTracking } from '@/layouts/hooks/usePageViewTracking';
 
 const LOGO_ALT = 'Hòa Phát Gang Thép';
 
@@ -56,6 +57,7 @@ const SiderContent = ({ isCollapsed = false, onNavigate }: SiderContentProps) =>
  * Tablet (md–lg): Sider tự thu gọn còn icon. Laptop trở lên (≥ lg): Sider mở rộng, có nút thu gọn.
  */
 const PrivateLayout = () => {
+  usePageViewTracking();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [isCollapsed, setIsCollapsed] = useState(false);

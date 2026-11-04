@@ -20,17 +20,22 @@ const Count = ({ value }: { value: number }) => (
   <span className="shrink-0 rounded bg-black/10 px-1 text-[9.5px] leading-[14px] font-semibold">{value}</span>
 );
 
-/** Avatar nhỏ trong ô Xưởng / Đội / khối người; lớn hơn nữa sẽ tràn ô Xưởng (cao 56px, tên 2 dòng). */
-const SMALL_AVATAR_SIZE = 18;
+/** Avatar nhỏ trong ô Xưởng / Đội / khối người; tăng cỡ thì tăng LAYOUT.ROW_HEIGHT hàng 3–6 tương ứng (ô Xưởng tên 2 dòng). */
+const SMALL_AVATAR_SIZE = 30;
 
-/** Người đứng đầu ô (hoặc "Chưa bổ nhiệm …"), 1 dòng. */
+/**
+ * Người đứng đầu ô (hoặc "Chưa bổ nhiệm …"). Tên rút còn 2 chữ cuối (tên lót + tên); ô Đội hẹp không đủ 1 dòng
+ * thì xuống tối đa 2 dòng cạnh avatar (vừa chiều cao avatar), không cắt "…".
+ */
 const HeadLine = ({ people, vacantText }: { people: ChartPerson[]; vacantText: string }) => {
   if (!people.length) return <div className="truncate text-[10px] italic opacity-60">{vacantText}</div>;
   const first = people[0];
   return (
-    <div className="flex min-w-0 items-center gap-1">
+    <div className="flex min-w-0 items-center gap-1.5">
       <PersonAvatar person={first} size={SMALL_AVATAR_SIZE} />
-      <span className="truncate text-[10.5px] font-semibold">{getShortName(first.fullName)}</span>
+      <span className="line-clamp-2 min-w-0 text-[11.5px] leading-[1.15] font-semibold break-words">
+        {getShortName(first.fullName)}
+      </span>
       {first.isActing && (
         <span className="shrink-0 rounded bg-white/70 px-0.5 text-[8.5px] font-semibold text-warning">Q</span>
       )}
@@ -95,7 +100,7 @@ const PeopleCard = ({ title, people, isNarrow }: { title: string; people: ChartP
               width: SMALL_AVATAR_SIZE,
               height: SMALL_AVATAR_SIZE,
               lineHeight: `${SMALL_AVATAR_SIZE - 2}px`,
-              fontSize: 9,
+              fontSize: 11,
             },
           }}
           size={SMALL_AVATAR_SIZE}

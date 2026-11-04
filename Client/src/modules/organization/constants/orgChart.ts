@@ -57,7 +57,8 @@ export const BLOCK_SPLIT_RULES: { unitCode: string; levelCode: string; parts: Bl
 /** Kích thước (px), bản thu gọn để cả sơ đồ vừa 1 màn hình; mỗi hàng cao cố định để các ô cùng cấp thẳng hàng. */
 export const LAYOUT = {
   PADDING: 16,
-  ROW_HEIGHT: { 1: 58, 2: 50, 3: 56, 4: 66, 5: 58, 6: 54 } as Record<number, number>,
+  // Hàng 3–6 đủ cao cho avatar nhỏ 30px (SMALL_AVATAR_SIZE ở OrgChartBox); đổi cỡ avatar thì chỉnh theo
+  ROW_HEIGHT: { 1: 58, 2: 50, 3: 68, 4: 78, 5: 70, 6: 66 } as Record<number, number>,
   /** Khoảng dọc giữa 2 hàng (đường nối đi trong khoảng này). */
   ROW_GAP: 24,
   /** Khoảng giữa 2 dải khi xuống dòng. */

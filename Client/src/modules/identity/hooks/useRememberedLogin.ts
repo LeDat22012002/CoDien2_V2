@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react';
 import type { LoginRequest } from '@/modules/identity/types/identity';
 
 /**
- * "Nhớ mật khẩu": app chỉ lưu mã nhân viên (localStorage) để tự điền lần sau.
+ * "Nhớ mật khẩu": Server giữ phiên 30 ngày (cookie refresh token còn sau khi đóng trình duyệt, xem LoginRequest.isRemembered)
+ * nên mở lại web không phải đăng nhập. Phía Client chỉ lưu mã nhân viên (localStorage) để tự điền khi đã đăng xuất.
  * Mật khẩu KHÔNG lưu trong app mà nhờ trình quản lý mật khẩu của trình duyệt lưu (đã mã hóa) qua
  * Credential Management API; lần sau trình duyệt tự điền vào ô có autocomplete="current-password".
  * API này chỉ có trên Chrome/Edge chạy HTTPS hoặc localhost; nơi khác vẫn nhớ được mã nhân viên.

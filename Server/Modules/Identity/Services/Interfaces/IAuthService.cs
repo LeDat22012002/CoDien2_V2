@@ -14,6 +14,8 @@ public interface IAuthService
     Task<MeDto> GetMeAsync(CancellationToken cancellationToken);
 
     /// <summary>Đổi mật khẩu, thu hồi mọi phiên cũ, cấp phiên mới cho thiết bị hiện tại.</summary>
+    /// <param name="currentRefreshToken">Refresh token của thiết bị hiện tại, để phiên mới giữ chế độ "Nhớ mật khẩu".</param>
     Task<AuthSession> ChangePasswordAsync(
-        ChangePasswordRequest request, string? clientIp, CancellationToken cancellationToken);
+        ChangePasswordRequest request, string? currentRefreshToken, string? clientIp,
+        CancellationToken cancellationToken);
 }

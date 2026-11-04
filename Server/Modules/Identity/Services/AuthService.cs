@@ -59,9 +59,10 @@ public class AuthService(
 
         user.FailedLoginCount = 0;
         user.LockoutEnd = null;
-        user.LastLoginAt = now;
+        // Chỉ để hiển thị trên FE nên lưu giờ địa phương (server đặt giờ Việt Nam); khóa/token vẫn dùng UTC
+        user.LastLoginAt = DateTime.Now;
 
-        var session = IssueSession(user, clientIp, now);
+        var session = IssueSession(user, clientIp, now, request.IsRemembered);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return session;
@@ -101,7 +102,8 @@ public class AuthService(
             throw new UnauthorizedException("Tài khoản không còn được phép đăng nhập.");
         }
 
-        var session = IssueSession(user, clientIp, now);
+        // Giữ chế độ nhớ đăng nhập của phiên; hạn tính lại từ lần dùng này
+        var session = IssueSession(user, clientIp, now, storedToken.IsPersistent);
         storedToken.RevokedAt = now;
         storedToken.ReplacedByTokenHash = tokenService.HashToken(session.RefreshToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -156,7 +158,8 @@ public class AuthService(
     }
 
     public async Task<AuthSession> ChangePasswordAsync(
-        ChangePasswordRequest request, string? clientIp, CancellationToken cancellationToken)
+        ChangePasswordRequest request, string? currentRefreshToken, string? clientIp,
+        CancellationToken cancellationToken)
     {
         var userId = currentUserService.UserId ?? throw new UnauthorizedException(SessionExpiredMessage);
         AuthRequestValidator.Validate(request, _options.Password);
@@ -173,6 +176,12 @@ public class AuthService(
             });
         }
 
+        // Phiên mới của thiết bị đang đổi mật khẩu giữ chế độ "Nhớ mật khẩu" như phiên hiện tại
+        var currentToken = string.IsNullOrEmpty(currentRefreshToken)
+            ? null
+            : await refreshTokenRepository.FindByHashAsync(tokenService.HashToken(currentRefreshToken), cancellationToken);
+        var isPersistent = currentToken?.UserId == user.Id && currentToken.IsPersistent;
+
         var now = DateTime.UtcNow;
         var session = await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -180,7 +189,7 @@ public class AuthService(
             user.MustChangePassword = false;
             user.RenewSecurityStamp();
             await refreshTokenRepository.RevokeAllAsync(user.Id, now, ct);
-            return IssueSession(user, clientIp, now);
+            return IssueSession(user, clientIp, now, isPersistent);
         }, cancellationToken);
 
         permissionService.InvalidateUser(user.Id);
@@ -218,12 +227,15 @@ public class AuthService(
     private static string GetLockedMessage(DateTime lockoutEnd, DateTime now) =>
         $"Tài khoản tạm khóa do nhập sai mật khẩu nhiều lần. Vui lòng thử lại sau {Math.Ceiling((lockoutEnd - now).TotalMinutes)} phút.";
 
-    /// <summary>Tạo access token + refresh token mới (refresh token được thêm vào DbContext, chưa lưu).</summary>
-    private AuthSession IssueSession(User user, string? clientIp, DateTime now)
+    /// <summary>
+    /// Tạo access token + refresh token mới (refresh token được thêm vào DbContext, chưa lưu).
+    /// isPersistent: "Nhớ mật khẩu" → hạn RememberMeDays, cookie lưu lại; không thì hạn RefreshTokenDays, cookie phiên.
+    /// </summary>
+    private AuthSession IssueSession(User user, string? clientIp, DateTime now, bool isPersistent)
     {
         var (accessToken, accessExpiresAt) = tokenService.CreateAccessToken(user, user.Employee);
         var (refreshToken, refreshTokenHash) = tokenService.CreateRefreshToken();
-        var refreshExpiresAt = now.AddDays(_options.RefreshTokenDays);
+        var refreshExpiresAt = now.AddDays(isPersistent ? _options.RememberMeDays : _options.RefreshTokenDays);
 
         refreshTokenRepository.Add(new RefreshToken
         {
@@ -232,6 +244,7 @@ public class AuthService(
             ExpiresAt = refreshExpiresAt,
             CreatedAt = now,
             CreatedByIp = clientIp,
+            IsPersistent = isPersistent,
         });
 
         var result = new AuthResultDto
@@ -248,7 +261,7 @@ public class AuthService(
             },
         };
 
-        return new AuthSession(result, refreshToken, refreshExpiresAt);
+        return new AuthSession(result, refreshToken, refreshExpiresAt, isPersistent);
     }
 
     private static bool CanSeePage(PageDto page, UserAuthState state) =>

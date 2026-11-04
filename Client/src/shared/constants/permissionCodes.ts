@@ -45,7 +45,11 @@ export const PERMISSION_CODES = {
     manage: 'equipments.manage',
   },
   incidents: {
+    create: 'incidents.create',
     analyze: 'incidents.analyze',
     manage: 'incidents.manage',
+  },
+  auditLogs: {
+    view: 'audit-logs.view',
   },
 } as const;

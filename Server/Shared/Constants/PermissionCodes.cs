@@ -83,10 +83,19 @@ public static class PermissionCodes
     /// <summary>Báo cáo sự cố: xem công khai, tạo chỉ cần đăng nhập (không cần mã quyền).</summary>
     public static class Incidents
     {
+        /// <summary>Thêm báo cáo sự cố.</summary>
+        public const string Create = "incidents.create";
+
         /// <summary>Nhập phân tích, bổ sung số order/link cho báo cáo thuộc xưởng của mình.</summary>
         public const string Analyze = "incidents.analyze";
 
         /// <summary>Admin chức năng: sửa đầy đủ, phân tích/bổ sung mọi xưởng, xóa, import Excel.</summary>
         public const string Manage = "incidents.manage";
+    }
+
+    public static class AuditLogs
+    {
+        /// <summary>Xem nhật ký đăng nhập, truy cập trang, thao tác của mọi người dùng.</summary>
+        public const string View = "audit-logs.view";
     }
 }

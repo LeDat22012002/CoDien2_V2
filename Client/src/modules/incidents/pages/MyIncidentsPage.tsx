@@ -9,7 +9,9 @@ import { App, Button, Skeleton, Tooltip, type TableColumnsType } from 'antd';
 import { useState, type ReactNode } from 'react';
 import { ErrorState } from '@/shared/components/ErrorState';
 import { PageHeader } from '@/shared/components/PageHeader';
+import { PERMISSION_CODES } from '@/shared/constants/permissionCodes';
 import { COLUMN_WIDTH } from '@/shared/constants/tableColumns';
+import { useHasPermission } from '@/stores/authStore';
 import { notify } from '@/shared/utils/notify';
 import { IncidentAnalysisModal } from '@/modules/incidents/components/IncidentAnalysisModal';
 import { IncidentFilterBar } from '@/modules/incidents/components/IncidentFilterBar';
@@ -66,6 +68,7 @@ const MyIncidentsPage = () => {
   const [dialog, setDialog] = useState<DialogState>({ type: 'form', mode: 'full' });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const canCreate = useHasPermission(PERMISSION_CODES.incidents.create, PERMISSION_CODES.incidents.manage);
   const scopeQuery = useMyIncidentScope();
   const scope = scopeQuery.data;
   const workshopsQuery = useIncidentWorkshops();
@@ -191,7 +194,7 @@ const MyIncidentsPage = () => {
           onChange={handleFilterChange}
           onReset={handleReset}
           onRefresh={() => incidentsQuery.refetch()}
-          onCreate={() => openDialog({ type: 'form', mode: 'full' })}
+          onCreate={canCreate ? () => openDialog({ type: 'form', mode: 'full' }) : undefined}
         />
         {renderContent()}
       </div>
