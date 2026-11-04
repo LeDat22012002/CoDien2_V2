@@ -1,24 +1,29 @@
-import { lazy, Suspense, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ErrorState } from '@/shared/components/ErrorState';
-import { FullPageLoading } from '@/shared/components/FullPageLoading';
-import { RibbonTitle } from '@/shared/components/RibbonTitle';
-import { showLoginRequiredAlert } from '@/shared/utils/alert';
-import { buildLoginPath } from '@/shared/utils/redirect';
-import { useAuthStore } from '@/stores/authStore';
-import { IncidentFilterBar } from '@/modules/incidents/components/IncidentFilterBar';
-import { IncidentFormModal } from '@/modules/incidents/components/IncidentFormModal';
-import { IncidentTable } from '@/modules/incidents/components/IncidentTable';
-import { useIncidentFilterParams } from '@/modules/incidents/hooks/useIncidentFilterParams';
-import { useIncidents, useIncidentWorkshops } from '@/modules/incidents/hooks/useIncidentQueries';
+import { lazy, Suspense, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { ErrorState } from "@/shared/components/ErrorState";
+import { FullPageLoading } from "@/shared/components/FullPageLoading";
+import { RibbonTitle } from "@/shared/components/RibbonTitle";
+import { showLoginRequiredAlert } from "@/shared/utils/alert";
+import { buildLoginPath } from "@/shared/utils/redirect";
+import { useAuthStore } from "@/stores/authStore";
+import { IncidentFilterBar } from "@/modules/incidents/components/IncidentFilterBar";
+import { IncidentFormModal } from "@/modules/incidents/components/IncidentFormModal";
+import { IncidentTable } from "@/modules/incidents/components/IncidentTable";
+import { useIncidentFilterParams } from "@/modules/incidents/hooks/useIncidentFilterParams";
+import {
+  useIncidents,
+  useIncidentWorkshops,
+} from "@/modules/incidents/hooks/useIncidentQueries";
 
 /** ?view=dashboard: hiện dashboard thay danh sách; năm / xưởng của dashboard nằm ở ?year=&dw=. */
-const VIEW_PARAM = 'view';
-const DASHBOARD_VIEW = 'dashboard';
-const DASHBOARD_PARAMS = [VIEW_PARAM, 'year', 'dw'];
+const VIEW_PARAM = "view";
+const DASHBOARD_VIEW = "dashboard";
+const DASHBOARD_PARAMS = [VIEW_PARAM, "year", "dw"];
 
 /** Dashboard kéo theo thư viện biểu đồ: tải riêng khi mở. */
-const IncidentDashboard = lazy(() => import('@/modules/incidents/components/dashboard/IncidentDashboard'));
+const IncidentDashboard = lazy(
+  () => import("@/modules/incidents/components/dashboard/IncidentDashboard"),
+);
 
 /**
  * Báo cáo sự cố (route /incidents, trang công khai), dựng lại theo BaoCaoSuCo hệ thống cũ:
@@ -30,8 +35,15 @@ const IncidentListPage = () => {
   const location = useLocation();
   const authStatus = useAuthStore((state) => state.status);
   const [searchParams, setSearchParams] = useSearchParams();
-  const { filter, filterValues, pageIndex, pageSize, handleFilterChange, handleReset, handlePageChange } =
-    useIncidentFilterParams();
+  const {
+    filter,
+    filterValues,
+    pageIndex,
+    pageSize,
+    handleFilterChange,
+    handleReset,
+    handlePageChange,
+  } = useIncidentFilterParams();
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const workshopsQuery = useIncidentWorkshops();
@@ -54,12 +66,14 @@ const IncidentListPage = () => {
 
   /** Chưa đăng nhập: cảnh báo rồi chuyển sang đăng nhập, xong quay lại đúng trang này. */
   const handleCreate = () => {
-    if (authStatus === 'authenticated') {
+    if (authStatus === "authenticated") {
       setIsFormOpen(true);
       return;
     }
-    if (authStatus === 'anonymous') {
-      void showLoginRequiredAlert().then(() => navigate(buildLoginPath(`${location.pathname}${location.search}`)));
+    if (authStatus === "anonymous") {
+      void showLoginRequiredAlert().then(() =>
+        navigate(buildLoginPath(`${location.pathname}${location.search}`)),
+      );
     }
   };
 
@@ -77,7 +91,7 @@ const IncidentListPage = () => {
 
   return (
     // ≥ lg: trang cao bằng phần dưới header (64px) để khung bảng cố định, thân bảng cuộn bên trong
-    <div className="flex w-full flex-col gap-3 px-4 py-4 md:px-6 lg:h-[calc(100dvh-64px)] xl:px-10">
+    <div className="flex w-full flex-col  px-4 py-4 md:px-6 lg:h-[calc(100dvh-64px)] xl:px-10">
       <RibbonTitle title="BÁO CÁO SỰ CỐ" />
 
       <IncidentFilterBar
@@ -91,9 +105,12 @@ const IncidentListPage = () => {
         onCreate={handleCreate}
         onOpenDashboard={openDashboard}
       />
-
+      <div className="mt-3"></div>
       {incidentsQuery.isError && !incidentsQuery.data ? (
-        <ErrorState error={incidentsQuery.error} onRetry={() => incidentsQuery.refetch()} />
+        <ErrorState
+          error={incidentsQuery.error}
+          onRetry={() => incidentsQuery.refetch()}
+        />
       ) : (
         <IncidentTable
           incidents={incidentsQuery.data?.items ?? []}
@@ -105,7 +122,11 @@ const IncidentListPage = () => {
         />
       )}
 
-      <IncidentFormModal open={isFormOpen} workshops={workshopsQuery.data ?? []} onClose={() => setIsFormOpen(false)} />
+      <IncidentFormModal
+        open={isFormOpen}
+        workshops={workshopsQuery.data ?? []}
+        onClose={() => setIsFormOpen(false)}
+      />
     </div>
   );
 };

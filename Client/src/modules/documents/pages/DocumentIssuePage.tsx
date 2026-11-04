@@ -49,12 +49,14 @@ const DocumentIssuePage = () => {
 
   const templatesQuery = useDocumentTemplateOptions();
   const templates = useMemo(() => templatesQuery.data ?? [], [templatesQuery.data]);
+  // Tab biểu mẫu trên slider sổ văn bản: theo Id tăng dần
+  const tabTemplates = useMemo(() => [...templates].sort((a, b) => a.id - b.id), [templates]);
   const issueMutation = useIssueDocument();
 
   // ----- Sổ văn bản: tab biểu mẫu + ?page + ?q -----
   const [activeTab, setActiveTab] = useState<number>();
-  // Chưa chọn tab thì mặc định biểu mẫu đầu tiên
-  const activeTemplateId = templates.find((template) => template.id === activeTab)?.id ?? templates[0]?.id;
+  // Chưa chọn tab thì mặc định tab đầu tiên
+  const activeTemplateId = tabTemplates.find((template) => template.id === activeTab)?.id ?? tabTemplates[0]?.id;
   const pageIndex = Number(searchParams.get(PAGE_PARAM)) || 1;
   const issuerEmpCode = searchParams.get(EMP_CODE_PARAM) ?? '';
 
@@ -93,7 +95,7 @@ const DocumentIssuePage = () => {
   const goToTemplate = (templateId: number) => {
     setActiveTab(templateId);
     resetToFirstPage();
-    const index = templates.findIndex((template) => template.id === templateId);
+    const index = tabTemplates.findIndex((template) => template.id === templateId);
     if (index !== -1) sliderRef.current?.slickGoTo(index);
   };
 
@@ -177,7 +179,7 @@ const DocumentIssuePage = () => {
       <>
         <TemplateSlider
           sliderRef={sliderRef}
-          templates={templates}
+          templates={tabTemplates}
           activeTemplateId={activeTemplateId}
           onChange={goToTemplate}
         />

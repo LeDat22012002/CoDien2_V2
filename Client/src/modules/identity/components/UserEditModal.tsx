@@ -29,9 +29,11 @@ export const UserEditModal = ({ user, roles, onClose }: UserEditModalProps) => {
   const updateMutation = useUpdateUser();
 
   const isSelf = user?.id === currentUserId;
-  // Vai trò đã ngừng nhưng tài khoản đang có vẫn phải hiện để không mất khi lưu
+  // Vai trò đã ngừng nhưng tài khoản đang có vẫn phải hiện để không mất khi lưu.
+  // Quản trị viên tổng (vai trò hệ thống) chỉ có 1 người: chỉ hiện nếu tài khoản này đang giữ.
+  const hasRole = (roleId: number) => Boolean(user?.roles.some((item) => item.id === roleId));
   const roleOptions = roles
-    .filter((role) => role.isActive || user?.roles.some((item) => item.id === role.id))
+    .filter((role) => (role.isSystem ? hasRole(role.id) : role.isActive || hasRole(role.id)))
     .map((role) => ({ value: role.id, label: role.isActive ? role.name : `${role.name} (ngừng)` }));
 
   const handleSubmit = async () => {

@@ -25,6 +25,8 @@ export interface Employee {
   currentAssignments: CurrentAssignment[];
   /** Không hiện trên sơ đồ tổ chức (vẫn thuộc đơn vị theo vị trí đang giữ). */
   isHiddenOnOrgChart: boolean;
+  /** Xưởng (đơn vị cấp 1; Ban Giám đốc: tên Nhà máy). Chỉ có khi lấy chi tiết 1 nhân viên. */
+  workshopName?: string | null;
 }
 
 export interface EmployeeFilter extends PagedRequest {
