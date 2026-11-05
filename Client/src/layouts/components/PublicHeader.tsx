@@ -76,7 +76,8 @@ export const PublicHeader = ({ isFixed = false }: PublicHeaderProps) => {
 
   return (
     <header className={`h-16 w-full bg-bg-container shadow-md ${positionClass}`}>
-      <div className="mx-auto flex h-full w-full max-w-main items-center justify-between gap-4 px-4">
+      {/* Lề ngang giống trang toàn màn hình (Báo cáo sự cố, Lấy số văn bản) để header thẳng mép với nội dung */}
+      <div className="flex h-full w-full items-center justify-between gap-4 px-4 md:px-6 xl:px-10">
         <div className="flex min-w-0 items-center gap-4 xl:gap-8">
           <Link to={DEFAULT_PUBLIC_PATH} aria-label="Về trang Lấy số văn bản" className="shrink-0">
             <img

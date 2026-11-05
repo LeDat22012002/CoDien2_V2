@@ -203,7 +203,8 @@ const DocumentIssuePage = () => {
   };
 
   return (
-    <div className="mt-2 flex w-full flex-col">
+    // Route toàn màn hình (handle.isFullScreen): tự đặt lề giống trang Báo cáo sự cố
+    <div className="flex w-full flex-col px-4 py-4 md:px-6 xl:px-10">
       <RibbonTitle title="LẤY SỐ VĂN BẢN" />
 
       <IssueDocumentBar

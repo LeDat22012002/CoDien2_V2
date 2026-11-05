@@ -8,6 +8,7 @@ import { Avatar, Button, Dropdown, type MenuProps } from "antd";
 import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { MEMBER_PROFILE_PATH } from "@/shared/constants/routes";
+import { toFileUrl } from "@/shared/utils/fileUrl";
 import { useLogout } from "@/modules/identity/hooks/useLogout";
 import { collectMenuLeaves } from "@/layouts/utils/menuItems";
 import { useAuthStore } from "@/stores/authStore";
@@ -74,7 +75,7 @@ export const UserDropdown = () => {
       >
         <Avatar
           size={36}
-          src={user?.avatarUrl || undefined}
+          src={toFileUrl(user?.avatarUrl)}
           icon={<UserOutlined />}
           className="border border-border"
         />

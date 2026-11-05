@@ -19,8 +19,9 @@ const buildColumns = (pageIndex: number, pageSize: number): TableProps<IssuedDoc
     align: 'center',
     render: (_, __, index) => (pageIndex - 1) * pageSize + index + 1,
   },
-  { title: 'Số hiệu VB', dataIndex: 'documentNumber', key: 'documentNumber', align: 'center', width: 250 },
-  { title: 'Nội dung trích yếu', dataIndex: 'subject', key: 'subject', width: 200, ellipsis: true },
+  { title: 'Số hiệu VB', dataIndex: 'documentNumber', key: 'documentNumber', align: 'center', width: 180 },
+  // Trích yếu dài nhất bảng: dành phần lớn bề rộng, còn dài nữa thì cắt "…"
+  { title: 'Nội dung trích yếu', dataIndex: 'subject', key: 'subject', width: 450, ellipsis: true },
   {
     title: 'Ngày lấy số',
     dataIndex: 'issueDate',
@@ -44,7 +45,7 @@ export const IssuedDocumentTable = ({ documents, pageIndex, pageSize, isLoading 
     bordered
     pagination={false}
     size="small"
-    scroll={{ x: 1200, y: 720 }}
+    scroll={{ x: 1240, y: 720 }}
     rowClassName={(record) => (record.publishStatus === 'CANCELLED' ? 'bg-red-50' : '')}
     locale={{
       emptyText: (

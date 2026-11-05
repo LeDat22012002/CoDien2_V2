@@ -3,6 +3,7 @@ import dayjs from '@/shared/utils/dayjs';
 
 export const DATE_FORMAT = 'DD/MM/YYYY';
 export const DATE_TIME_FORMAT = 'DD/MM/YYYY HH:mm';
+export const DATE_TIME_SECONDS_FORMAT = 'DD/MM/YYYY HH:mm:ss';
 /** Định dạng ngày gửi lên Server (ISO 8601, không kèm giờ). */
 export const ISO_DATE_FORMAT = 'YYYY-MM-DD';
 export const EMPTY_TEXT = '—';
@@ -20,6 +21,10 @@ const toValidDayjs = (value: DateInput) => {
 export const formatDate = (value: DateInput) => toValidDayjs(value)?.format(DATE_FORMAT) ?? EMPTY_TEXT;
 
 export const formatDateTime = (value: DateInput) => toValidDayjs(value)?.format(DATE_TIME_FORMAT) ?? EMPTY_TEXT;
+
+/** Kèm giây (nhật ký hệ thống: nhiều thao tác trong cùng 1 phút). */
+export const formatDateTimeSeconds = (value: DateInput) =>
+  toValidDayjs(value)?.format(DATE_TIME_SECONDS_FORMAT) ?? EMPTY_TEXT;
 
 /** Số kiểu Việt Nam: 1.234.567,89 */
 export const formatNumber = (value: number | null | undefined, maximumFractionDigits = 0) => {

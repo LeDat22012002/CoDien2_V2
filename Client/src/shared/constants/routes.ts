@@ -25,6 +25,8 @@ export const APP_ROUTE_PATHS = [
   '/admin/pages',
   '/admin/issued-documents',
   '/admin/document-templates',
+  '/admin/equipments',
+  '/admin/audit-logs',
   '/member/incidents',
   '/member/documents',
   '/member/profile',

@@ -66,13 +66,16 @@ public class AuthController(IAuthService authService) : ControllerBase
     public async Task<ActionResult<ApiResponse<AuthResultDto>>> ChangePassword(
         ChangePasswordRequest request, CancellationToken cancellationToken)
     {
-        var session = await authService.ChangePasswordAsync(request, GetClientIp(), cancellationToken);
+        var session = await authService.ChangePasswordAsync(
+            request, Request.Cookies[RefreshTokenCookie], GetClientIp(), cancellationToken);
         SetRefreshTokenCookie(session);
         return Ok(ApiResponse<AuthResultDto>.Ok(session.Result, "Đổi mật khẩu thành công."));
     }
 
+    /// <summary>Không "Nhớ mật khẩu": cookie phiên (không đặt Expires) để đóng trình duyệt là phải đăng nhập lại.</summary>
     private void SetRefreshTokenCookie(AuthSession session) =>
-        Response.Cookies.Append(RefreshTokenCookie, session.RefreshToken, BuildCookieOptions(session.RefreshTokenExpiresAt));
+        Response.Cookies.Append(RefreshTokenCookie, session.RefreshToken,
+            BuildCookieOptions(session.IsPersistent ? session.RefreshTokenExpiresAt : null));
 
     private void DeleteRefreshTokenCookie() =>
         Response.Cookies.Delete(RefreshTokenCookie, BuildCookieOptions(null));

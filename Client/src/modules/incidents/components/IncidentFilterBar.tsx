@@ -28,7 +28,8 @@ interface IncidentFilterBarProps {
   onChange: (patch: Partial<IncidentFilterValues>) => void;
   onReset: () => void;
   onRefresh: () => void;
-  onCreate: () => void;
+  /** Bỏ trống = không hiện nút Thêm báo cáo (không có quyền). */
+  onCreate?: () => void;
   /** Bỏ trống = không hiện nút Dashboard (trang cá nhân). */
   onOpenDashboard?: () => void;
   /** Khóa ô Xưởng (người phân tích chỉ xem xưởng của mình). */
@@ -152,9 +153,11 @@ export const IncidentFilterBar = ({
       <Button onClick={onRefresh} loading={isRefreshing}>
         Tải lại
       </Button>
-      <Button type="primary" icon={<PlusOutlined />} onClick={onCreate} className="flex-1 xl:flex-none">
-        Thêm báo cáo
-      </Button>
+      {onCreate && (
+        <Button type="primary" icon={<PlusOutlined />} onClick={onCreate} className="flex-1 xl:flex-none">
+          Thêm báo cáo
+        </Button>
+      )}
       {onOpenDashboard && (
         <Button danger icon={<BarChartOutlined />} onClick={onOpenDashboard}>
           Dashboard

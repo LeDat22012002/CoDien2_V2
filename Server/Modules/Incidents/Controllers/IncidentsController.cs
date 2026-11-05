@@ -10,7 +10,7 @@ using Server.Shared.Models;
 namespace Server.Modules.Incidents.Controllers;
 
 /// <summary>
-/// Báo cáo sự cố. Xem danh sách / chi tiết / dashboard: công khai. Tạo: mọi người đăng nhập.
+/// Báo cáo sự cố. Xem danh sách / chi tiết / dashboard: công khai. Tạo: incidents.create hoặc incidents.manage.
 /// Phạm vi sửa tiến độ / phân tích / bổ sung kiểm tra trong service theo người nhập và xưởng.
 /// </summary>
 [ApiController]
@@ -74,6 +74,7 @@ public class IncidentsController(
         return Ok(ApiResponse<IncidentDto>.Ok(result));
     }
 
+    [HasPermission(PermissionCodes.Incidents.Create, PermissionCodes.Incidents.Manage)]
     [HttpPost]
     public async Task<ActionResult<ApiResponse<IncidentDto>>> Create(
         CreateIncidentRequest request, CancellationToken cancellationToken)

@@ -76,7 +76,7 @@ server/
 - Admin tổng đầu tiên lấy từ User Secrets `Identity:SuperAdmin:EmpCode` / `Identity:SuperAdmin:InitialPassword`, chỉ tạo khi chưa có SUPER_ADMIN nào.
 - **Gắn quyền cho API**: `[HasPermission(PermissionCodes.X.Y)]` trên action (hoặc controller). Truyền nhiều mã = chỉ cần có 1 trong số đó. Không gắn gì = chỉ cần đăng nhập; `[AllowAnonymous]` = công khai.
 - Trong service, lấy người đang gọi qua `ICurrentUserService` (`UserId`, `UserName` = EmpCode); kiểm tra quyền/leo thang qua `IPermissionService` (`EnsureCanGrantPermissionsAsync`, `EnsureCanAssignRolesAsync`).
-- Token: access token 15 phút trong JSON (claims `sub`, `emp_code`, `full_name`, `stamp`, **không chứa quyền**); refresh token 7 ngày trong cookie HttpOnly `refresh_token` (Path `/api/auth`), DB chỉ lưu SHA-256, xoay vòng mỗi lần refresh, dùng lại token cũ → thu hồi mọi phiên.
+- Token: access token 15 phút trong JSON (claims `sub`, `emp_code`, `full_name`, `stamp`, **không chứa quyền**); refresh token trong cookie HttpOnly `refresh_token` (Path `/api/auth`): tick "Nhớ mật khẩu" (`LoginRequest.IsRemembered`) → `RefreshToken.IsPersistent`, hạn `RememberMeDays` (30, tính lại mỗi lần refresh), cookie có Expires; không tick → cookie phiên, hạn `RefreshTokenDays` (7); xoay vòng và đổi mật khẩu giữ nguyên chế độ, DB chỉ lưu SHA-256, xoay vòng mỗi lần refresh, dùng lại token cũ → thu hồi mọi phiên.
 - Quyền và trạng thái user được cache (`IMemoryCache`, 10 phút). Đổi role/quyền/khóa/mật khẩu phải gọi `IPermissionService.InvalidateUser` hoặc `InvalidateAll` để có hiệu lực ngay; đổi mật khẩu/ngừng tài khoản gọi `user.RenewSecurityStamp()` để vô hiệu access token cũ.
 - Chống leo thang: không tự sửa role/trạng thái của mình; phải còn ≥ 1 SUPER_ADMIN hoạt động; người không phải SUPER_ADMIN không đụng tới role/tài khoản SUPER_ADMIN và chỉ cấp được quyền mình đang có.
 - Tài khoản cũ chuyển 1 lần từ `TEST.dbo.Tbl_TaiKhoan` bằng `Data/Scripts/MigrateUsersFromTest.sql` (vai trò `NGUOI_DUNG`). Mật khẩu cũ giữ dạng `MD5:<hex>`; `UserPasswordHasher` nhận hash này và tự đổi sang PBKDF2 ở lần đăng nhập đầu tiên.
@@ -115,11 +115,20 @@ server/
 - Xem (`GET /api/equipments`, `/options`): chỉ cần đăng nhập. Thêm/sửa/xóa/import: `equipments.manage`. Import bỏ qua mã đã có hoặc lặp trong file; `import-default` đọc 4 sheet "THAM CHIẾU EQ - …" cố định.
 - Xóa (mềm) bị chặn khi đã có báo cáo sự cố — kiểm tra qua `IIncidentLookupService` (tách riêng để tránh vòng DI với `IncidentService`).
 
+## Nhật ký hệ thống (module AuditLogs)
+
+- Bảng EF `AuditLog` (không kế thừa `BaseEntity`, xóa cứng). `Type`: `LOGIN` | `PAGE_VIEW` | `ACTION`. `CreatedAt` giờ địa phương.
+- `Api/Middlewares/AuditLogMiddleware` (đăng ký **trước** `ExceptionHandlingMiddleware` để thấy kết quả cuối): ghi mọi POST/PUT/PATCH/DELETE `/api/...` của người đã đăng nhập và `POST /api/auth/login` (cả thành công / thất bại). Bỏ qua `/api/auth/refresh` và request chưa đăng nhập. Lưu body JSON / form (che trường chứa `password|token|secret`, file chỉ ghi tên + dung lượng, tối đa 4000 ký tự), mã HTTP, `message` của response, `Controller.Action`, IP, trình duyệt, thời gian xử lý.
+- Truy cập trang: Client gọi `POST /api/audit-logs/page-views` khi người đã đăng nhập đổi pathname (`layouts/hooks/usePageViewTracking`). Xem: `GET /api/audit-logs` (`audit-logs.view`).
+- Ghi DB qua hàng đợi `IAuditLogQueue` (Channel, singleton) + `AuditLogWriterService` ghi theo lô bằng scope riêng (không lẫn DbContext của request). `AuditLogCleanupService` mỗi 24h xóa log cũ hơn `AuditLog:RetentionDays` (mặc định 30).
+- Thêm API ghi mới không cần làm gì thêm; trường nhạy cảm mới phải có tên chứa password/token/secret, nếu không thì bổ sung `SensitiveKeywords` trong middleware.
+
 ## Báo cáo sự cố (module Incidents)
 
 - Bảng do EF tạo `Incident`. Dữ liệu cũ chuyển 1 lần bằng `Data/Scripts/MigrateIncidentsFromTest.sql` (chạy sqlcmd với `-f 65001`): xưởng cũ `Tbl_Xuong` → OrgUnit cấp 1 qua `#WorkshopMap`; người nhập `Tbl_TaiKhoan.TenTaiKhoan` = `Employee.EmpCode`. TEST và NM_CD2 khác collation → so sánh chuỗi phải `COLLATE DATABASE_DEFAULT`.
 - Xưởng = đơn vị cấp 1 (`IOrgUnitService.GetTopLevelUnitsAsync`); xưởng của người dùng: `IAssignmentService.GetTopLevelUnitAsync`.
 - Mã/tên thiết bị lưu dạng bản chụp; tạo/sửa qua API phải có mã trong danh mục (chỉ kiểm tra khi mã đổi), import Excel thì không bắt buộc.
+- Người phân tích (`Analyst*`, `AnalyzedAt`) ghi mỗi lần lưu `/analysis`; người bổ sung (`Supplementer*`, `SupplementedAt`) ghi mỗi lần lưu `/supplement`, khi tạo có điền số order/link, hoặc khi sửa đầy đủ làm đổi số order/link. Dữ liệu cũ để null.
 - `ReportedAt` (giờ địa phương) + người nhập lấy theo tài khoản khi tạo; dữ liệu import để null → không vào dashboard, không cảnh báo quá hạn.
-- Quyền: GET danh sách/chi tiết/dashboard/thiết bị lặp lại công khai; tạo: mọi người đăng nhập; tiến độ (`/progress`): người nhập hoặc `incidents.manage`; phân tích (`/analysis`): `incidents.analyze` cùng xưởng hoặc manage; bổ sung (`/supplement`): người nhập, analyze cùng xưởng hoặc manage; sửa đầy đủ/xóa/import: chỉ `incidents.manage`.
+- Quyền: GET danh sách/chi tiết/dashboard/thiết bị lặp lại công khai; tạo: `incidents.create` hoặc `incidents.manage`; tiến độ (`/progress`): người nhập hoặc `incidents.manage`; phân tích (`/analysis`): `incidents.analyze` cùng xưởng hoặc manage; bổ sung (`/supplement`): người nhập, analyze cùng xưởng hoặc manage; sửa đầy đủ/xóa/import: chỉ `incidents.manage`.
 - Quy tắc (`IncidentRules`): quá hạn phân tích > 7 ngày thiếu nguyên nhân/nguyên nhân gốc/hành động; quá hạn bổ sung (có AHSX) > 3 ngày thiếu số order/link; mốc so sánh `now − (N + 1)` ngày; thiết bị lặp lại > 3 lần/năm. Thứ tự mốc: nhận tin ≤ bắt đầu sửa ≤ sửa xong ≤ bàn giao.

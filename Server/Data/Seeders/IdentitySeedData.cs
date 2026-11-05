@@ -53,31 +53,36 @@ public static class IdentitySeedData
 
         new(PermissionCodes.Equipments.Manage, "Quản lý danh mục thiết bị", "equipments", 70),
 
+        new(PermissionCodes.Incidents.Create, "Thêm báo cáo sự cố", "incidents", 79),
         new(PermissionCodes.Incidents.Analyze, "Phân tích sự cố của xưởng mình", "incidents", 80),
         new(PermissionCodes.Incidents.Manage, "Quản lý báo cáo sự cố (sửa đầy đủ, xóa, import)", "incidents", 81),
+
+        new(PermissionCodes.AuditLogs.View, "Xem nhật ký hệ thống", "audit-logs", 90),
     ];
 
     public static readonly IReadOnlyList<PageSeed> Pages =
     [
         new("dashboard", "Tổng quan", "/admin/dashboard", "DashboardOutlined", null, PermissionCodes.DashBoards.View, 10),
         new("employees", "Nhân viên", "/admin/employees", "TeamOutlined", null, PermissionCodes.Employees.View, 20),
-        new("org-chart", "Sơ đồ tổ chức", "/org-chart", "ApartmentOutlined", null, PermissionCodes.OrgChart.View, 30),
         new("organization", "Tổ chức", null, "ClusterOutlined", null, null, 31),
         new("org-units", "Cơ cấu tổ chức", "/admin/org-units", "ClusterOutlined", "organization", PermissionCodes.OrgUnits.Manage, 32),
         new("position-levels", "Cấp bậc", "/admin/position-levels", "OrderedListOutlined", "organization", PermissionCodes.OrgUnits.Manage, 33),
         new("documents", "Văn bản", null, "FileTextOutlined", null, null, 40),
-        new("document-issue", "Lấy số văn bản", "/documents/issue", "NumberOutlined", "documents", PermissionCodes.Documents.Issue, 41),
+        // new("document-issue", "Lấy số văn bản", "/documents/issue", "NumberOutlined", "documents", PermissionCodes.Documents.Issue, 41),
         new("issued-documents", "Sổ văn bản đã cấp", "/admin/issued-documents", "BookOutlined", "documents", PermissionCodes.Documents.View, 42),
         new("document-templates", "Danh sách văn bản", "/admin/document-templates", "ProfileOutlined", "documents", PermissionCodes.DocumentTemplates.Manage, 43),
+        new("equipments", "Danh mục thiết bị", "/admin/equipments", "ToolOutlined", null, PermissionCodes.Equipments.Manage, 50),
         new("system", "Quản trị hệ thống", null, "SettingOutlined", null, null, 90),
         new("users", "Tài khoản", "/admin/users", "UserOutlined", "system", PermissionCodes.Users.View, 91),
         new("roles", "Vai trò", "/admin/roles", "SafetyOutlined", "system", PermissionCodes.Roles.View, 92),
         new("permissions", "Phân quyền", "/admin/permissions", "KeyOutlined", "system", PermissionCodes.Roles.View, 93),
         new("pages", "Trang và menu", "/admin/pages", "MenuOutlined", "system", PermissionCodes.Pages.Manage, 94),
+        new("audit-logs", "Nhật ký hệ thống", "/admin/audit-logs", "AuditOutlined", "system", PermissionCodes.AuditLogs.View, 95),
 
         // Menu header trang công khai (giống hệ thống cũ)
         new("public-document-issue", "Lấy số văn bản", "/documents/issue", null, null, null, 110,
             Area: PageAreas.Public),
+        new("public-org-chart", "Sơ đồ tổ chức", "/org/organizationalchart", null, null, null, 30, Area: PageAreas.Public),
         new("public-reports", "Báo cáo nhà máy", null, null, null, null, 120, Area: PageAreas.Public),
         new("public-incidents", "Báo cáo sự cố", "/incidents", null, "public-reports", null, 121,
             Area: PageAreas.Public),

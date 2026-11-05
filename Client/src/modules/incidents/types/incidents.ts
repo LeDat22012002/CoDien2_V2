@@ -33,6 +33,12 @@ export interface Incident {
   reporterName?: string | null;
   orderNumber?: string | null;
   reportLink?: string | null;
+  analystEmpCode?: string | null;
+  analystName?: string | null;
+  analyzedAt?: string | null;
+  supplementerEmpCode?: string | null;
+  supplementerName?: string | null;
+  supplementedAt?: string | null;
   waitingMinutes?: number | null;
   repairMinutes?: number | null;
   downtimeMinutes?: number | null;

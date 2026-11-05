@@ -2,6 +2,7 @@ import { Outlet, useMatches } from 'react-router';
 import { useIsScrolledPast } from '@/shared/hooks/useIsScrolledPast';
 import { useSessionBootstrap } from '@/modules/identity/hooks/useSessionBootstrap';
 import { PublicHeader } from '@/layouts/components/PublicHeader';
+import { usePageViewTracking } from '@/layouts/hooks/usePageViewTracking';
 
 /** Cuộn quá header thường (64px) một chút thì hiện header cố định, như hệ thống cũ. */
 const FIXED_HEADER_SCROLL_THRESHOLD = 80;
@@ -18,6 +19,7 @@ export interface PublicRouteHandle {
  */
 const PublicLayout = () => {
   useSessionBootstrap();
+  usePageViewTracking();
   const isFixedHeaderVisible = useIsScrolledPast(FIXED_HEADER_SCROLL_THRESHOLD);
   const isFullScreen = useMatches().some((match) => (match.handle as PublicRouteHandle | undefined)?.isFullScreen);
 

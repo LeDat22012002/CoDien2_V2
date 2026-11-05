@@ -12,5 +12,11 @@ public class RefreshToken
     public DateTime? RevokedAt { get; set; }
     public string? ReplacedByTokenHash { get; set; }
 
+    /// <summary>
+    /// "Nhớ mật khẩu" khi đăng nhập: cookie lưu lại sau khi đóng trình duyệt, hạn RememberMeDays.
+    /// False: cookie phiên (đóng trình duyệt là mất), hạn RefreshTokenDays. Token xoay vòng giữ nguyên giá trị này.
+    /// </summary>
+    public bool IsPersistent { get; set; }
+
     public User User { get; set; } = null!;
 }

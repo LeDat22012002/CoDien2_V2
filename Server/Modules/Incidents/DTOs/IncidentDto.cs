@@ -32,6 +32,12 @@ public class IncidentDto
     public string? ReporterName { get; init; }
     public string? OrderNumber { get; init; }
     public string? ReportLink { get; init; }
+    public string? AnalystEmpCode { get; init; }
+    public string? AnalystName { get; init; }
+    public DateTime? AnalyzedAt { get; init; }
+    public string? SupplementerEmpCode { get; init; }
+    public string? SupplementerName { get; init; }
+    public DateTime? SupplementedAt { get; init; }
 
     // Thông tin dẫn xuất (phút), không lưu DB
 

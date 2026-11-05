@@ -73,6 +73,20 @@ public class Incident : BaseEntity
 
     /// <summary>Link biên bản sự cố.</summary>
     public string? ReportLink { get; set; }
+
+    /// <summary>Người phân tích lần gần nhất (nguyên nhân, nguyên nhân gốc, hành động). Null với dữ liệu cũ / import.</summary>
+    public string? AnalystEmpCode { get; set; }
+
+    public string? AnalystName { get; set; }
+
+    public DateTime? AnalyzedAt { get; set; }
+
+    /// <summary>Người bổ sung số order / link biên bản lần gần nhất. Null với dữ liệu cũ / import.</summary>
+    public string? SupplementerEmpCode { get; set; }
+
+    public string? SupplementerName { get; set; }
+
+    public DateTime? SupplementedAt { get; set; }
 }
 
 // ===== Quy tắc =====

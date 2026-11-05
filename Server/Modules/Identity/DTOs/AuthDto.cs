@@ -51,6 +51,9 @@ public class LoginRequest
 {
     public string EmpCode { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>"Nhớ mật khẩu": giữ đăng nhập sau khi đóng trình duyệt (RememberMeDays).</summary>
+    public bool IsRemembered { get; set; }
 }
 
 public class ChangePasswordRequest
@@ -61,8 +64,11 @@ public class ChangePasswordRequest
 
 // ===== Nội bộ (không trả ra API) =====
 
-/// <summary>Kết quả đăng nhập/refresh: controller đặt RefreshToken vào cookie HttpOnly, còn lại trả JSON.</summary>
-public record AuthSession(AuthResultDto Result, string RefreshToken, DateTime RefreshTokenExpiresAt);
+/// <summary>
+/// Kết quả đăng nhập/refresh: controller đặt RefreshToken vào cookie HttpOnly, còn lại trả JSON.
+/// IsPersistent = false: cookie phiên (không đặt Expires, đóng trình duyệt là mất).
+/// </summary>
+public record AuthSession(AuthResultDto Result, string RefreshToken, DateTime RefreshTokenExpiresAt, bool IsPersistent);
 
 /// <summary>Trạng thái phân quyền của user, được cache trong bộ nhớ.</summary>
 public record UserAuthState(

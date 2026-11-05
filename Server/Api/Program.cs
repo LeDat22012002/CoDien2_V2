@@ -17,6 +17,8 @@ var app = builder.Build();
 
 await app.SeedDataAsync();
 
+// Nhật ký đặt ngoài cùng để ghi được kết quả cuối (kể cả lỗi đã đổi thành response ở middleware dưới)
+app.UseMiddleware<AuditLogMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())

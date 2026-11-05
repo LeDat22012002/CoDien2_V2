@@ -5,7 +5,8 @@ import { FullPageLoading } from "@/shared/components/FullPageLoading";
 import { RibbonTitle } from "@/shared/components/RibbonTitle";
 import { showLoginRequiredAlert } from "@/shared/utils/alert";
 import { buildLoginPath } from "@/shared/utils/redirect";
-import { useAuthStore } from "@/stores/authStore";
+import { PERMISSION_CODES } from "@/shared/constants/permissionCodes";
+import { useAuthStore, useHasPermission } from "@/stores/authStore";
 import { IncidentFilterBar } from "@/modules/incidents/components/IncidentFilterBar";
 import { IncidentFormModal } from "@/modules/incidents/components/IncidentFormModal";
 import { IncidentTable } from "@/modules/incidents/components/IncidentTable";
@@ -28,12 +29,19 @@ const IncidentDashboard = lazy(
 /**
  * Báo cáo sự cố (route /incidents, trang công khai), dựng lại theo BaoCaoSuCo hệ thống cũ:
  * lọc + bảng + phân trang, báo cáo quá hạn bổ sung / phân tích được đánh dấu đỏ; nút Dashboard chuyển sang thống kê.
- * Ai cũng xem được; thêm báo cáo cần đăng nhập (Server kiểm tra). Sửa / phân tích / bổ sung ở trang cá nhân.
+ * Ai cũng xem được; thêm báo cáo cần quyền incidents.create / incidents.manage (Server kiểm tra).
+ * Chưa đăng nhập vẫn hiện nút để mời đăng nhập; đã đăng nhập mà không có quyền thì ẩn nút.
+ * Sửa / phân tích / bổ sung ở trang cá nhân.
  */
 const IncidentListPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const authStatus = useAuthStore((state) => state.status);
+  const canCreate = useHasPermission(
+    PERMISSION_CODES.incidents.create,
+    PERMISSION_CODES.incidents.manage,
+  );
+  const isCreateVisible = authStatus === "anonymous" || canCreate;
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     filter,
@@ -66,7 +74,7 @@ const IncidentListPage = () => {
 
   /** Chưa đăng nhập: cảnh báo rồi chuyển sang đăng nhập, xong quay lại đúng trang này. */
   const handleCreate = () => {
-    if (authStatus === "authenticated") {
+    if (canCreate) {
       setIsFormOpen(true);
       return;
     }
@@ -102,7 +110,7 @@ const IncidentListPage = () => {
         onChange={handleFilterChange}
         onReset={handleReset}
         onRefresh={() => incidentsQuery.refetch()}
-        onCreate={handleCreate}
+        onCreate={isCreateVisible ? handleCreate : undefined}
         onOpenDashboard={openDashboard}
       />
       <div className="mt-3"></div>

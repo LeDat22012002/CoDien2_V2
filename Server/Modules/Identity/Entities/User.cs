@@ -13,6 +13,7 @@ public class User : BaseEntity
     public bool MustChangePassword { get; set; }
     public int FailedLoginCount { get; set; }
     public DateTime? LockoutEnd { get; set; }
+    /// <summary>Giờ địa phương (giờ Việt Nam), khác LockoutEnd lưu UTC.</summary>
     public DateTime? LastLoginAt { get; set; }
 
     /// <summary>Đổi giá trị khi đổi mật khẩu/khóa tài khoản để vô hiệu token và cache quyền cũ.</summary>
