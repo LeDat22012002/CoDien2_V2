@@ -113,6 +113,8 @@ export interface IncidentScope {
   empCode: string;
   canManage: boolean;
   canAnalyze: boolean;
+  /** Có quyền incidents.update-progress (hoặc manage). */
+  canUpdateProgress: boolean;
   /** Xưởng của vị trí chính; null = không thuộc xưởng nào. */
   workshopId?: number | null;
   workshopName?: string | null;

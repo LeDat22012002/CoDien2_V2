@@ -71,6 +71,10 @@ public class IncidentScopeDto
     public string EmpCode { get; init; } = string.Empty;
     public bool CanManage { get; init; }
     public bool CanAnalyze { get; init; }
+
+    /// <summary>Có quyền update-progress (báo cáo cùng xưởng) hoặc manage. Báo cáo mình nhập thì luôn cập nhật được.</summary>
+    public bool CanUpdateProgress { get; init; }
+
     public int? WorkshopId { get; init; }
     public string? WorkshopName { get; init; }
 }

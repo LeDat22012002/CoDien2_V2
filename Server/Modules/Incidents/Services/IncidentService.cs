@@ -20,7 +20,8 @@ namespace Server.Modules.Incidents.Services;
 
 /// <summary>
 /// Báo cáo sự cố (chuyển từ BaoCaoSuCoService cũ). Phân quyền:
-/// - Tạo: mọi người đăng nhập; người nhập sửa được tiến độ và bổ sung số order/link của báo cáo mình nhập.
+/// - Tạo: incidents.create; người nhập sửa được tiến độ và bổ sung số order/link của báo cáo mình nhập (không cần quyền).
+/// - incidents.update-progress: cập nhật tiến độ báo cáo thuộc xưởng (đơn vị cấp 1) của mình (quản đốc, đội trưởng).
 /// - incidents.analyze: phân tích + bổ sung báo cáo thuộc xưởng (đơn vị cấp 1) của mình.
 /// - incidents.manage: sửa đầy đủ, phân tích/bổ sung mọi xưởng, xóa, import.
 /// </summary>
@@ -75,6 +76,8 @@ public class IncidentService(
 
         var canManage = await HasPermissionAsync(PermissionCodes.Incidents.Manage, cancellationToken);
         var canAnalyze = canManage || await HasPermissionAsync(PermissionCodes.Incidents.Analyze, cancellationToken);
+        var canUpdateProgress =
+            canManage || await HasPermissionAsync(PermissionCodes.Incidents.UpdateProgress, cancellationToken);
 
         // Chỉ nhận xưởng thật (loại WORKSHOP), giống ô chọn xưởng của báo cáo
         var topLevelUnit = await assignmentService.GetTopLevelUnitAsync(employee.Id, cancellationToken);
@@ -88,6 +91,7 @@ public class IncidentService(
             EmpCode = employee.EmpCode,
             CanManage = canManage,
             CanAnalyze = canAnalyze,
+            CanUpdateProgress = canUpdateProgress,
             WorkshopId = workshop?.Id,
             WorkshopName = workshop?.Name,
         };
@@ -151,9 +155,10 @@ public class IncidentService(
         IncidentRequestValidator.Validate(request);
 
         var incident = await FindAsync(id, cancellationToken);
-        if (!IsReporter(incident) && !await HasPermissionAsync(PermissionCodes.Incidents.Manage, cancellationToken))
+        if (!IsReporter(incident)
+            && !await HasWorkshopPermissionAsync(incident, PermissionCodes.Incidents.UpdateProgress, cancellationToken))
         {
-            throw new ForbiddenException("Bạn chỉ được cập nhật báo cáo do chính mình nhập.");
+            throw new ForbiddenException("Bạn chỉ được cập nhật báo cáo do mình nhập hoặc thuộc xưởng của mình.");
         }
 
         incident.ReceivedAt = request.ReceivedAt;
@@ -400,16 +405,19 @@ public class IncidentService(
         incident.ReporterEmpCode is not null
         && string.Equals(incident.ReporterEmpCode, currentUserService.UserName, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Quản lý: mọi báo cáo; phân tích: báo cáo thuộc xưởng (đơn vị cấp 1) của mình.</summary>
-    private async Task<bool> CanAnalyzeAsync(Incident incident, CancellationToken cancellationToken)
+    private Task<bool> CanAnalyzeAsync(Incident incident, CancellationToken cancellationToken) =>
+        HasWorkshopPermissionAsync(incident, PermissionCodes.Incidents.Analyze, cancellationToken);
+
+    /// <summary>Quản lý: mọi báo cáo; có quyền <paramref name="permissionCode"/>: báo cáo thuộc xưởng (đơn vị cấp 1) của mình.</summary>
+    private async Task<bool> HasWorkshopPermissionAsync(
+        Incident incident, string permissionCode, CancellationToken cancellationToken)
     {
         if (await HasPermissionAsync(PermissionCodes.Incidents.Manage, cancellationToken))
         {
             return true;
         }
 
-        if (incident.WorkshopId is null
-            || !await HasPermissionAsync(PermissionCodes.Incidents.Analyze, cancellationToken))
+        if (incident.WorkshopId is null || !await HasPermissionAsync(permissionCode, cancellationToken))
         {
             return false;
         }

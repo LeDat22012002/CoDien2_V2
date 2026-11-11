@@ -46,6 +46,7 @@ export const PERMISSION_CODES = {
   },
   incidents: {
     create: 'incidents.create',
+    updateProgress: 'incidents.update-progress',
     analyze: 'incidents.analyze',
     manage: 'incidents.manage',
   },

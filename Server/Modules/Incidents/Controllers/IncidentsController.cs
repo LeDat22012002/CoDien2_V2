@@ -93,7 +93,7 @@ public class IncidentsController(
         return Ok(ApiResponse<IncidentDto>.Ok(result, "Cập nhật báo cáo sự cố thành công."));
     }
 
-    /// <summary>Mốc thời gian, mô tả, phương án xử lý (người nhập hoặc quản lý).</summary>
+    /// <summary>Mốc thời gian, mô tả, phương án xử lý (người nhập, update-progress cùng xưởng hoặc quản lý).</summary>
     [HttpPut("{id:int}/progress")]
     public async Task<ActionResult<ApiResponse<IncidentDto>>> UpdateProgress(
         int id, UpdateIncidentProgressRequest request, CancellationToken cancellationToken)
