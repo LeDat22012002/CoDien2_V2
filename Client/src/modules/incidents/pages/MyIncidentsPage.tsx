@@ -133,9 +133,10 @@ const MyIncidentsPage = () => {
               onClick={() => openDialog({ type: 'form', incident, mode: 'progress' })}
             />
           )}
-          {!permissions.canManage && permissions.canSupplement && (
+          {/* Quản lý cũng cần nút này: Link báo cáo sự cố chỉ nhập ở phần bổ sung */}
+          {permissions.canSupplement && (
             <ActionButton
-              title="Bổ sung số order, link biên bản"
+              title="Bổ sung số order, link biên bản, link báo cáo"
               icon={<LinkOutlined className="text-primary" />}
               onClick={() => openDialog({ type: 'supplement', incident })}
             />

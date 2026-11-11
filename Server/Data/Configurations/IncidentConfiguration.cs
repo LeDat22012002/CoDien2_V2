@@ -35,6 +35,7 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.Property(x => x.ReporterName).HasMaxLength(100);
         builder.Property(x => x.OrderNumber).HasMaxLength(100);
         builder.Property(x => x.ReportLink).HasMaxLength(500);
+        builder.Property(x => x.IncidentReportLink).HasMaxLength(500);
         builder.Property(x => x.AnalystEmpCode).HasMaxLength(50);
         builder.Property(x => x.AnalystName).HasMaxLength(100);
         builder.Property(x => x.AnalyzedAt).HasColumnType("datetime2");

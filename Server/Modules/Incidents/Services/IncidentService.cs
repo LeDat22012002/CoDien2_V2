@@ -199,7 +199,7 @@ public class IncidentService(
     {
         request.OrderNumber = NullIfEmpty(request.OrderNumber);
         request.ReportLink = NullIfEmpty(request.ReportLink);
-        IncidentRequestValidator.Validate(request);
+        request.IncidentReportLink = NullIfEmpty(request.IncidentReportLink);
 
         var incident = await FindAsync(id, cancellationToken);
         if (!IsReporter(incident) && !await CanAnalyzeAsync(incident, cancellationToken))
@@ -207,8 +207,11 @@ public class IncidentService(
             throw new ForbiddenException("Bạn chỉ được bổ sung báo cáo do mình nhập hoặc thuộc xưởng của mình.");
         }
 
+        IncidentRequestValidator.Validate(request, incident.AffectsProduction);
+
         incident.OrderNumber = request.OrderNumber;
         incident.ReportLink = request.ReportLink;
+        incident.IncidentReportLink = request.IncidentReportLink;
         SetSupplementer(incident, await GetCurrentEmployeeAsync(cancellationToken));
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

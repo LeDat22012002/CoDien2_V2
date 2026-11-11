@@ -51,12 +51,21 @@ public static class IncidentRequestValidator
         errors.ThrowIfInvalid();
     }
 
-    public static void Validate(UpdateIncidentSupplementRequest request)
+    /// <param name="affectsProduction">Sự cố ảnh hưởng sản xuất → bắt buộc Link báo cáo sự cố.</param>
+    public static void Validate(UpdateIncidentSupplementRequest request, bool affectsProduction)
     {
         var errors = new Dictionary<string, string[]>();
 
         AddMaxLength(errors, "orderNumber", request.OrderNumber, 100, "Số order");
         AddMaxLength(errors, "reportLink", request.ReportLink, 500, "Link biên bản");
+        if (affectsProduction)
+        {
+            AddRequired(errors, "incidentReportLink", request.IncidentReportLink, 500, "Link báo cáo sự cố");
+        }
+        else
+        {
+            AddMaxLength(errors, "incidentReportLink", request.IncidentReportLink, 500, "Link báo cáo sự cố");
+        }
 
         errors.ThrowIfInvalid();
     }

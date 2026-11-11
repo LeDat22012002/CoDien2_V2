@@ -44,6 +44,8 @@ export const INCIDENT_PAGE_SIZE_OPTIONS = [20, 50, 100];
 export const ANALYSIS_DUE_DAYS = 7;
 /** Sự cố ảnh hưởng sản xuất: quá N ngày mà còn thiếu Số order / Link biên bản. */
 export const SUPPLEMENT_DUE_DAYS = 3;
+/** Sự cố ảnh hưởng sản xuất: quá N ngày mà chưa có Link báo cáo sự cố. */
+export const INCIDENT_REPORT_DUE_DAYS = 5;
 /** Dừng máy (nhận thông tin → bàn giao) quá N phút thì bắt buộc có biên bản sự cố. */
 export const REPORT_REQUIRED_DOWNTIME_MINUTES = 90;
 

@@ -5,7 +5,7 @@ export interface IncidentRowPermissions {
   canManage: boolean;
   /** Mốc thời gian, mô tả, phương án: người nhập hoặc quản lý. */
   canUpdateProgress: boolean;
-  /** Số order, link biên bản: người nhập, người phân tích của xưởng đó hoặc quản lý. */
+  /** Số order, link biên bản, link báo cáo sự cố: người nhập, người phân tích của xưởng đó hoặc quản lý. */
   canSupplement: boolean;
   /** Nguyên nhân, nguyên nhân gốc, hành động: người phân tích của xưởng đó hoặc quản lý. */
   canAnalyze: boolean;
