@@ -1,10 +1,14 @@
-import { MailOutlined, PhoneOutlined } from '@ant-design/icons';
-import { Avatar, Empty, Tag } from 'antd';
-import type { CSSProperties } from 'react';
-import { toFileUrl } from '@/shared/utils/fileUrl';
-import { getLevelColor } from '@/modules/organization/constants/orgChart';
-import type { OrgChartGroup } from '@/modules/organization/types/orgChart';
-import { getInitials, getShortJobTitle, stripUnitPrefix } from '@/modules/organization/utils/orgChartText';
+import { MailOutlined, PhoneOutlined } from "@ant-design/icons";
+import { Avatar, Empty, Tag } from "antd";
+import type { CSSProperties } from "react";
+import { toFileUrl } from "@/shared/utils/fileUrl";
+import { getLevelColor } from "@/modules/organization/constants/orgChart";
+import type { OrgChartGroup } from "@/modules/organization/types/orgChart";
+import {
+  getInitials,
+  getShortJobTitle,
+  stripUnitPrefix,
+} from "@/modules/organization/utils/orgChartText";
 
 /** Người trên sơ đồ hoặc trong danh sách thành viên đơn vị. */
 export interface ChartPerson {
@@ -26,19 +30,23 @@ interface PersonAvatarProps {
 }
 
 /** Ảnh nếu có, không thì chữ cái đầu tô màu theo cấp bậc. */
-export const PersonAvatar = ({ person, size = 32, style }: PersonAvatarProps) => (
+export const PersonAvatar = ({
+  person,
+  size = 32,
+  style,
+}: PersonAvatarProps) => (
   <Avatar
     size={size}
     src={toFileUrl(person?.avatarUrl)}
     alt={person?.fullName}
     className="shrink-0 font-semibold"
     style={{
-      backgroundColor: person ? getLevelColor(person.levelCode) : '#cbd5e1',
+      backgroundColor: person ? getLevelColor(person.levelCode) : "#cbd5e1",
       fontSize: size * 0.4,
       ...style,
     }}
   >
-    {person ? getInitials(person.fullName) : '—'}
+    {person ? getInitials(person.fullName) : "—"}
   </Avatar>
 );
 
@@ -60,13 +68,24 @@ export const PersonRow = ({ person }: { person: ChartPerson }) => (
       <div className="text-sm text-text-secondary">
         <span className="font-mono">{person.empCode}</span>
         {person.phone && (
-          <a href={`tel:${person.phone}`} className="ml-2 text-text-secondary hover:text-primary">
+          <a
+            href={`tel:${person.phone}`}
+            className="ml-2 text-text-secondary hover:text-primary"
+          >
             <PhoneOutlined aria-hidden /> {person.phone}
           </a>
         )}
       </div>
-      {person.email && <div className="break-all text-sm text-text-secondary">{person.email}</div>}
-      {person.jobTitle && <div className="text-sm text-text-secondary">{getShortJobTitle(person.jobTitle)}</div>}
+      {person.email && (
+        <div className="break-all text-sm text-text-secondary">
+          {person.email}
+        </div>
+      )}
+      {person.jobTitle && (
+        <div className="text-sm text-text-secondary">
+          {getShortJobTitle(person.jobTitle)}
+        </div>
+      )}
     </div>
   </div>
 );
@@ -87,15 +106,28 @@ export const PersonProfile = ({ person, levelName }: PersonProfileProps) => (
         {person.isActing && <ActingTag />}
         <span>{levelName}</span>
       </div>
-      {person.jobTitle && <div className="text-sm text-text-secondary">{getShortJobTitle(person.jobTitle)}</div>}
-      <div className="mt-1 font-mono text-sm text-text-secondary">{person.empCode}</div>
-      {person.phone && (
-        <a href={`tel:${person.phone}`} className="block text-sm text-text-secondary hover:text-primary">
-          <PhoneOutlined aria-hidden /> {person.phone}
-        </a>
-      )}
+      {/* {person.jobTitle && <div className="text-sm text-text-secondary">{getShortJobTitle(person.jobTitle)}</div>} */}
+      <div className="mt-1 flex items-center gap-2">
+        {/* Mã nhân viên */}
+        <div className="font-mono text-sm text-text-secondary">
+          {person.empCode}
+        </div>
+
+        {/* Số điện thoại (chỉ hiển thị khi tồn tại) */}
+        {person.phone && (
+          <a
+            href={`tel:${person.phone}`}
+            className="text-sm text-text-secondary hover:text-primary flex items-center gap-1"
+          >
+            <PhoneOutlined aria-hidden /> {person.phone}
+          </a>
+        )}
+      </div>
       {person.email && (
-        <a href={`mailto:${person.email}`} className="block break-all text-sm text-text-secondary hover:text-primary">
+        <a
+          href={`mailto:${person.email}`}
+          className="block break-all text-sm text-text-secondary hover:text-primary"
+        >
           <MailOutlined aria-hidden /> {person.email}
         </a>
       )}
@@ -104,7 +136,13 @@ export const PersonProfile = ({ person, levelName }: PersonProfileProps) => (
 );
 
 /** Tiêu đề nhóm + số người. */
-export const SectionTitle = ({ title, count }: { title: string; count: number }) => (
+export const SectionTitle = ({
+  title,
+  count,
+}: {
+  title: string;
+  count: number;
+}) => (
   <div className="flex items-center justify-between border-b border-border pb-1 text-xs font-semibold tracking-wide text-text-secondary uppercase">
     <span>{title}</span>
     <span>{count}</span>
@@ -112,15 +150,23 @@ export const SectionTitle = ({ title, count }: { title: string; count: number })
 );
 
 /** Danh sách theo nhóm; nhóm rỗng hiện "Chưa có". */
-export const PeopleSections = ({ sections }: { sections: { title: string; people: ChartPerson[] }[] }) => (
+export const PeopleSections = ({
+  sections,
+}: {
+  sections: { title: string; people: ChartPerson[] }[];
+}) => (
   <div className="max-h-[420px] w-80 max-w-[80vw] overflow-y-auto pr-2">
     {sections.map((section) => (
       <div key={section.title} className="mb-2 last:mb-0">
         <SectionTitle title={section.title} count={section.people.length} />
         {section.people.length ? (
-          section.people.map((person) => <PersonRow key={person.assignmentId} person={person} />)
+          section.people.map((person) => (
+            <PersonRow key={person.assignmentId} person={person} />
+          ))
         ) : (
-          <div className="py-1.5 text-sm text-text-secondary italic">Chưa có</div>
+          <div className="py-1.5 text-sm text-text-secondary italic">
+            Chưa có
+          </div>
         )}
       </div>
     ))}
@@ -128,41 +174,73 @@ export const PeopleSections = ({ sections }: { sections: { title: string; people
 );
 
 /** Danh sách Tổ + Tổ trưởng. */
-export const GroupList = ({ groups = [], isScrollable = true }: { groups?: OrgChartGroup[]; isScrollable?: boolean }) => (
-  <div className={isScrollable ? 'max-h-[420px] w-80 max-w-[80vw] overflow-y-auto pr-2' : ''}>
-    {!groups.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có Tổ" />}
+export const GroupList = ({
+  groups = [],
+  isScrollable = true,
+}: {
+  groups?: OrgChartGroup[];
+  isScrollable?: boolean;
+}) => (
+  <div
+    className={
+      isScrollable ? "max-h-[420px] w-80 max-w-[80vw] overflow-y-auto pr-2" : ""
+    }
+  >
+    {!groups.length && (
+      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có Tổ" />
+    )}
     {groups.map((group) => (
-      <div key={group.orgUnitId} className="border-b border-border py-2 last:border-0">
+      <div
+        key={group.orgUnitId}
+        className="border-b border-border py-2 last:border-0"
+      >
         <div className="flex items-center gap-1.5">
-          <span className="size-2 shrink-0 rounded-sm" style={{ background: '#f6bcbc', outline: '1px solid #e79a9a' }} />
-          <span className="font-semibold text-text">{stripUnitPrefix(group.name)}</span>
+          <span
+            className="size-2 shrink-0 rounded-sm"
+            style={{ background: "#f6bcbc", outline: "1px solid #e79a9a" }}
+          />
+          <span className="font-semibold text-text">
+            {stripUnitPrefix(group.name)}
+          </span>
           {group.shift && <Tag className="me-0">Kíp {group.shift}</Tag>}
         </div>
         {group.leaders.length ? (
           group.leaders.map((leader) => (
-            <div key={leader.assignmentId} className="mt-1 ml-3.5 flex items-start gap-2">
-              <PersonAvatar person={leader} size={32} />
+            <div
+              key={leader.assignmentId}
+              className="mt-1 ml-3.5 flex items-start gap-2"
+            >
+              <PersonAvatar person={leader} size={35} />
               <div className="min-w-0 leading-snug">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-text">{leader.fullName}</span>
                   {leader.isActing && <ActingTag />}
-                  <span className="font-mono text-sm text-text-secondary">{leader.empCode}</span>
+                  <span className="font-mono text-sm text-text-secondary">
+                    {leader.empCode}
+                  </span>
                 </div>
                 {(leader.phone || leader.email) && (
                   <div className="flex flex-wrap gap-x-2 text-sm text-text-secondary">
                     {leader.phone && (
-                      <a href={`tel:${leader.phone}`} className="text-text-secondary hover:text-primary">
+                      <a
+                        href={`tel:${leader.phone}`}
+                        className="text-text-secondary hover:text-primary"
+                      >
                         <PhoneOutlined aria-hidden /> {leader.phone}
                       </a>
                     )}
-                    {leader.email && <span className="break-all">{leader.email}</span>}
+                    {leader.email && (
+                      <span className="break-all">{leader.email}</span>
+                    )}
                   </div>
                 )}
               </div>
             </div>
           ))
         ) : (
-          <div className="mt-0.5 ml-3.5 text-sm text-text-secondary italic">Chưa có Tổ trưởng</div>
+          <div className="mt-0.5 ml-3.5 text-sm text-text-secondary italic">
+            Chưa có Tổ trưởng
+          </div>
         )}
       </div>
     ))}

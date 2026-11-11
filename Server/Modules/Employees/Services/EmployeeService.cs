@@ -23,7 +23,7 @@ public class EmployeeService(
     IFileStorageService fileStorageService,
     IUnitOfWork unitOfWork) : IEmployeeService
 {
-    private const string AvatarFolder = "avatars";
+    private const string AvatarFolder = "Avatar";
 
     /// <summary>Key lỗi của AssignmentService → tên ô nhập vị trí ban đầu trên form tạo nhân viên.</summary>
     private static readonly Dictionary<string, string> AssignmentErrorKeys = new()

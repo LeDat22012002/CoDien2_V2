@@ -16,7 +16,7 @@ import type { LoginRequest } from "@/modules/identity/types/identity";
 import { useLogin } from "@/modules/identity/hooks/useLogin";
 import { useRememberedLogin } from "@/modules/identity/hooks/useRememberedLogin";
 
-interface LoginFormValues extends Omit<LoginRequest, 'isRemembered'> {
+interface LoginFormValues extends Omit<LoginRequest, "isRemembered"> {
   isRemembered: boolean;
 }
 
@@ -44,7 +44,7 @@ const BrandColumn = () => (
     <img src={logo} alt={LOGO_ALT} className="h-15 w-auto object-contain" />
 
     <h1 className="mt-5 text-center text-2xl leading-snug font-bold text-text-secondary xl:text-3xl">
-      Không chỉ là một <span className="text-primary">GIẢI PHÁP QUẢN LÝ</span>
+      Phần mềm nội bộ <span className="text-primary">NHÀ MÁY CƠ ĐIỆN 2</span>
     </h1>
     <p className="mt-2 w-full max-w-120 text-right text-base text-accent">
       Làm việc mọi lúc mọi nơi
@@ -71,7 +71,10 @@ const LoginPage = () => {
    * Dùng mutateAsync thay cho callback của mutate: đăng nhập xong GuestRoute chuyển trang ngay và gỡ trang này,
    * callback onSuccess của mutate khi đó không được gọi (mất bước nhớ mã NV / mật khẩu); promise thì vẫn trả về.
    */
-  const handleSubmit = async ({ isRemembered, ...request }: LoginFormValues) => {
+  const handleSubmit = async ({
+    isRemembered,
+    ...request
+  }: LoginFormValues) => {
     try {
       await submitLogin({ ...request, isRemembered });
     } catch (loginError) {

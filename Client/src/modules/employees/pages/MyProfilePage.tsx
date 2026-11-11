@@ -1,17 +1,38 @@
-import { CameraOutlined, IdcardOutlined, MailOutlined, PhoneOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons';
-import { Avatar, Button, Card, Descriptions, Skeleton, Tag, Upload } from 'antd';
-import { useEffect, useState } from 'react';
-import { ErrorState } from '@/shared/components/ErrorState';
-import { StatusTag } from '@/shared/components/StatusTag';
-import { LEVEL_TAG_COLOR } from '@/shared/constants/organization';
-import { getPrimaryAssignment } from '@/shared/utils/assignmentRules';
-import { toFileUrl } from '@/shared/utils/fileUrl';
-import { EMPTY_TEXT, formatDate } from '@/shared/utils/format';
-import { notify } from '@/shared/utils/notify';
-import { useAuthStore } from '@/stores/authStore';
-import { AvatarCropModal } from '@/modules/employees/components/AvatarCropModal';
-import { AVATAR_ACCEPT, AVATAR_MAX_BYTES } from '@/modules/employees/constants/employeeOptions';
-import { useEmployeeDetail, useUploadMyAvatar } from '@/modules/employees/hooks/useEmployeeQueries';
+import {
+  CameraOutlined,
+  IdcardOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  SaveOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
+import {
+  Avatar,
+  Button,
+  Card,
+  Descriptions,
+  Skeleton,
+  Tag,
+  Upload,
+} from "antd";
+import { useEffect, useState } from "react";
+import { ErrorState } from "@/shared/components/ErrorState";
+import { StatusTag } from "@/shared/components/StatusTag";
+import { LEVEL_TAG_COLOR } from "@/shared/constants/organization";
+import { getPrimaryAssignment } from "@/shared/utils/assignmentRules";
+import { toFileUrl } from "@/shared/utils/fileUrl";
+import { EMPTY_TEXT, formatDate } from "@/shared/utils/format";
+import { notify } from "@/shared/utils/notify";
+import { useAuthStore } from "@/stores/authStore";
+import { AvatarCropModal } from "@/modules/employees/components/AvatarCropModal";
+import {
+  AVATAR_ACCEPT,
+  AVATAR_MAX_BYTES,
+} from "@/modules/employees/constants/employeeOptions";
+import {
+  useEmployeeDetail,
+  useUploadMyAvatar,
+} from "@/modules/employees/hooks/useEmployeeQueries";
 
 const DESCRIPTION_LABEL_WIDTH = 160;
 const AVATAR_SIZE = 200;
@@ -56,7 +77,7 @@ const MyProfilePage = () => {
   );
 
   const handlePickAvatar = (file: File) => {
-    if (file.size > AVATAR_MAX_BYTES) notify.warning('Ảnh tối đa 5MB.');
+    if (file.size > AVATAR_MAX_BYTES) notify.warning("Ảnh tối đa 5MB.");
     else setCropFile(file);
     return Upload.LIST_IGNORE;
   };
@@ -68,22 +89,29 @@ const MyProfilePage = () => {
 
   const handleSave = async () => {
     if (!avatarFile || !user) {
-      notify.info('Không có thay đổi nào để lưu.');
+      notify.info("Không có thay đổi nào để lưu.");
       return;
     }
     try {
       const updated = await avatarMutation.mutateAsync(avatarFile);
       setUser({ ...user, avatarUrl: updated.avatarUrl });
       replaceAvatar(null);
-      notify.success('Cập nhật ảnh đại diện thành công.');
+      notify.success("Cập nhật ảnh đại diện thành công.");
     } catch (error) {
       notify.apiError(error);
     }
   };
 
   const renderDetail = () => {
-    if (detailQuery.isPending) return <Skeleton active paragraph={{ rows: 10 }} />;
-    if (detailQuery.isError) return <ErrorState error={detailQuery.error} onRetry={() => detailQuery.refetch()} />;
+    if (detailQuery.isPending)
+      return <Skeleton active paragraph={{ rows: 10 }} />;
+    if (detailQuery.isError)
+      return (
+        <ErrorState
+          error={detailQuery.error}
+          onRetry={() => detailQuery.refetch()}
+        />
+      );
 
     return (
       <div className="flex min-w-0 flex-col gap-8">
@@ -93,23 +121,39 @@ const MyProfilePage = () => {
           column={DESCRIPTION_COLUMNS}
           styles={DESCRIPTION_STYLES}
           items={[
-            { key: 'fullName', label: 'Họ tên', children: employee?.fullName },
+            { key: "fullName", label: "Họ tên", children: employee?.fullName },
             {
-              key: 'empCode',
-              label: 'Mã nhân viên',
+              key: "empCode",
+              label: "Mã nhân viên",
               children: (
                 <Tag icon={<IdcardOutlined />} color="blue">
                   {employee?.empCode}
                 </Tag>
               ),
             },
-            { key: 'gender', label: 'Giới tính', children: orEmpty(employee?.gender) },
-            { key: 'birthDate', label: 'Ngày sinh', children: formatDate(employee?.birthDate) },
-            { key: 'education', label: 'Trình độ', children: orEmpty(employee?.educationLevel) },
-            { key: 'major', label: 'Chuyên ngành', children: orEmpty(employee?.major) },
             {
-              key: 'email',
-              label: 'Email',
+              key: "gender",
+              label: "Giới tính",
+              children: orEmpty(employee?.gender),
+            },
+            {
+              key: "birthDate",
+              label: "Ngày sinh",
+              children: formatDate(employee?.birthDate),
+            },
+            {
+              key: "education",
+              label: "Trình độ",
+              children: orEmpty(employee?.educationLevel),
+            },
+            {
+              key: "major",
+              label: "Chuyên ngành",
+              children: orEmpty(employee?.major),
+            },
+            {
+              key: "email",
+              label: "Email",
               children: (
                 <span className="break-all">
                   <MailOutlined aria-hidden /> {orEmpty(employee?.email)}
@@ -117,8 +161,8 @@ const MyProfilePage = () => {
               ),
             },
             {
-              key: 'phone',
-              label: 'Số điện thoại',
+              key: "phone",
+              label: "Số điện thoại",
               children: (
                 <span>
                   <PhoneOutlined aria-hidden /> {orEmpty(employee?.phone)}
@@ -134,25 +178,34 @@ const MyProfilePage = () => {
           column={DESCRIPTION_COLUMNS}
           styles={DESCRIPTION_STYLES}
           items={[
-            { key: 'jobTitle', label: 'Chức danh', span: 'filled', children: orEmpty(position?.jobTitle) },
             {
-              key: 'level',
-              label: 'Cấp bậc',
+              key: "jobTitle",
+              label: "Chức danh",
+              span: "filled",
+              children: orEmpty(position?.jobTitle),
+            },
+            {
+              key: "level",
+              label: "Cấp bậc",
               children: position ? (
                 <span className="inline-flex flex-wrap items-center gap-1">
                   {position.isActing && <Tag color="gold">Quyền</Tag>}
-                  <Tag color={LEVEL_TAG_COLOR[position.levelCode]}>{position.levelName}</Tag>
+                  <Tag color={LEVEL_TAG_COLOR[position.levelCode]}>
+                    {position.levelName}
+                  </Tag>
                 </span>
               ) : (
                 EMPTY_TEXT
               ),
             },
             {
-              key: 'unit',
-              label: 'Đơn vị',
-              children: position?.orgUnitName ?? <span className="italic">Chưa xếp vị trí</span>,
+              key: "unit",
+              label: "Đơn vị",
+              children: position?.orgUnitName ?? (
+                <span className="italic">Chưa xếp vị trí</span>
+              ),
             },
-            { key: 'workshop', label: 'Xưởng', span: 'filled', children: orEmpty(employee?.workshopName) },
+            // { key: 'workshop', label: 'Xưởng', span: 'filled', children: orEmpty(employee?.workshopName) },
           ]}
         />
 
@@ -162,14 +215,22 @@ const MyProfilePage = () => {
           column={DESCRIPTION_COLUMNS}
           styles={DESCRIPTION_STYLES}
           items={[
-            { key: 'userName', label: 'Tên tài khoản', children: <span className="font-mono">{user?.empCode}</span> },
             {
-              key: 'roles',
-              label: 'Quyền',
+              key: "userName",
+              label: "Tên tài khoản",
+              children: <span className="font-mono">{user?.empCode}</span>,
+            },
+            {
+              key: "roles",
+              label: "Quyền",
               children: roles.length ? (
                 <span className="inline-flex flex-wrap gap-1">
                   {roles.map((role) => (
-                    <Tag key={role.id} color={role.code === 'SUPER_ADMIN' ? 'red' : 'purple'} className="me-0">
+                    <Tag
+                      key={role.id}
+                      color={role.code === "SUPER_ADMIN" ? "red" : "purple"}
+                      className="me-0"
+                    >
                       {role.name}
                     </Tag>
                   ))}
@@ -179,9 +240,9 @@ const MyProfilePage = () => {
               ),
             },
             {
-              key: 'status',
-              label: 'Trạng thái',
-              span: 'filled',
+              key: "status",
+              label: "Trạng thái",
+              span: "filled",
               // Đang đăng nhập được nghĩa là tài khoản đang hoạt động
               children: <StatusTag status="running" label="Đang hoạt động" />,
             },
@@ -195,8 +256,12 @@ const MyProfilePage = () => {
     <div className="flex flex-col">
       <Card
         className="w-full rounded-xl shadow-lg"
-        styles={{ body: { padding: 'clamp(16px, 3vw, 40px)' } }}
-        title={<h2 className="m-0 py-2 text-2xl font-bold text-primary">Thông tin nhân sự</h2>}
+        styles={{ body: { padding: "clamp(16px, 3vw, 40px)" } }}
+        title={
+          <h2 className="m-0 py-2 text-2xl font-bold text-primary">
+            Thông tin nhân sự
+          </h2>
+        }
         extra={
           <Button
             type="primary"
@@ -219,7 +284,11 @@ const MyProfilePage = () => {
                 icon={<UserOutlined />}
                 className="border-4 border-solid border-white shadow-xl"
               />
-              <Upload accept={AVATAR_ACCEPT} showUploadList={false} beforeUpload={handlePickAvatar}>
+              <Upload
+                accept={AVATAR_ACCEPT}
+                showUploadList={false}
+                beforeUpload={handlePickAvatar}
+              >
                 <Button
                   shape="circle"
                   size="large"
@@ -232,13 +301,17 @@ const MyProfilePage = () => {
             </div>
             {avatarFile && (
               <div className="flex flex-col items-center gap-1">
-                <span className="text-sm text-warning">Ảnh mới chưa lưu — bấm "Lưu"</span>
+                <span className="text-sm text-warning">
+                  Ảnh mới chưa lưu — bấm "Lưu"
+                </span>
                 <Button type="link" onClick={() => replaceAvatar(null)}>
                   Bỏ ảnh mới
                 </Button>
               </div>
             )}
-            <div className="text-2xl font-semibold text-primary">{user?.fullName}</div>
+            <div className="text-2xl font-semibold text-primary">
+              {user?.fullName}
+            </div>
           </div>
 
           {/* Cột phải: chi tiết */}
@@ -246,7 +319,11 @@ const MyProfilePage = () => {
         </div>
       </Card>
 
-      <AvatarCropModal file={cropFile} onCancel={() => setCropFile(null)} onCropped={handleCropped} />
+      <AvatarCropModal
+        file={cropFile}
+        onCancel={() => setCropFile(null)}
+        onCropped={handleCropped}
+      />
     </div>
   );
 };

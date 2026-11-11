@@ -54,20 +54,20 @@ const longTextColumn = (title: string, dataIndex: keyof Incident) => ({
 });
 
 /** Người phân tích / bổ sung: họ tên + mã NV, dòng dưới là thời điểm cập nhật gần nhất. */
-const renderActor = (
-  name?: string | null,
-  empCode?: string | null,
-  updatedAt?: string | null,
-) =>
-  name ? (
-    <div className="flex flex-col">
-      <span className="wrap-break-word">{name}</span>
-      {empCode && <span className="text-text-secondary">{empCode}</span>}
-      {updatedAt && (
-        <span className="text-text-secondary">{formatDateTime(updatedAt)}</span>
-      )}
-    </div>
-  ) : null;
+// const renderActor = (
+//   name?: string | null,
+//   empCode?: string | null,
+//   updatedAt?: string | null,
+// ) =>
+//   name ? (
+//     <div className="flex flex-col">
+//       <span className="wrap-break-word">{name}</span>
+//       {empCode && <span className="text-text-secondary">{empCode}</span>}
+//       {updatedAt && (
+//         <span className="text-text-secondary">{formatDateTime(updatedAt)}</span>
+//       )}
+//     </div>
+//   ) : null;
 
 const dateTimeColumn = (title: string, dataIndex: keyof Incident) => ({
   title,
@@ -217,13 +217,13 @@ export const IncidentTable = ({
     longTextColumn("Nguyên nhân", "cause"),
     longTextColumn("Nguyên nhân gốc sau phân tích", "rootCause"),
     longTextColumn("Hành động", "correctiveAction"),
-    {
-      title: "Người phân tích",
-      key: "analyst",
-      width: COLUMN_WIDTH.name,
-      render: (_, incident) =>
-        renderActor(incident.analystName, incident.analystEmpCode, incident.analyzedAt),
-    },
+    // {
+    //   title: "Người phân tích",
+    //   key: "analyst",
+    //   width: COLUMN_WIDTH.name,
+    //   render: (_, incident) =>
+    //     renderActor(incident.analystName, incident.analystEmpCode, incident.analyzedAt),
+    // },
     {
       title: "Kết quả",
       dataIndex: "result",
@@ -241,7 +241,7 @@ export const IncidentTable = ({
       render: renderFullText,
     },
     {
-      title: "Link biên bản sự cố",
+      title: "Link biên bản/báo cáo sự cố (nếu có)",
       dataIndex: "reportLink",
       key: "reportLink",
       width: COLUMN_WIDTH.text,
@@ -261,17 +261,17 @@ export const IncidentTable = ({
           </Tooltip>
         ) : null,
     },
-    {
-      title: "Người bổ sung",
-      key: "supplementer",
-      width: COLUMN_WIDTH.name,
-      render: (_, incident) =>
-        renderActor(
-          incident.supplementerName,
-          incident.supplementerEmpCode,
-          incident.supplementedAt,
-        ),
-    },
+    // {
+    //   title: "Người bổ sung",
+    //   key: "supplementer",
+    //   width: COLUMN_WIDTH.name,
+    //   render: (_, incident) =>
+    //     renderActor(
+    //       incident.supplementerName,
+    //       incident.supplementerEmpCode,
+    //       incident.supplementedAt,
+    //     ),
+    // },
     longTextColumn("Ghi chú", "note"),
     ...(actionColumn ? [actionColumn] : []),
   ];

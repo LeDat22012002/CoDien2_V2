@@ -5,33 +5,42 @@ import {
   ReloadOutlined,
   SyncOutlined,
   ThunderboltOutlined,
-} from '@ant-design/icons';
-import { Button, Card, DatePicker, Select, Spin, Tooltip } from 'antd';
-import { useMemo } from 'react';
-import { useSearchParams } from 'react-router';
-import { ErrorState } from '@/shared/components/ErrorState';
-import { RibbonTitle } from '@/shared/components/RibbonTitle';
-import dayjs from '@/shared/utils/dayjs';
+} from "@ant-design/icons";
+import { Button, Card, DatePicker, Select, Spin, Tooltip } from "antd";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router";
+import { ErrorState } from "@/shared/components/ErrorState";
+import { RibbonTitle } from "@/shared/components/RibbonTitle";
+import dayjs from "@/shared/utils/dayjs";
 import {
   CATEGORICAL_COLORS,
   INCIDENT_TYPE_CHART_COLOR,
   OTHER_COLOR,
   SINGLE_SERIES_COLOR,
   STATUS_CHART_COLOR,
-} from '@/modules/incidents/constants/incidentDashboard';
-import { ANALYSIS_DUE_DAYS, SUPPLEMENT_DUE_DAYS } from '@/modules/incidents/constants/incidentOptions';
-import { useIncidentDashboard, useRepeatedEquipment } from '@/modules/incidents/hooks/useIncidentQueries';
-import type { IncidentDashboard as Dashboard, IncidentWorkshop } from '@/modules/incidents/types/incidents';
+} from "@/modules/incidents/constants/incidentDashboard";
+import {
+  ANALYSIS_DUE_DAYS,
+  SUPPLEMENT_DUE_DAYS,
+} from "@/modules/incidents/constants/incidentOptions";
+import {
+  useIncidentDashboard,
+  useRepeatedEquipment,
+} from "@/modules/incidents/hooks/useIncidentQueries";
+import type {
+  IncidentDashboard as Dashboard,
+  IncidentWorkshop,
+} from "@/modules/incidents/types/incidents";
 import {
   ColumnChartCard,
   PieChartCard,
   StatTile,
   type ChartRow,
-} from '@/modules/incidents/components/dashboard/DashboardCharts';
-import { RepeatedEquipmentTable } from '@/modules/incidents/components/dashboard/RepeatedEquipmentTable';
+} from "@/modules/incidents/components/dashboard/DashboardCharts";
+import { RepeatedEquipmentTable } from "@/modules/incidents/components/dashboard/RepeatedEquipmentTable";
 
 /** Tham số dashboard trên URL (F5 không mất bộ lọc). */
-const PARAMS = { year: 'year', workshopId: 'dw' } as const;
+const PARAMS = { year: "year", workshopId: "dw" } as const;
 
 interface IncidentDashboardProps {
   workshops: IncidentWorkshop[];
@@ -40,16 +49,21 @@ interface IncidentDashboardProps {
 }
 
 /** Nhãn trục X ngắn: "Xưởng Cơ điện Luyện gang 1" → "Luyện gang 1". */
-const getShortWorkshopName = (name: string) => name.replace(/^Xưởng\s+Cơ\s+điện\s+/i, '');
+const getShortWorkshopName = (name: string) =>
+  name.replace(/^Xưởng\s+Cơ\s+điện\s+/i, "");
 
-const getPercent = (part: number, total: number) => (total ? Math.round((part * 10000) / total) / 100 : 0);
+const getPercent = (part: number, total: number) =>
+  total ? Math.round((part * 10000) / total) / 100 : 0;
 
 /** Toàn nhà máy: số sự cố theo xưởng + phần quá hạn của từng xưởng (màu xưởng giống nhau ở 2 biểu đồ). */
-const buildWorkshopRows = (dashboard: Dashboard, getWorkshopColor: (id?: number | null) => string) => {
+const buildWorkshopRows = (
+  dashboard: Dashboard,
+  getWorkshopColor: (id?: number | null) => string,
+) => {
   const byWorkshop: ChartRow[] = dashboard.byWorkshop.map((item) => {
-    const name = item.workshopName ?? '(Chưa gán xưởng)';
+    const name = item.workshopName ?? "(Chưa gán xưởng)";
     return {
-      key: String(item.workshopId ?? 'none'),
+      key: String(item.workshopId ?? "none"),
       name,
       shortName: getShortWorkshopName(name),
       count: item.count,
@@ -62,8 +76,8 @@ const buildWorkshopRows = (dashboard: Dashboard, getWorkshopColor: (id?: number 
     .filter((item) => item.overdueCount > 0)
     .sort((a, b) => b.overdueCount - a.overdueCount)
     .map((item) => ({
-      key: String(item.workshopId ?? 'none'),
-      name: item.workshopName ?? '(Chưa gán xưởng)',
+      key: String(item.workshopId ?? "none"),
+      name: item.workshopName ?? "(Chưa gán xưởng)",
       count: item.overdueCount,
       percent: item.overdueShareOfTotal,
       color: getWorkshopColor(item.workshopId),
@@ -79,11 +93,14 @@ const buildWorkshopRows = (dashboard: Dashboard, getWorkshopColor: (id?: number 
 
 /** 1 xưởng: báo cáo quá hạn cập nhật và đúng hạn (cộng lại = tổng báo cáo của xưởng). */
 const buildOverdueStatusRows = (dashboard: Dashboard): ChartRow[] => {
-  const onTimeCount = Math.max(dashboard.totalCount - dashboard.overdueCount, 0);
+  const onTimeCount = Math.max(
+    dashboard.totalCount - dashboard.overdueCount,
+    0,
+  );
   return [
     {
-      key: 'overdue',
-      name: 'Quá hạn cập nhật',
+      key: "overdue",
+      name: "Quá hạn cập nhật",
       count: dashboard.overdueCount,
       percent: dashboard.overduePercent,
       color: STATUS_CHART_COLOR.critical,
@@ -93,8 +110,8 @@ const buildOverdueStatusRows = (dashboard: Dashboard): ChartRow[] => {
       ],
     },
     {
-      key: 'on-time',
-      name: 'Đúng hạn',
+      key: "on-time",
+      name: "Đúng hạn",
       count: onTimeCount,
       percent: getPercent(onTimeCount, dashboard.totalCount),
       color: STATUS_CHART_COLOR.good,
@@ -106,7 +123,11 @@ const buildOverdueStatusRows = (dashboard: Dashboard): ChartRow[] => {
  * Dashboard báo cáo sự cố (Baocaosucodashboard hệ thống cũ), mở từ nút "Dashboard" ở trang danh sách.
  * Thống kê 1 năm theo thời điểm nhập: toàn nhà máy (kèm theo xưởng) hoặc 1 xưởng; bảng thiết bị sự cố lặp lại.
  */
-const IncidentDashboard = ({ workshops, isWorkshopsLoading, onBack }: IncidentDashboardProps) => {
+const IncidentDashboard = ({
+  workshops,
+  isWorkshopsLoading,
+  onBack,
+}: IncidentDashboardProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const year = Number(searchParams.get(PARAMS.year)) || dayjs().year();
   const workshopId = Number(searchParams.get(PARAMS.workshopId)) || undefined;
@@ -130,29 +151,41 @@ const IncidentDashboard = ({ workshops, isWorkshopsLoading, onBack }: IncidentDa
   // Màu theo thứ tự cố định của danh mục xưởng, không theo thứ hạng số sự cố
   const getWorkshopColor = useMemo(() => {
     const colorById = new Map(
-      workshops.map((workshop, index) => [workshop.id, CATEGORICAL_COLORS[index] ?? OTHER_COLOR]),
+      workshops.map((workshop, index) => [
+        workshop.id,
+        CATEGORICAL_COLORS[index] ?? OTHER_COLOR,
+      ]),
     );
-    return (id?: number | null) => (id ? (colorById.get(id) ?? OTHER_COLOR) : OTHER_COLOR);
+    return (id?: number | null) =>
+      id ? (colorById.get(id) ?? OTHER_COLOR) : OTHER_COLOR;
   }, [workshops]);
 
-  const typeRows: ChartRow[] = (dashboard?.byIncidentType ?? []).map((item) => ({
-    key: item.name,
-    name: item.name,
-    count: item.count,
-    percent: item.percent,
-    color: INCIDENT_TYPE_CHART_COLOR[item.name] ?? OTHER_COLOR,
-  }));
-  const stopLevelRows: ChartRow[] = (dashboard?.byStopLevel ?? []).map((item) => ({
-    key: item.name,
-    name: item.name,
-    count: item.count,
-    percent: item.percent,
-    color: SINGLE_SERIES_COLOR,
-  }));
-  const workshopRows = dashboard && !workshopId ? buildWorkshopRows(dashboard, getWorkshopColor) : undefined;
+  const typeRows: ChartRow[] = (dashboard?.byIncidentType ?? []).map(
+    (item) => ({
+      key: item.name,
+      name: item.name,
+      count: item.count,
+      percent: item.percent,
+      color: INCIDENT_TYPE_CHART_COLOR[item.name] ?? OTHER_COLOR,
+    }),
+  );
+  const stopLevelRows: ChartRow[] = (dashboard?.byStopLevel ?? []).map(
+    (item) => ({
+      key: item.name,
+      name: item.name,
+      count: item.count,
+      percent: item.percent,
+      color: SINGLE_SERIES_COLOR,
+    }),
+  );
+  const workshopRows =
+    dashboard && !workshopId
+      ? buildWorkshopRows(dashboard, getWorkshopColor)
+      : undefined;
 
   const workshopName = workshopId
-    ? (dashboard?.workshopName ?? workshops.find((workshop) => workshop.id === workshopId)?.name)
+    ? (dashboard?.workshopName ??
+      workshops.find((workshop) => workshop.id === workshopId)?.name)
     : undefined;
   const handleReload = () => {
     void dashboardQuery.refetch();
@@ -160,7 +193,7 @@ const IncidentDashboard = ({ workshops, isWorkshopsLoading, onBack }: IncidentDa
   };
 
   return (
-    <div className="flex w-full flex-col gap-3 px-4 py-4 md:px-6 xl:px-10">
+    <div className="flex w-full flex-col px-4 py-4 md:px-6 xl:px-10">
       <RibbonTitle title="DASHBOARD SỰ CỐ" />
 
       {/* Bộ lọc */}
@@ -174,7 +207,9 @@ const IncidentDashboard = ({ workshops, isWorkshopsLoading, onBack }: IncidentDa
             picker="year"
             allowClear={false}
             value={dayjs().year(year)}
-            onChange={(value) => updateParam('year', value ? value.year() : undefined)}
+            onChange={(value) =>
+              updateParam("year", value ? value.year() : undefined)
+            }
             disabledDate={(value) => value.year() > dayjs().year()}
             className="w-32"
           />
@@ -186,11 +221,14 @@ const IncidentDashboard = ({ workshops, isWorkshopsLoading, onBack }: IncidentDa
           <Select
             id="dashboard-workshop"
             allowClear
-            showSearch={{ optionFilterProp: 'label' }}
+            showSearch={{ optionFilterProp: "label" }}
             placeholder="-- Toàn nhà máy --"
             value={workshopId}
-            onChange={(value?: number) => updateParam('workshopId', value)}
-            options={workshops.map((workshop) => ({ label: workshop.name, value: workshop.id }))}
+            onChange={(value?: number) => updateParam("workshopId", value)}
+            options={workshops.map((workshop) => ({
+              label: workshop.name,
+              value: workshop.id,
+            }))}
             loading={isWorkshopsLoading}
             className="w-full sm:w-72"
           />
@@ -203,13 +241,21 @@ const IncidentDashboard = ({ workshops, isWorkshopsLoading, onBack }: IncidentDa
             loading={dashboardQuery.isFetching || repeatedQuery.isFetching}
           />
         </Tooltip>
-        <Button icon={<ArrowLeftOutlined />} onClick={onBack} className="ml-auto">
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={onBack}
+          className="ml-auto"
+        >
           Danh sách báo cáo
         </Button>
       </div>
+      <div className="mt-3"></div>
 
       {dashboardQuery.isError && !dashboard ? (
-        <ErrorState error={dashboardQuery.error} onRetry={() => dashboardQuery.refetch()} />
+        <ErrorState
+          error={dashboardQuery.error}
+          onRetry={() => dashboardQuery.refetch()}
+        />
       ) : (
         <Spin spinning={dashboardQuery.isFetching}>
           <div className="flex flex-col gap-3">
@@ -224,18 +270,33 @@ const IncidentDashboard = ({ workshops, isWorkshopsLoading, onBack }: IncidentDa
                 title="Báo cáo quá hạn cập nhật"
                 value={dashboard?.overdueCount ?? 0}
                 percent={dashboard?.overduePercent ?? 0}
-                icon={<ExclamationCircleFilled aria-hidden style={{ color: STATUS_CHART_COLOR.critical }} />}
+                icon={
+                  <ExclamationCircleFilled
+                    aria-hidden
+                    style={{ color: STATUS_CHART_COLOR.critical }}
+                  />
+                }
               />
               <StatTile
                 title="Sự cố ảnh hưởng sản xuất"
                 value={dashboard?.productionImpact.affectedCount ?? 0}
                 percent={dashboard?.productionImpact.affectedPercent ?? 0}
-                icon={<ThunderboltOutlined aria-hidden style={{ color: STATUS_CHART_COLOR.serious }} />}
+                icon={
+                  <ThunderboltOutlined
+                    aria-hidden
+                    style={{ color: STATUS_CHART_COLOR.serious }}
+                  />
+                }
               />
               <StatTile
                 title={`Thiết bị sự cố lặp lại (> ${dashboard?.repeatThreshold ?? 3} lần)`}
                 value={dashboard?.repeatedEquipmentCount ?? 0}
-                icon={<SyncOutlined aria-hidden style={{ color: STATUS_CHART_COLOR.critical }} />}
+                icon={
+                  <SyncOutlined
+                    aria-hidden
+                    style={{ color: STATUS_CHART_COLOR.critical }}
+                  />
+                }
               />
             </div>
 
@@ -244,7 +305,10 @@ const IncidentDashboard = ({ workshops, isWorkshopsLoading, onBack }: IncidentDa
               <PieChartCard title="Sự cố theo loại" rows={typeRows} />
               {workshopRows ? (
                 <>
-                  <ColumnChartCard title="Sự cố theo xưởng" rows={workshopRows.byWorkshop} />
+                  <ColumnChartCard
+                    title="Sự cố theo xưởng"
+                    rows={workshopRows.byWorkshop}
+                  />
                   <PieChartCard
                     title="Báo cáo quá hạn cập nhật theo xưởng"
                     rows={workshopRows.overdueByWorkshop}
@@ -253,7 +317,10 @@ const IncidentDashboard = ({ workshops, isWorkshopsLoading, onBack }: IncidentDa
                 </>
               ) : (
                 <>
-                  <ColumnChartCard title="Sự cố theo cấp dừng" rows={stopLevelRows} />
+                  <ColumnChartCard
+                    title="Sự cố theo cấp dừng"
+                    rows={stopLevelRows}
+                  />
                   <PieChartCard
                     title="Báo cáo quá hạn cập nhật"
                     rows={dashboard ? buildOverdueStatusRows(dashboard) : []}
@@ -269,13 +336,19 @@ const IncidentDashboard = ({ workshops, isWorkshopsLoading, onBack }: IncidentDa
       <Card
         size="small"
         title={`Thiết bị xảy ra sự cố trên ${dashboard?.repeatThreshold ?? 3} lần trong năm ${year}${
-          workshopName ? ` – ${workshopName}` : ''
+          workshopName ? ` – ${workshopName}` : ""
         }`}
       >
         {repeatedQuery.isError && !repeatedQuery.data ? (
-          <ErrorState error={repeatedQuery.error} onRetry={() => repeatedQuery.refetch()} />
+          <ErrorState
+            error={repeatedQuery.error}
+            onRetry={() => repeatedQuery.refetch()}
+          />
         ) : (
-          <RepeatedEquipmentTable items={repeatedQuery.data ?? []} isLoading={repeatedQuery.isFetching} />
+          <RepeatedEquipmentTable
+            items={repeatedQuery.data ?? []}
+            isLoading={repeatedQuery.isFetching}
+          />
         )}
       </Card>
     </div>

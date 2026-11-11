@@ -1,7 +1,7 @@
 /* Thứ tự layer: style AntD (layer antd) nằm sau preflight nhưng trước utilities, để class Tailwind ghi đè được mà không cần !important */
 @layer theme, base, antd, components, utilities;
 
-@import 'tailwindcss';
+@import "tailwindcss";
 
 @theme {
   /* Độ rộng tối đa nội dung trang công khai: class max-w-main */
@@ -76,7 +76,7 @@
 }
 
 .app-sider-menu .ant-menu-item-selected::before {
-  content: '';
+  content: "";
   position: absolute;
   inset-block: 10px;
   left: -8px;
@@ -138,15 +138,15 @@
 
 .template-slider .slick-prev::before,
 .template-slider .slick-next::before {
-  font-family: 'slick';
+  font-family: "slick";
   font-size: 30px;
   opacity: 0.75;
   color: gray;
-  content: '\276E';
+  content: "\276E";
 }
 
 .template-slider .slick-next::before {
-  content: '\276F';
+  content: "\276F";
 }
 
 .template-slider .slick-disabled::before {
@@ -182,12 +182,12 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  @media (prefers-reduced-motion: reduce) {
+  /* @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
       animation-duration: 0.01ms;
       transition-duration: 0.01ms;
     }
-  }
+  } */
 }
