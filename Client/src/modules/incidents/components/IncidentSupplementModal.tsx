@@ -1,10 +1,10 @@
-import { Alert, Form, Input, Modal } from 'antd';
-import { applyServerErrors } from '@/shared/utils/formErrors';
-import { notify } from '@/shared/utils/notify';
-import { IncidentSummary } from '@/modules/incidents/components/IncidentSummary';
-import { REPORT_REQUIRED_DOWNTIME_MINUTES } from '@/modules/incidents/constants/incidentOptions';
-import { useUpdateIncidentSupplement } from '@/modules/incidents/hooks/useIncidentQueries';
-import type { Incident } from '@/modules/incidents/types/incidents';
+import { Alert, Form, Input, Modal } from "antd";
+import { applyServerErrors } from "@/shared/utils/formErrors";
+import { notify } from "@/shared/utils/notify";
+import { IncidentSummary } from "@/modules/incidents/components/IncidentSummary";
+import { REPORT_REQUIRED_DOWNTIME_MINUTES } from "@/modules/incidents/constants/incidentOptions";
+import { useUpdateIncidentSupplement } from "@/modules/incidents/hooks/useIncidentQueries";
+import type { Incident } from "@/modules/incidents/types/incidents";
 
 interface SupplementFormValues {
   orderNumber?: string;
@@ -19,10 +19,15 @@ interface IncidentSupplementModalProps {
 }
 
 /** Bổ sung số order, link biên bản sự cố (BoSungSuCoModal hệ thống cũ). */
-export const IncidentSupplementModal = ({ open, incident, onClose }: IncidentSupplementModalProps) => {
+export const IncidentSupplementModal = ({
+  open,
+  incident,
+  onClose,
+}: IncidentSupplementModalProps) => {
   const [form] = Form.useForm<SupplementFormValues>();
   const mutation = useUpdateIncidentSupplement();
-  const isReportRequired = (incident?.downtimeMinutes ?? 0) > REPORT_REQUIRED_DOWNTIME_MINUTES;
+  const isReportRequired =
+    (incident?.downtimeMinutes ?? 0) > REPORT_REQUIRED_DOWNTIME_MINUTES;
 
   const handleSubmit = async () => {
     if (!incident) return;
@@ -41,7 +46,7 @@ export const IncidentSupplementModal = ({ open, incident, onClose }: IncidentSup
           reportLink: values.reportLink?.trim() || undefined,
         },
       });
-      notify.success('Bổ sung thông tin thành công.');
+      notify.success("Bổ sung thông tin thành công.");
       onClose();
     } catch (error) {
       if (!applyServerErrors(form, error)) notify.apiError(error);
@@ -58,7 +63,7 @@ export const IncidentSupplementModal = ({ open, incident, onClose }: IncidentSup
       onCancel={onClose}
       confirmLoading={mutation.isPending}
       mask={{ closable: false }}
-      width={{ xs: '94%', md: 640 }}
+      width={{ xs: "94%", md: 640 }}
       centered
       destroyOnHidden
     >
@@ -73,7 +78,7 @@ export const IncidentSupplementModal = ({ open, incident, onClose }: IncidentSup
               title={
                 isReportRequired
                   ? `Sự cố ảnh hưởng sản xuất, dừng quá ${REPORT_REQUIRED_DOWNTIME_MINUTES} phút: cần đủ Số order và Link biên bản.`
-                  : 'Sự cố ảnh hưởng sản xuất: cần nhập Số order.'
+                  : "Sự cố ảnh hưởng sản xuất: cần nhập Số order."
               }
             />
           )}
@@ -86,15 +91,23 @@ export const IncidentSupplementModal = ({ open, incident, onClose }: IncidentSup
               reportLink: incident.reportLink ?? undefined,
             }}
           >
-            <Form.Item name="orderNumber" label="Số order" rules={[{ max: 100, message: 'Tối đa 100 ký tự' }]}>
+            <Form.Item
+              name="orderNumber"
+              label="Số order"
+              rules={[{ max: 100, message: "Tối đa 100 ký tự" }]}
+            >
               <Input allowClear placeholder="Nhập số order" autoFocus />
             </Form.Item>
             <Form.Item
               name="reportLink"
-              label="Link biên bản sự cố"
+              label="Link biên bản/báo cáo sự cố (nếu có)"
               rules={[
-                { type: 'url', message: 'Link không hợp lệ (bắt đầu bằng http:// hoặc https://)' },
-                { max: 500, message: 'Tối đa 500 ký tự' },
+                {
+                  type: "url",
+                  message:
+                    "Link không hợp lệ (bắt đầu bằng http:// hoặc https://)",
+                },
+                { max: 500, message: "Tối đa 500 ký tự" },
               ]}
             >
               <Input allowClear placeholder="https://..." />

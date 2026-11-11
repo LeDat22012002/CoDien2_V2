@@ -241,7 +241,7 @@ export const IncidentTable = ({
       render: renderFullText,
     },
     {
-      title: "Link biên bản sự cố",
+      title: "Link biên bản/báo cáo sự cố (nếu có)",
       dataIndex: "reportLink",
       key: "reportLink",
       width: COLUMN_WIDTH.text,
