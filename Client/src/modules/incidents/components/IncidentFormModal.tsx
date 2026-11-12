@@ -509,7 +509,7 @@ export const IncidentFormModal = ({
             </Form.Item>
             <Form.Item
               name="reportLink"
-              label="Link biên bản/báo cáo sự cố (nếu có)"
+              label="Link biên bản sự cố"
               rules={[
                 { type: "url", message: "Link không hợp lệ" },
                 { max: 500, message: "Tối đa 500 ký tự" },

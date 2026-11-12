@@ -33,6 +33,7 @@ export interface Incident {
   reporterName?: string | null;
   orderNumber?: string | null;
   reportLink?: string | null;
+  incidentReportLink?: string | null;
   analystEmpCode?: string | null;
   analystName?: string | null;
   analyzedAt?: string | null;
@@ -93,10 +94,11 @@ export interface UpdateIncidentProgressRequest {
   solution?: string;
 }
 
-/** Bổ sung thông tin sau xử lý. */
+/** Bổ sung thông tin sau xử lý. incidentReportLink bắt buộc nếu sự cố ảnh hưởng sản xuất. */
 export interface UpdateIncidentSupplementRequest {
   orderNumber?: string;
   reportLink?: string;
+  incidentReportLink?: string;
 }
 
 /** Phân tích kỹ thuật sau xử lý. */
@@ -111,6 +113,8 @@ export interface IncidentScope {
   empCode: string;
   canManage: boolean;
   canAnalyze: boolean;
+  /** Có quyền incidents.update-progress (hoặc manage). */
+  canUpdateProgress: boolean;
   /** Xưởng của vị trí chính; null = không thuộc xưởng nào. */
   workshopId?: number | null;
   workshopName?: string | null;

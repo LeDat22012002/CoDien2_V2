@@ -47,11 +47,19 @@ const ActionButton = ({ title, icon, onClick, isDanger = false }: ActionButtonPr
   </Tooltip>
 );
 
-/** Phạm vi danh sách theo quyền: quản lý xem mọi xưởng; người phân tích xem xưởng mình; còn lại báo cáo mình nhập. */
+/** Có quyền theo xưởng (phân tích / cập nhật tiến độ) và thuộc 1 xưởng → danh sách khóa theo xưởng đó. */
+const hasWorkshopScope = (scope: IncidentScope) =>
+  Boolean(!scope.canManage && (scope.canAnalyze || scope.canUpdateProgress) && scope.workshopId);
+
+/** Phạm vi danh sách theo quyền: quản lý xem mọi xưởng; có quyền theo xưởng thì xem xưởng mình; còn lại báo cáo mình nhập. */
 const getScopeDescription = (scope: IncidentScope) => {
   if (scope.canManage) return 'Quản lý báo cáo sự cố: xem, sửa, phân tích và xóa báo cáo của mọi xưởng.';
-  if (scope.canAnalyze && scope.workshopId) {
-    return `Báo cáo của ${scope.workshopName}: cập nhật báo cáo mình nhập, bổ sung số order / biên bản và phân tích sự cố của xưởng.`;
+  if (hasWorkshopScope(scope)) {
+    const actions = [
+      scope.canUpdateProgress && 'cập nhật thời gian, mô tả, phương án xử lý',
+      scope.canAnalyze && 'bổ sung số order / biên bản, phân tích sự cố',
+    ].filter(Boolean);
+    return `Báo cáo của ${scope.workshopName}: ${actions.join('; ')} của xưởng.`;
   }
   return 'Báo cáo do bạn nhập: cập nhật thời gian, mô tả, phương án xử lý và bổ sung số order / biên bản.';
 };
@@ -74,7 +82,7 @@ const MyIncidentsPage = () => {
   const workshopsQuery = useIncidentWorkshops();
   const deleteMutation = useDeleteIncident();
 
-  const isWorkshopLocked = Boolean(scope && !scope.canManage && scope.canAnalyze && scope.workshopId);
+  const isWorkshopLocked = Boolean(scope && hasWorkshopScope(scope));
   const incidentsQuery = useIncidents(
     {
       ...filter,
@@ -133,9 +141,10 @@ const MyIncidentsPage = () => {
               onClick={() => openDialog({ type: 'form', incident, mode: 'progress' })}
             />
           )}
-          {!permissions.canManage && permissions.canSupplement && (
+          {/* Quản lý cũng cần nút này: Link báo cáo sự cố chỉ nhập ở phần bổ sung */}
+          {permissions.canSupplement && (
             <ActionButton
-              title="Bổ sung số order, link biên bản"
+              title="Bổ sung số order, link biên bản, link báo cáo"
               icon={<LinkOutlined className="text-primary" />}
               onClick={() => openDialog({ type: 'supplement', incident })}
             />

@@ -9,7 +9,16 @@ import type { Incident } from "@/modules/incidents/types/incidents";
 interface SupplementFormValues {
   orderNumber?: string;
   reportLink?: string;
+  incidentReportLink?: string;
 }
+
+const URL_RULES = [
+  {
+    type: "url" as const,
+    message: "Link không hợp lệ (bắt đầu bằng http:// hoặc https://)",
+  },
+  { max: 500, message: "Tối đa 500 ký tự" },
+];
 
 interface IncidentSupplementModalProps {
   open: boolean;
@@ -18,7 +27,10 @@ interface IncidentSupplementModalProps {
   onClose: () => void;
 }
 
-/** Bổ sung số order, link biên bản sự cố (BoSungSuCoModal hệ thống cũ). */
+/**
+ * Bổ sung số order, link biên bản sự cố (BoSungSuCoModal hệ thống cũ) và link báo cáo sự cố
+ * (bắt buộc nếu sự cố ảnh hưởng sản xuất).
+ */
 export const IncidentSupplementModal = ({
   open,
   incident,
@@ -44,6 +56,7 @@ export const IncidentSupplementModal = ({
         request: {
           orderNumber: values.orderNumber?.trim() || undefined,
           reportLink: values.reportLink?.trim() || undefined,
+          incidentReportLink: values.incidentReportLink?.trim() || undefined,
         },
       });
       notify.success("Bổ sung thông tin thành công.");
@@ -56,7 +69,7 @@ export const IncidentSupplementModal = ({
   return (
     <Modal
       open={open}
-      title="Bổ sung số order, link biên bản"
+      title="Bổ sung số order, link biên bản, link báo cáo"
       okText="Lưu"
       cancelText="Đóng"
       onOk={handleSubmit}
@@ -77,8 +90,8 @@ export const IncidentSupplementModal = ({
               className="mb-4"
               title={
                 isReportRequired
-                  ? `Sự cố ảnh hưởng sản xuất, dừng quá ${REPORT_REQUIRED_DOWNTIME_MINUTES} phút: cần đủ Số order và Link biên bản.`
-                  : "Sự cố ảnh hưởng sản xuất: cần nhập Số order."
+                  ? `Sự cố ảnh hưởng sản xuất, dừng quá ${REPORT_REQUIRED_DOWNTIME_MINUTES} phút: cần đủ Số order, Link biên bản và Link báo cáo sự cố.`
+                  : "Sự cố ảnh hưởng sản xuất: cần nhập Số order và Link báo cáo sự cố."
               }
             />
           )}
@@ -89,6 +102,7 @@ export const IncidentSupplementModal = ({
             initialValues={{
               orderNumber: incident.orderNumber ?? undefined,
               reportLink: incident.reportLink ?? undefined,
+              incidentReportLink: incident.incidentReportLink ?? undefined,
             }}
           >
             <Form.Item
@@ -100,14 +114,21 @@ export const IncidentSupplementModal = ({
             </Form.Item>
             <Form.Item
               name="reportLink"
-              label="Link biên bản/báo cáo sự cố (nếu có)"
+              label="Link biên bản sự cố"
+              rules={URL_RULES}
+            >
+              <Input allowClear placeholder="https://..." />
+            </Form.Item>
+            <Form.Item
+              name="incidentReportLink"
+              label="Link báo cáo sự cố"
               rules={[
                 {
-                  type: "url",
-                  message:
-                    "Link không hợp lệ (bắt đầu bằng http:// hoặc https://)",
+                  required: incident.affectsProduction,
+                  whitespace: true,
+                  message: "Sự cố ảnh hưởng sản xuất: bắt buộc nhập Link báo cáo sự cố",
                 },
-                { max: 500, message: "Tối đa 500 ký tự" },
+                ...URL_RULES,
               ]}
             >
               <Input allowClear placeholder="https://..." />

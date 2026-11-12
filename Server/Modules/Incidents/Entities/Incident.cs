@@ -74,6 +74,9 @@ public class Incident : BaseEntity
     /// <summary>Link biên bản sự cố.</summary>
     public string? ReportLink { get; set; }
 
+    /// <summary>Link báo cáo sự cố. Bắt buộc khi bổ sung nếu sự cố ảnh hưởng sản xuất.</summary>
+    public string? IncidentReportLink { get; set; }
+
     /// <summary>Người phân tích lần gần nhất (nguyên nhân, nguyên nhân gốc, hành động). Null với dữ liệu cũ / import.</summary>
     public string? AnalystEmpCode { get; set; }
 
@@ -99,6 +102,9 @@ public static class IncidentRules
 
     /// <summary>Sự cố ảnh hưởng sản xuất: quá N ngày mà còn thiếu Số order và/hoặc Link biên bản.</summary>
     public const int SupplementDueDays = 3;
+
+    /// <summary>Sự cố ảnh hưởng sản xuất: quá N ngày mà chưa có Link báo cáo sự cố.</summary>
+    public const int IncidentReportDueDays = 5;
 
     /// <summary>Một mã thiết bị có số sự cố trong năm LỚN HƠN ngưỡng này thì coi là lặp lại.</summary>
     public const int RepeatThreshold = 3;

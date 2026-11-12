@@ -737,6 +737,10 @@ namespace Server.Data.Migrations
                     b.Property<DateTime?>("HandedOverAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("IncidentReportLink")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("IncidentType")
                         .IsRequired()
                         .HasMaxLength(100)

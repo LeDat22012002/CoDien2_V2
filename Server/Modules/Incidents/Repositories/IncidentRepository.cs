@@ -153,6 +153,7 @@ public class IncidentRepository(AppDbContext dbContext) : IIncidentRepository
             ReporterName = x.ReporterName,
             OrderNumber = x.OrderNumber,
             ReportLink = x.ReportLink,
+            IncidentReportLink = x.IncidentReportLink,
             AnalystEmpCode = x.AnalystEmpCode,
             AnalystName = x.AnalystName,
             AnalyzedAt = x.AnalyzedAt,

@@ -32,6 +32,7 @@ public class IncidentDto
     public string? ReporterName { get; init; }
     public string? OrderNumber { get; init; }
     public string? ReportLink { get; init; }
+    public string? IncidentReportLink { get; init; }
     public string? AnalystEmpCode { get; init; }
     public string? AnalystName { get; init; }
     public DateTime? AnalyzedAt { get; init; }
@@ -70,6 +71,10 @@ public class IncidentScopeDto
     public string EmpCode { get; init; } = string.Empty;
     public bool CanManage { get; init; }
     public bool CanAnalyze { get; init; }
+
+    /// <summary>Có quyền update-progress (báo cáo cùng xưởng) hoặc manage. Báo cáo mình nhập thì luôn cập nhật được.</summary>
+    public bool CanUpdateProgress { get; init; }
+
     public int? WorkshopId { get; init; }
     public string? WorkshopName { get; init; }
 }
@@ -135,11 +140,12 @@ public class UpdateIncidentAnalysisRequest
     public string? CorrectiveAction { get; set; }
 }
 
-/// <summary>Bổ sung thông tin hành chính sau xử lý.</summary>
+/// <summary>Bổ sung thông tin hành chính sau xử lý. IncidentReportLink bắt buộc nếu sự cố ảnh hưởng sản xuất.</summary>
 public class UpdateIncidentSupplementRequest
 {
     public string? OrderNumber { get; set; }
     public string? ReportLink { get; set; }
+    public string? IncidentReportLink { get; set; }
 }
 
 /// <summary>

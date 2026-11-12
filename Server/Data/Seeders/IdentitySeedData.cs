@@ -56,6 +56,7 @@ public static class IdentitySeedData
         new(PermissionCodes.Incidents.Create, "Thêm báo cáo sự cố", "incidents", 79),
         new(PermissionCodes.Incidents.Analyze, "Phân tích sự cố của xưởng mình", "incidents", 80),
         new(PermissionCodes.Incidents.Manage, "Quản lý báo cáo sự cố (sửa đầy đủ, xóa, import)", "incidents", 81),
+        new(PermissionCodes.Incidents.UpdateProgress, "Cập nhật tiến độ báo cáo sự cố của xưởng mình", "incidents", 82),
 
         new(PermissionCodes.AuditLogs.View, "Xem nhật ký hệ thống", "audit-logs", 90),
     ];

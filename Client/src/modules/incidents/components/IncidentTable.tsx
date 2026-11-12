@@ -78,6 +78,28 @@ const dateTimeColumn = (title: string, dataIndex: keyof Incident) => ({
   render: renderDateTime,
 });
 
+/** Cột link: link thường rất dài nên chỉ 1 dòng, cắt "…", hover xem đủ. */
+const linkColumn = (title: string, dataIndex: keyof Incident) => ({
+  title,
+  dataIndex,
+  key: dataIndex,
+  width: COLUMN_WIDTH.text,
+  render: (link?: string | null) =>
+    link ? (
+      <Tooltip title={link}>
+        <Typography.Link
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          ellipsis
+          className="block"
+        >
+          {link}
+        </Typography.Link>
+      </Tooltip>
+    ) : null,
+});
+
 /**
  * Danh sách báo cáo sự cố, cột như hệ thống cũ. Báo cáo quá hạn bổ sung / phân tích tô nền đỏ nhạt,
  * icon cảnh báo cạnh STT (hover xem lý do). Nội dung hiện đầy đủ (dòng cao theo nội dung).
@@ -240,27 +262,8 @@ export const IncidentTable = ({
       width: COLUMN_WIDTH.tag,
       render: renderFullText,
     },
-    {
-      title: "Link biên bản/báo cáo sự cố (nếu có)",
-      dataIndex: "reportLink",
-      key: "reportLink",
-      width: COLUMN_WIDTH.text,
-      // Link thường rất dài: chỉ 1 dòng, cắt "…", hover xem đủ
-      render: (link?: string | null) =>
-        link ? (
-          <Tooltip title={link}>
-            <Typography.Link
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              ellipsis
-              className="block"
-            >
-              {link}
-            </Typography.Link>
-          </Tooltip>
-        ) : null,
-    },
+    linkColumn("Link biên bản sự cố", "reportLink"),
+    linkColumn("Link báo cáo sự cố", "incidentReportLink"),
     // {
     //   title: "Người bổ sung",
     //   key: "supplementer",

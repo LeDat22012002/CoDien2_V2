@@ -86,6 +86,9 @@ public static class PermissionCodes
         /// <summary>Thêm báo cáo sự cố.</summary>
         public const string Create = "incidents.create";
 
+        /// <summary>Cập nhật tiến độ (mốc thời gian, mô tả, phương án) báo cáo thuộc xưởng của mình, kể cả do người khác nhập.</summary>
+        public const string UpdateProgress = "incidents.update-progress";
+
         /// <summary>Nhập phân tích, bổ sung số order/link cho báo cáo thuộc xưởng của mình.</summary>
         public const string Analyze = "incidents.analyze";
 
