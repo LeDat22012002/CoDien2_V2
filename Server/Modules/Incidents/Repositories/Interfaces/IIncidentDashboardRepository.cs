@@ -11,6 +11,13 @@ public interface IIncidentDashboardRepository
     Task<IReadOnlyList<GroupStatisticDto>> CountByGroupAsync(
         int year, int? workshopId, Expression<Func<Incident, string>> key, CancellationToken cancellationToken);
 
+    /// <summary>Tổng giây (Sửa chữa xong − Bắt đầu sửa) theo khóa nhóm; chỉ báo cáo có đủ 2 mốc.</summary>
+    Task<IReadOnlyList<DurationRow<TKey>>> SumRepairSecondsByGroupAsync<TKey>(
+        int year, int? workshopId, Expression<Func<Incident, TKey>> key, CancellationToken cancellationToken);
+
+    /// <summary>Số báo cáo thiếu mốc bắt đầu sửa hoặc sửa xong.</summary>
+    Task<int> CountMissingRepairTimesAsync(int year, int? workshopId, CancellationToken cancellationToken);
+
     Task<int> CountAffectsProductionAsync(int year, int? workshopId, CancellationToken cancellationToken);
 
     /// <summary>Đếm tổng và quá hạn theo xưởng.</summary>

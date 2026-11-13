@@ -15,9 +15,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { formatNumber } from '@/shared/utils/format';
 import { CHART_HEIGHT, CHART_INK } from '@/modules/incidents/constants/incidentDashboard';
 
-/** 1 lát / 1 cột: tên, số báo cáo, %, màu theo đối tượng, các dòng phụ trong tooltip. */
+/** 1 lát / 1 cột: tên, giá trị (số báo cáo hoặc số giờ), %, màu theo đối tượng, các dòng phụ trong tooltip. */
 export interface ChartRow {
   key: string;
   name: string;
@@ -29,7 +30,15 @@ export interface ChartRow {
   details?: string[];
 }
 
-const formatCountLabel = (row: ChartRow) => `${row.count} (${row.percent}%)`;
+/** Đơn vị giá trị của biểu đồ: số báo cáo (số nguyên) hoặc số giờ (1 chữ số thập phân). */
+export type ChartUnit = 'report' | 'hour';
+
+const UNIT_LABEL: Record<ChartUnit, string> = { report: 'báo cáo', hour: 'giờ' };
+
+const formatValue = (value: number, unit: ChartUnit) => formatNumber(value, unit === 'hour' ? 1 : 0);
+
+const formatCountLabel = (row: ChartRow, unit: ChartUnit = 'report') =>
+  unit === 'hour' ? `${formatValue(row.count, unit)} giờ (${row.percent}%)` : `${row.count} (${row.percent}%)`;
 
 /** Chữ trong biểu đồ dùng màu chữ, không dùng màu của lát / cột (màu đối tượng nằm ở ô vuông chú thích). */
 const TEXT_COLOR = 'var(--app-color-text)';
@@ -100,9 +109,10 @@ const getRow = (entry?: { payload?: unknown }) => {
 interface ChartTooltipProps {
   active?: boolean;
   payload?: readonly { payload?: unknown }[];
+  unit?: ChartUnit;
 }
 
-const ChartTooltip = ({ active, payload }: ChartTooltipProps) => {
+const ChartTooltip = ({ active, payload, unit = 'report' }: ChartTooltipProps) => {
   const row = active ? getRow(payload?.[0]) : undefined;
   if (!row) return null;
   return (
@@ -112,7 +122,7 @@ const ChartTooltip = ({ active, payload }: ChartTooltipProps) => {
         {row.name}
       </div>
       <div className="text-text">
-        <b>{row.count}</b> báo cáo ({row.percent}%)
+        <b>{formatValue(row.count, unit)}</b> {UNIT_LABEL[unit]} ({row.percent}%)
       </div>
       {row.details?.map((detail) => (
         <div key={detail} className="text-text-secondary">
@@ -127,16 +137,40 @@ interface ChartCardProps {
   title: string;
   rows: ChartRow[];
   emptyText?: string;
+  /** Ghi chú nhỏ cạnh tiêu đề (vd số báo cáo không được tính). */
+  extra?: ReactNode;
 }
 
-const ChartCard = ({ title, isEmpty, emptyText, children }: { title: string; isEmpty: boolean; emptyText?: string; children: ReactNode }) => (
-  <Card size="small" title={title} className="h-full">
+interface ColumnChartCardProps extends ChartCardProps {
+  unit?: ChartUnit;
+}
+
+const ChartCard = ({
+  title,
+  isEmpty,
+  emptyText,
+  extra,
+  children,
+}: {
+  title: string;
+  isEmpty: boolean;
+  emptyText?: string;
+  extra?: ReactNode;
+  children: ReactNode;
+}) => (
+  <Card size="small" title={title} extra={extra} className="h-full">
     {isEmpty ? (
       <div className="flex items-center justify-center" style={{ height: CHART_HEIGHT }}>
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyText ?? 'Chưa có báo cáo'} />
       </div>
     ) : (
-      <div role="img" aria-label={title} style={{ height: CHART_HEIGHT }}>
+      <div
+        role="img"
+        aria-label={title}
+        style={{ height: CHART_HEIGHT }}
+        // Recharts cho biểu đồ nhận focus: bỏ viền khi click chuột, vẫn giữ viền khi dùng phím Tab
+        className="[&_:focus:not(:focus-visible)]:outline-none"
+      >
         {children}
       </div>
     )}
@@ -177,11 +211,15 @@ export const PieChartCard = ({ title, rows, emptyText }: ChartCardProps) => {
 };
 
 /** Biểu đồ cột đứng: mỗi nhóm 1 cột, nhãn số trên đầu cột, tên đầy đủ trong tooltip. */
-export const ColumnChartCard = ({ title, rows, emptyText }: ChartCardProps) => (
-  <ChartCard title={title} isEmpty={rows.length === 0} emptyText={emptyText}>
+export const ColumnChartCard = ({ title, rows, emptyText, extra, unit = 'report' }: ColumnChartCardProps) => (
+  <ChartCard title={title} isEmpty={rows.length === 0} emptyText={emptyText} extra={extra}>
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
-        data={rows.map((row) => ({ ...row, axisLabel: row.shortName ?? row.name, valueLabel: formatCountLabel(row) }))}
+        data={rows.map((row) => ({
+          ...row,
+          axisLabel: row.shortName ?? row.name,
+          valueLabel: formatCountLabel(row, unit),
+        }))}
         margin={{ top: 24, right: 8, left: 0, bottom: 4 }}
         barCategoryGap="20%"
       >
@@ -197,13 +235,14 @@ export const ColumnChartCard = ({ title, rows, emptyText }: ChartCardProps) => (
         <YAxis
           allowDecimals={false}
           tick={{ fontSize: 12, fill: CHART_INK.muted }}
+          tickFormatter={(value: number) => formatNumber(value)}
           axisLine={false}
           tickLine={false}
-          width={36}
+          width={unit === 'hour' ? 48 : 36}
         />
         <Tooltip
           cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-          content={(props) => <ChartTooltip active={props.active} payload={props.payload} />}
+          content={(props) => <ChartTooltip active={props.active} payload={props.payload} unit={unit} />}
         />
         <Bar dataKey="count" maxBarSize={56} radius={[4, 4, 0, 0]} isAnimationActive={false}>
           {rows.map((row) => (

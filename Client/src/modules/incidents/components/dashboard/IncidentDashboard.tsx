@@ -2,6 +2,7 @@ import {
   ArrowLeftOutlined,
   ExclamationCircleFilled,
   FileTextOutlined,
+  InfoCircleOutlined,
   ReloadOutlined,
   SyncOutlined,
   ThunderboltOutlined,
@@ -16,6 +17,7 @@ import {
   CATEGORICAL_COLORS,
   INCIDENT_TYPE_CHART_COLOR,
   OTHER_COLOR,
+  SHIFT_CHART_COLOR,
   SINGLE_SERIES_COLOR,
   STATUS_CHART_COLOR,
 } from "@/modules/incidents/constants/incidentDashboard";
@@ -28,6 +30,7 @@ import {
   useRepeatedEquipment,
 } from "@/modules/incidents/hooks/useIncidentQueries";
 import type {
+  DurationStatistic,
   IncidentDashboard as Dashboard,
   IncidentWorkshop,
 } from "@/modules/incidents/types/incidents";
@@ -38,6 +41,14 @@ import {
   type ChartRow,
 } from "@/modules/incidents/components/dashboard/DashboardCharts";
 import { RepeatedEquipmentTable } from "@/modules/incidents/components/dashboard/RepeatedEquipmentTable";
+
+/**
+ * Mỗi hàng 3 biểu đồ: điện thoại 1 cột; laptop 2 cột, biểu đồ thứ 3 trải hết hàng
+ * (không để ô trống); màn lớn 3 cột.
+ */
+const CHART_ROW_CLASS = "grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3";
+const LAST_CHART_CLASS = "lg:col-span-2 2xl:col-span-1";
+const DURATION_EMPTY_TEXT = "Chưa có báo cáo đủ thời gian sửa chữa";
 
 /** Tham số dashboard trên URL (F5 không mất bộ lọc). */
 const PARAMS = { year: "year", workshopId: "dw" } as const;
@@ -90,6 +101,21 @@ const buildWorkshopRows = (
 
   return { byWorkshop, overdueByWorkshop };
 };
+
+/** Cột thời gian sự cố: giá trị là tổng giờ, tooltip ghi số báo cáo được tính. */
+const toDurationRow = (
+  item: DurationStatistic,
+  color: string,
+  shortName?: string,
+): ChartRow => ({
+  key: String(item.workshopId ?? item.name),
+  name: item.name,
+  shortName,
+  count: item.totalHours,
+  percent: item.percent,
+  color,
+  details: [`Tính trên ${item.count} báo cáo`],
+});
 
 /** 1 xưởng: báo cáo quá hạn cập nhật và đúng hạn (cộng lại = tổng báo cáo của xưởng). */
 const buildOverdueStatusRows = (dashboard: Dashboard): ChartRow[] => {
@@ -178,10 +204,48 @@ const IncidentDashboard = ({
       color: SINGLE_SERIES_COLOR,
     }),
   );
+  const shiftRows: ChartRow[] = (dashboard?.byShift ?? []).map((item) => ({
+    key: item.name,
+    name: item.name,
+    count: item.count,
+    percent: item.percent,
+    color: SHIFT_CHART_COLOR[item.name] ?? OTHER_COLOR,
+  }));
   const workshopRows =
     dashboard && !workshopId
       ? buildWorkshopRows(dashboard, getWorkshopColor)
       : undefined;
+
+  // Thời gian sự cố = Sửa chữa xong − Bắt đầu sửa chữa (tổng giờ)
+  const durationByWorkshopRows = (
+    dashboard?.repairDurationByWorkshop ?? []
+  ).map((item) =>
+    toDurationRow(
+      item,
+      getWorkshopColor(item.workshopId),
+      getShortWorkshopName(item.name),
+    ),
+  );
+  const durationByTypeRows = (
+    dashboard?.repairDurationByIncidentType ?? []
+  ).map((item) =>
+    toDurationRow(item, INCIDENT_TYPE_CHART_COLOR[item.name] ?? OTHER_COLOR),
+  );
+  const durationByShiftRows = (dashboard?.repairDurationByShift ?? []).map(
+    (item) => toDurationRow(item, SHIFT_CHART_COLOR[item.name] ?? OTHER_COLOR),
+  );
+  const missingCount = dashboard?.repairDurationMissingCount ?? 0;
+  const durationNote =
+    missingCount > 0 ? (
+      <Tooltip
+        title={`${missingCount} báo cáo thiếu thời điểm bắt đầu sửa chữa hoặc sửa chữa xong nên không được tính`}
+      >
+        <span className="inline-flex items-center gap-1 text-sm text-text-secondary">
+          <InfoCircleOutlined aria-hidden />
+          Không tính {missingCount} báo cáo
+        </span>
+      </Tooltip>
+    ) : undefined;
 
   const workshopName = workshopId
     ? (dashboard?.workshopName ??
@@ -301,32 +365,66 @@ const IncidentDashboard = ({
             </div>
 
             {/* Biểu đồ */}
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+            {/* Hàng 1: số sự cố. 1 xưởng: "theo xưởng" thay bằng cấp dừng */}
+            <div className={CHART_ROW_CLASS}>
               <PieChartCard title="Sự cố theo loại" rows={typeRows} />
               {workshopRows ? (
-                <>
-                  <ColumnChartCard
-                    title="Sự cố theo xưởng"
-                    rows={workshopRows.byWorkshop}
-                  />
-                  <PieChartCard
-                    title="Báo cáo quá hạn cập nhật theo xưởng"
-                    rows={workshopRows.overdueByWorkshop}
-                    emptyText="Không có báo cáo quá hạn"
-                  />
-                </>
+                <ColumnChartCard
+                  title="Sự cố theo xưởng"
+                  rows={workshopRows.byWorkshop}
+                />
               ) : (
-                <>
-                  <ColumnChartCard
-                    title="Sự cố theo cấp dừng"
-                    rows={stopLevelRows}
-                  />
-                  <PieChartCard
-                    title="Báo cáo quá hạn cập nhật"
-                    rows={dashboard ? buildOverdueStatusRows(dashboard) : []}
-                  />
-                </>
+                <ColumnChartCard
+                  title="Sự cố theo cấp dừng"
+                  rows={stopLevelRows}
+                />
               )}
+              <div className={LAST_CHART_CLASS}>
+                <PieChartCard
+                  title={
+                    workshopRows
+                      ? "Báo cáo quá hạn cập nhật theo xưởng"
+                      : "Báo cáo quá hạn cập nhật"
+                  }
+                  rows={
+                    workshopRows
+                      ? workshopRows.overdueByWorkshop
+                      : dashboard
+                        ? buildOverdueStatusRows(dashboard)
+                        : []
+                  }
+                  emptyText={
+                    workshopRows ? "Không có báo cáo quá hạn" : undefined
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Hàng 2: thời gian sự cố và kíp. 1 xưởng: thời gian "theo xưởng" thay bằng theo kíp */}
+            <div className={CHART_ROW_CLASS}>
+              <ColumnChartCard
+                title={
+                  workshopRows
+                    ? "Thời gian sự cố theo xưởng"
+                    : "Thời gian sự cố theo kíp"
+                }
+                rows={
+                  workshopRows ? durationByWorkshopRows : durationByShiftRows
+                }
+                unit="hour"
+                extra={durationNote}
+                emptyText={DURATION_EMPTY_TEXT}
+              />
+              <PieChartCard title="Sự cố theo kíp" rows={shiftRows} />
+              <div className={LAST_CHART_CLASS}>
+                <ColumnChartCard
+                  title="Thời gian sự cố theo loại sự cố"
+                  rows={durationByTypeRows}
+                  unit="hour"
+                  extra={durationNote}
+                  emptyText={DURATION_EMPTY_TEXT}
+                />
+              </div>
             </div>
           </div>
         </Spin>
