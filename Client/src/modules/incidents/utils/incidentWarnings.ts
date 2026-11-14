@@ -2,6 +2,7 @@ import dayjs from "@/shared/utils/dayjs";
 import {
   ANALYSIS_DUE_DAYS,
   INCIDENT_REPORT_DUE_DAYS,
+  INCIDENT_REPORT_REQUIRED_FROM,
   REPORT_REQUIRED_DOWNTIME_MINUTES,
   SUPPLEMENT_DUE_DAYS,
   SUPPLEMENT_EXEMPT_TYPES,
@@ -34,9 +35,18 @@ const getMissingSupplements = (incident: Incident) => {
   return missing;
 };
 
-/** Sự cố ảnh hưởng sản xuất quá hạn mà chưa có Link báo cáo sự cố. */
+/** Sự cố ảnh hưởng sản xuất quá hạn mà chưa có Link báo cáo sự cố (chỉ báo cáo nhập từ ngày áp dụng). */
 const isIncidentReportOverdue = (incident: Incident) => {
-  if (!incident.affectsProduction) return false;
+  if (!incident.affectsProduction || !incident.reportedAt) return false;
+  // Báo cáo nhập trước ngày áp dụng quy định thì bỏ qua
+  if (
+    dayjs(incident.reportedAt).isBefore(
+      dayjs(INCIDENT_REPORT_REQUIRED_FROM),
+      "day",
+    )
+  )
+    return false;
+
   const days = getDaysSinceReported(incident);
   if (days === null || days <= INCIDENT_REPORT_DUE_DAYS) return false;
   return isBlank(incident.incidentReportLink);

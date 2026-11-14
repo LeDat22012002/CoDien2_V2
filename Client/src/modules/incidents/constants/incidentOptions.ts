@@ -46,6 +46,8 @@ export const ANALYSIS_DUE_DAYS = 7;
 export const SUPPLEMENT_DUE_DAYS = 3;
 /** Sự cố ảnh hưởng sản xuất: quá N ngày mà chưa có Link báo cáo sự cố. */
 export const INCIDENT_REPORT_DUE_DAYS = 5;
+/** Chỉ áp dụng cảnh báo Link báo cáo sự cố cho báo cáo nhập từ ngày này (báo cáo cũ bỏ qua). */
+export const INCIDENT_REPORT_REQUIRED_FROM = "2026-11-12";
 /** Dừng máy (nhận thông tin → bàn giao) quá N phút thì bắt buộc có biên bản sự cố. */
 export const REPORT_REQUIRED_DOWNTIME_MINUTES = 90;
 
