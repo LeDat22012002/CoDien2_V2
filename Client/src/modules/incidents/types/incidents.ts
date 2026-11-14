@@ -173,6 +173,23 @@ export interface IncidentDashboard {
   };
   /** Chỉ có khi xem toàn nhà máy. */
   byWorkshop: WorkshopStatistic[];
+  /** Thời gian sự cố (Sửa chữa xong − Bắt đầu sửa) theo xưởng; chỉ có khi xem toàn nhà máy. */
+  repairDurationByWorkshop: DurationStatistic[];
+  repairDurationByIncidentType: DurationStatistic[];
+  repairDurationByShift: DurationStatistic[];
+  /** Số báo cáo thiếu mốc bắt đầu sửa / sửa xong, không tính vào thời gian sự cố. */
+  repairDurationMissingCount: number;
+}
+
+/** Tổng thời gian sự cố của 1 nhóm; percent trên tổng thời gian. */
+export interface DurationStatistic {
+  /** Chỉ có ở thống kê theo xưởng. */
+  workshopId?: number | null;
+  name: string;
+  totalHours: number;
+  /** Số báo cáo được tính. */
+  count: number;
+  percent: number;
 }
 
 export interface RepeatedEquipment {

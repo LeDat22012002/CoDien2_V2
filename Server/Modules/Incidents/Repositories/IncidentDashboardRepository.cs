@@ -17,6 +17,25 @@ public class IncidentDashboardRepository(AppDbContext dbContext) : IIncidentDash
             .Select(g => new GroupStatisticDto { Name = g.Key, Count = g.Count() })
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<DurationRow<TKey>>> SumRepairSecondsByGroupAsync<TKey>(
+        int year, int? workshopId, Expression<Func<Incident, TKey>> key, CancellationToken cancellationToken) =>
+        await InYear(year, workshopId)
+            .Where(x => x.RepairStartedAt != null && x.RepairFinishedAt != null)
+            .GroupBy(key)
+            .Select(g => new DurationRow<TKey>
+            {
+                Key = g.Key,
+                // DATEDIFF theo giây rồi cộng kiểu bigint; mốc đã được kiểm tra bắt đầu ≤ xong khi lưu
+                TotalSeconds = g.Sum(x =>
+                    (long)EF.Functions.DateDiffSecond(x.RepairStartedAt!.Value, x.RepairFinishedAt!.Value)),
+                Count = g.Count(),
+            })
+            .ToListAsync(cancellationToken);
+
+    public Task<int> CountMissingRepairTimesAsync(int year, int? workshopId, CancellationToken cancellationToken) =>
+        InYear(year, workshopId)
+            .CountAsync(x => x.RepairStartedAt == null || x.RepairFinishedAt == null, cancellationToken);
+
     public Task<int> CountAffectsProductionAsync(int year, int? workshopId, CancellationToken cancellationToken) =>
         InYear(year, workshopId).CountAsync(x => x.AffectsProduction, cancellationToken);
 
