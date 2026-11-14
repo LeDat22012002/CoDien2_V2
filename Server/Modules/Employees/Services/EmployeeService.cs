@@ -61,6 +61,23 @@ public class EmployeeService(
         return await ToDtoWithAssignmentsAsync(employee, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<EmployeeBriefDto>> GetBriefsAsync(
+        IReadOnlyCollection<int> ids, CancellationToken cancellationToken) =>
+        (await employeeRepository.GetByIdsAsync(ids, cancellationToken))
+        .Select(x => new EmployeeBriefDto { Id = x.Id, EmpCode = x.EmpCode, FullName = x.FullName, Status = x.Status })
+        .ToList();
+
+    public async Task<int?> GetCurrentEmployeeIdAsync(CancellationToken cancellationToken)
+    {
+        if (currentUserService.UserName is not { Length: > 0 } empCode)
+        {
+            return null;
+        }
+
+        var employee = await employeeRepository.GetByEmpCodeAsync(empCode, cancellationToken);
+        return employee is { Status: EmployeeStatus.Active } ? employee.Id : null;
+    }
+
     public async Task<EmployeeDto> CreateAsync(CreateEmployeeRequest request, CancellationToken cancellationToken)
     {
         Normalize(request);

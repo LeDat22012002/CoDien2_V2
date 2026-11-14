@@ -15,6 +15,10 @@ public interface IAssignmentService
     Task<IReadOnlyList<CurrentAssignmentDto>> GetCurrentAssignmentsAsync(
         IReadOnlyCollection<int> employeeIds, CancellationToken cancellationToken);
 
+    /// <summary>Người đang giữ vị trí ở đúng các đơn vị này (không gồm đơn vị con), sắp theo cấp bậc rồi họ tên.</summary>
+    Task<IReadOnlyList<UnitMemberSummaryDto>> GetUnitMembersAsync(
+        IReadOnlyCollection<int> orgUnitIds, CancellationToken cancellationToken);
+
     /// <summary>Id nhân viên đang giữ vị trí ở đơn vị hoặc các đơn vị con cháu của nó.</summary>
     Task<IReadOnlyList<int>> GetEmployeeIdsInUnitTreeAsync(int orgUnitId, CancellationToken cancellationToken);
 

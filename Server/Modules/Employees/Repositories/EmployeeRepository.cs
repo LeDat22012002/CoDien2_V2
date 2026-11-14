@@ -57,6 +57,15 @@ public class EmployeeRepository(AppDbContext dbContext) : IEmployeeRepository
 
     public Task<Employee?> GetByIdAsync(int id, CancellationToken cancellationToken) =>
         Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    
+    public async Task<IReadOnlyList<Employee>> GetByIdsAsync(
+        IReadOnlyCollection<int> ids, CancellationToken cancellationToken) =>
+        ids.Count == 0
+            ? []
+            : await Employees.AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(cancellationToken);
+
+    public Task<Employee?> GetByEmpCodeAsync(string empCode, CancellationToken cancellationToken) =>
+        Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmpCode == empCode, cancellationToken);
 
     public Task<Employee?> FindByIdAsync(int id, CancellationToken cancellationToken) =>
         Employees.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

@@ -160,6 +160,32 @@ public class AssignmentService(IAssignmentRepository assignmentRepository, IUnit
             IsActing = x.IsActing,
             IsPrimary = x.IsPrimary,
             StartDate = x.StartDate,
+            UnitRole = x.UnitRole,
+            OrgUnitTypeCode = x.OrgUnitTypeCode,
+        }).ToList();
+    }
+
+    public async Task<IReadOnlyList<UnitMemberSummaryDto>> GetUnitMembersAsync(
+        IReadOnlyCollection<int> orgUnitIds, CancellationToken cancellationToken)
+    {
+        if (orgUnitIds.Count == 0)
+        {
+            return [];
+        }
+
+        var members = await assignmentRepository.GetMembersByUnitIdsAsync(orgUnitIds, cancellationToken);
+
+        return members.Select(x => new UnitMemberSummaryDto
+        {
+            EmployeeId = x.EmployeeId,
+            EmpCode = x.EmpCode,
+            FullName = x.FullName,
+            OrgUnitId = x.OrgUnitId,
+            OrgUnitName = x.OrgUnitName,
+            LevelCode = x.LevelCode,
+            LevelName = x.LevelName,
+            UnitRole = x.UnitRole,
+            IsPrimary = x.IsPrimary,
         }).ToList();
     }
 

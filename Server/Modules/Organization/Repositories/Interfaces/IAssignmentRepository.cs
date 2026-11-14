@@ -30,6 +30,10 @@ public interface IAssignmentRepository
     Task<IReadOnlyList<VUnitMember>> GetCurrentByEmployeeIdsAsync(
         IReadOnlyCollection<int> employeeIds, CancellationToken cancellationToken);
 
+    /// <summary>Người đang giữ vị trí ở một trong các đơn vị, sắp theo cấp bậc rồi họ tên.</summary>
+    Task<IReadOnlyList<VUnitMember>> GetMembersByUnitIdsAsync(
+        IReadOnlyCollection<int> orgUnitIds, CancellationToken cancellationToken);
+
     /// <summary>Id nhân viên đang giữ vị trí ở một trong các đơn vị.</summary>
     Task<IReadOnlyList<int>> GetEmployeeIdsInUnitsAsync(
         IReadOnlyCollection<int> orgUnitIds, CancellationToken cancellationToken);

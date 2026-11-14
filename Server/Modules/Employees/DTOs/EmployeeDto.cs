@@ -34,6 +34,15 @@ public class EmployeeDto
     public string? WorkshopName { get; init; }
 }
 
+/// <summary>Thông tin rút gọn của nhân viên, cho module khác hiển thị tên / kiểm tra trạng thái.</summary>
+public class EmployeeBriefDto
+{
+    public int Id { get; init; }
+    public string EmpCode { get; init; } = string.Empty;
+    public string FullName { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+}
+
 // ===== Request =====
 
 /// <summary>Các trường dùng chung cho tạo mới và cập nhật nhân viên.</summary>

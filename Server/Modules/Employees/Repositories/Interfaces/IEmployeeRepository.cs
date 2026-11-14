@@ -11,6 +11,11 @@ public interface IEmployeeRepository
 
     /// <summary>Đọc không tracking, dùng cho truy vấn chỉ đọc.</summary>
     Task<Employee?> GetByIdAsync(int id, CancellationToken cancellationToken);
+    /// <summary>Đọc không tracking theo danh sách Id.</summary>
+    Task<IReadOnlyList<Employee>> GetByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken);
+    
+    /// <summary>Đọc không tracking theo mã nhân viên.</summary>
+    Task<Employee?> GetByEmpCodeAsync(string empCode, CancellationToken cancellationToken);
 
     /// <summary>Đọc có tracking, dùng khi cần cập nhật hoặc xóa.</summary>
     Task<Employee?> FindByIdAsync(int id, CancellationToken cancellationToken);

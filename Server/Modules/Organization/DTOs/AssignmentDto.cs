@@ -35,7 +35,31 @@ public class CurrentAssignmentDto
     public bool IsActing { get; init; }
     public bool IsPrimary { get; init; }
     public DateOnly StartDate { get; init; }
+
+    /// <summary>HEAD | DEPUTY | MEMBER (vai trò trong đơn vị, xem UnitRoles).</summary>
+    public string UnitRole { get; init; } = string.Empty;
+
+    /// <summary>Loại đơn vị của vị trí: WORKSHOP | TEAM | SHIFT | GROUP…</summary>
+    public string OrgUnitTypeCode { get; init; } = string.Empty;
 }
+
+/// <summary>Người đang giữ vị trí trong đơn vị (từ vUnitMember); module khác dùng để gợi ý người theo đơn vị.</summary>
+public class UnitMemberSummaryDto
+{
+    public int EmployeeId { get; init; }
+    public string EmpCode { get; init; } = string.Empty;
+    public string FullName { get; init; } = string.Empty;
+    public int OrgUnitId { get; init; }
+    public string OrgUnitName { get; init; } = string.Empty;
+    public string LevelCode { get; init; } = string.Empty;
+    public string LevelName { get; init; } = string.Empty;
+
+    /// <summary>HEAD | DEPUTY | MEMBER.</summary>
+    public string UnitRole { get; init; } = string.Empty;
+
+    public bool IsPrimary { get; init; }
+}
+
 
 // ===== Request =====
 

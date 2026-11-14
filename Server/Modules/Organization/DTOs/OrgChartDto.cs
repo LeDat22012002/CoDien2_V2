@@ -129,6 +129,23 @@ public class UnitMemberDto
     public DateOnly StartDate { get; init; }
 }
 
+/// <summary>Người đang giữ vị trí trong đơn vị (từ vUnitMember); module khác dùng để gợi ý người theo đơn vị.</summary>
+// public class UnitMemberDto
+// {
+//     public int EmployeeId { get; init; }
+//     public string EmpCode { get; init; } = string.Empty;
+//     public string FullName { get; init; } = string.Empty;
+//     public int OrgUnitId { get; init; }
+//     public string OrgUnitName { get; init; } = string.Empty;
+//     public string LevelCode { get; init; } = string.Empty;
+//     public string LevelName { get; init; } = string.Empty;
+
+//     /// <summary>HEAD | DEPUTY | MEMBER.</summary>
+//     public string UnitRole { get; init; } = string.Empty;
+
+//     public bool IsPrimary { get; init; }
+// }
+
 // ===== Response: danh mục cho dropdown =====
 
 public class LookupsDto

@@ -10,6 +10,7 @@ using Server.Modules.Equipments;
 using Server.Modules.Identity;
 using Server.Modules.Incidents;
 using Server.Modules.Organization;
+using Server.Modules.WorkReports;
 using Server.Shared.Models;
 using Server.Shared.Services;
 
@@ -46,6 +47,7 @@ public static class ServiceCollectionExtensions
         services.AddEquipmentsModule();
         services.AddIncidentsModule();
         services.AddAuditLogsModule();
+        services.AddWorkReportsModule();
 
         return services;
     }

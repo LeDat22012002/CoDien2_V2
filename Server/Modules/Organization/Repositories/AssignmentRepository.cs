@@ -54,6 +54,13 @@ public class AssignmentRepository(AppDbContext dbContext) : IAssignmentRepositor
             .OrderByDescending(x => x.IsPrimary).ThenByDescending(x => x.StartDate)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<VUnitMember>> GetMembersByUnitIdsAsync(
+        IReadOnlyCollection<int> orgUnitIds, CancellationToken cancellationToken) =>
+        await dbContext.Set<VUnitMember>().AsNoTracking()
+            .Where(x => orgUnitIds.Contains(x.OrgUnitId))
+            .OrderBy(x => x.Rank).ThenBy(x => x.FullName)
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<int>> GetEmployeeIdsInUnitsAsync(
         IReadOnlyCollection<int> orgUnitIds, CancellationToken cancellationToken) =>
         await dbContext.Set<VUnitMember>().AsNoTracking()
