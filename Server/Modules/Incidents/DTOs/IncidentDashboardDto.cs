@@ -33,6 +33,42 @@ public class IncidentDashboardDto
 
     /// <summary>Chỉ có khi xem toàn nhà máy.</summary>
     public List<WorkshopStatisticDto> ByWorkshop { get; set; } = [];
+
+    // Thời gian sự cố = Sửa chữa xong − Bắt đầu sửa chữa, chỉ tính báo cáo có đủ 2 mốc
+
+    /// <summary>Tổng thời gian sự cố theo xưởng; chỉ có khi xem toàn nhà máy.</summary>
+    public List<DurationStatisticDto> RepairDurationByWorkshop { get; set; } = [];
+
+    public List<DurationStatisticDto> RepairDurationByIncidentType { get; set; } = [];
+    public List<DurationStatisticDto> RepairDurationByShift { get; set; } = [];
+
+    /// <summary>Số báo cáo thiếu mốc bắt đầu sửa hoặc sửa xong (không tính vào thời gian sự cố).</summary>
+    public int RepairDurationMissingCount { get; set; }
+}
+
+/// <summary>Tổng thời gian sự cố của 1 nhóm (xưởng / loại sự cố / kíp); % trên tổng thời gian.</summary>
+public class DurationStatisticDto
+{
+    /// <summary>Chỉ có ở thống kê theo xưởng.</summary>
+    public int? WorkshopId { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Tổng thời gian sự cố (giờ, làm tròn 1 chữ số).</summary>
+    public double TotalHours { get; set; }
+
+    /// <summary>Số báo cáo được tính.</summary>
+    public int Count { get; set; }
+
+    public double Percent { get; set; }
+}
+
+/// <summary>Tổng giây sửa chữa theo khóa nhóm (repository → service).</summary>
+public class DurationRow<TKey>
+{
+    public TKey Key { get; set; } = default!;
+    public long TotalSeconds { get; set; }
+    public int Count { get; set; }
 }
 
 /// <summary>Dòng thống kê theo nhóm (loại sự cố, kíp, dừng đến cấp); % trên tổng số báo cáo.</summary>

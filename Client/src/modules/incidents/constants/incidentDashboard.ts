@@ -27,6 +27,13 @@ export const INCIDENT_TYPE_CHART_COLOR: Record<string, string> = {
   Khác: '#6250d6',
 };
 
+/** Kíp: màu cố định theo tên kíp, dùng chung cho biểu đồ số sự cố và thời gian sự cố theo kíp. */
+export const SHIFT_CHART_COLOR: Record<string, string> = {
+  A: '#2a78d6',
+  B: '#eb6834',
+  C: '#1baf7a',
+};
+
 /** Trạng thái (luôn đi kèm chữ, không chỉ dựa vào màu). */
 export const STATUS_CHART_COLOR = {
   good: '#0ca30c',

@@ -11,6 +11,9 @@ import type { ChartBox, ChartLayout, MembersDrawerTarget } from '@/modules/organ
 import { buildOrgChartLayout, getFitScale } from '@/modules/organization/utils/orgChartLayout';
 import { normalizeChartText } from '@/modules/organization/utils/orgChartText';
 
+/** Hệ số zoom bằng con lăn (nhân với deltaY của sự kiện): 1 nấc chuột ≈ 0,1; touchpad mượt theo độ vuốt. */
+const WHEEL_ZOOM_STEP = 0.001;
+
 interface ViewportSize {
   width: number;
   height: number;
@@ -168,7 +171,8 @@ const OrgChartPage = () => {
               initialScale={0.8}
               limitToBounds={false}
               centerOnInit={false}
-              wheel={{ step: 0.08 }}
+              // smooth (mặc định bật): mỗi lần lăn đổi step × |deltaY|; 1 nấc chuột deltaY ≈ 100 → ~0,1
+              wheel={{ step: WHEEL_ZOOM_STEP }}
               doubleClick={{ disabled: true }}
             >
               <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>

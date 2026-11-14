@@ -52,6 +52,32 @@ public class IncidentDashboardService(
         dashboard.RepeatedEquipmentCount = await dashboardRepository.CountRepeatedEquipmentAsync(
             year, filter.WorkshopId, IncidentRules.RepeatThreshold, cancellationToken);
 
+        var typeDurations = await dashboardRepository.SumRepairSecondsByGroupAsync(
+            year, filter.WorkshopId, x => x.IncidentType, cancellationToken);
+        var shiftDurations = await dashboardRepository.SumRepairSecondsByGroupAsync(
+            year, filter.WorkshopId, x => x.Shift, cancellationToken);
+        dashboard.RepairDurationMissingCount = await dashboardRepository.CountMissingRepairTimesAsync(
+            year, filter.WorkshopId, cancellationToken);
+
+        dashboard.RepairDurationByIncidentType = MergeDurations(typeDurations, UnclassifiedLabel)
+            .OrderByDescending(x => x.TotalHours)
+            .ToList();
+        dashboard.RepairDurationByShift = MergeDurations(shiftDurations, EmptyLabel)
+            .OrderBy(x => x.Name == EmptyLabel)
+            .ThenBy(x => x.Name)
+            .ToList();
+
+        if (filter.WorkshopId is null)
+        {
+            var workshopDurations = await dashboardRepository.SumRepairSecondsByGroupAsync(
+                year, null, x => x.WorkshopId, cancellationToken);
+            var totalSeconds = workshopDurations.Sum(x => x.TotalSeconds);
+            dashboard.RepairDurationByWorkshop = workshopDurations
+                .Select(x => ToDurationStatistic(GetWorkshopName(workshopNames, x.Key), x, totalSeconds, x.Key))
+                .OrderByDescending(x => x.TotalHours)
+                .ToList();
+        }
+
         var total = workshopRows.Sum(x => x.Count);
         var overdue = workshopRows.Sum(x => x.OverdueCount);
 
@@ -142,6 +168,30 @@ public class IncidentDashboardService(
 
     private static string GetWorkshopName(Dictionary<int, string> names, int? workshopId) =>
         workshopId is { } id && names.TryGetValue(id, out var name) ? name : NoWorkshopLabel;
+
+    /// <summary>Như <see cref="MergeGroups"/> nhưng cộng thời gian sự cố; % trên tổng thời gian.</summary>
+    private static IEnumerable<DurationStatisticDto> MergeDurations(
+        IReadOnlyList<DurationRow<string>> rows, string emptyLabel)
+    {
+        var totalSeconds = rows.Sum(x => x.TotalSeconds);
+        return rows
+            .GroupBy(x => string.IsNullOrWhiteSpace(x.Key) ? emptyLabel : x.Key.Trim())
+            .Select(g => ToDurationStatistic(
+                g.Key,
+                new DurationRow<string> { TotalSeconds = g.Sum(x => x.TotalSeconds), Count = g.Sum(x => x.Count) },
+                totalSeconds));
+    }
+
+    private static DurationStatisticDto ToDurationStatistic<TKey>(
+        string name, DurationRow<TKey> row, long totalSeconds, int? workshopId = null) =>
+        new()
+        {
+            WorkshopId = workshopId,
+            Name = name,
+            TotalHours = Math.Round(row.TotalSeconds / 3600.0, 1),
+            Count = row.Count,
+            Percent = totalSeconds == 0 ? 0 : Math.Round(row.TotalSeconds * 100.0 / totalSeconds, 2),
+        };
 
     /// <summary>Gộp các giá trị chỉ khác khoảng trắng; rỗng đưa về nhãn mặc định; tính % trên tổng.</summary>
     private static IEnumerable<GroupStatisticDto> MergeGroups(
