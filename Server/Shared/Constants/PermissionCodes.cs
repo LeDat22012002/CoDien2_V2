@@ -95,17 +95,23 @@ public static class PermissionCodes
         /// <summary>Admin chức năng: sửa đầy đủ, phân tích/bổ sung mọi xưởng, xóa, import Excel.</summary>
         public const string Manage = "incidents.manage";
     }
-     /// <summary>
-    /// Kế hoạch & báo cáo công việc tuần. Xem/nhập/sửa/mở khóa theo PHẠM VI suy ra từ sơ đồ tổ chức
-    /// (kỹ sư phụ trách, đội trưởng/phó, quản đốc/phó) nên không cần mã quyền; 2 mã dưới cho admin và cấp nhà máy.
+    /// <summary>
+    /// Kế hoạch & báo cáo công việc tuần. Mã quyền (gán theo role) quyết định VAI TRÒ được dùng;
+    /// sơ đồ tổ chức / phân công kỹ sư quyết định PHẠM VI (tổ/kíp, đội, xưởng nào).
     /// </summary>
     public static class WorkReports
     {
+        /// <summary>Kỹ sư: lập kế hoạch, báo cáo tuần cho tổ/kíp được phân công (trang /member/work-reports).</summary>
+        public const string Submit = "work-reports.submit";
+
+        /// <summary>Đội trưởng/phó, quản đốc/phó: quản lý báo cáo tuần của đội/xưởng mình, phân công kỹ sư,
+        /// yêu cầu chỉnh sửa, mở khóa (trang /admin/work-reports).</summary>
+        public const string Manage = "work-reports.manage";
+
         /// <summary>Cấu hình: đầu mục công việc, mục đích vật tư, hằng số giờ công, hạn nộp, đơn vị báo cáo mọi xưởng.</summary>
         public const string Configure = "work-reports.configure";
 
-        /// <summary>Xem báo cáo / kế hoạch / tổng hợp của mọi xưởng (Ban Giám đốc, cấp nhà máy).</summary>
-        public const string ViewFactory = "work-reports.view-factory";
+        // Xem báo cáo mọi xưởng (Ban Giám đốc): trang công khai /work-reports, API GET /api/work-reports/public/*, không cần quyền
     }
 
     public static class AuditLogs

@@ -21,6 +21,7 @@ public class WorkReportUnitEngineerService(
     IEmployeeService employeeService,
     IAssignmentService assignmentService,
     IOrgTreeProvider orgTreeProvider,
+    IWeeklyFormService weeklyFormService,
     IUnitOfWork unitOfWork) : IWorkReportUnitEngineerService
 {
     private const string UnitNotFoundMessage = "Không tìm thấy đơn vị báo cáo.";
@@ -75,6 +76,9 @@ public class WorkReportUnitEngineerService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Tên KTV trên form chưa khóa báo cáo đổi theo phân công mới
+        await weeklyFormService.SyncFormsAsync([unitId], cancellationToken);
 
         return (await GetActiveByUnitAsync([unitId], cancellationToken)).GetValueOrDefault(unitId, []);
     }

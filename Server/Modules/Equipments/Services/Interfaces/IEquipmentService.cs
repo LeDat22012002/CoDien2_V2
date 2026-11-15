@@ -14,6 +14,9 @@ public interface IEquipmentService
     /// <summary>Null nếu mã không có trong danh mục (module Incidents dùng để kiểm tra thiết bị).</summary>
     Task<EquipmentDto?> GetByCodeAsync(string code, CancellationToken cancellationToken);
 
+    /// <summary>Thiết bị theo danh sách mã (bỏ qua mã không có); module WorkReports dùng khi dán nhiều dòng.</summary>
+    Task<IReadOnlyList<EquipmentDto>> GetByCodesAsync(IReadOnlyCollection<string> codes, CancellationToken cancellationToken);
+
     Task<EquipmentDto> CreateAsync(CreateEquipmentRequest request, CancellationToken cancellationToken);
 
     Task<EquipmentDto> UpdateAsync(int id, UpdateEquipmentRequest request, CancellationToken cancellationToken);

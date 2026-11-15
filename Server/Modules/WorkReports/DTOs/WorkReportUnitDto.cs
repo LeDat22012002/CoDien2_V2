@@ -5,17 +5,23 @@ namespace Server.Modules.WorkReports.DTOs;
 public class WorkReportUnitDto
 {
     public int Id { get; init; }
+
+    /// <summary>Đơn vị gốc trên sơ đồ: tổ/kíp; đơn vị tự đặt thì là đội / xưởng chứa nó.</summary>
     public int OrgUnitId { get; init; }
+
     public string OrgUnitCode { get; init; } = string.Empty;
     public string OrgUnitName { get; init; } = string.Empty;
 
-    /// <summary>GROUP (tổ) | SHIFT (kíp).</summary>
+    /// <summary>GROUP (tổ) | SHIFT (kíp); đơn vị tự đặt: TEAM / loại của xưởng.</summary>
     public string OrgUnitTypeCode { get; init; } = string.Empty;
+
+    /// <summary>True = đơn vị tự đặt (không phải tổ/kíp trên sơ đồ).</summary>
+    public bool IsCustom { get; init; }
 
     /// <summary>Ca A/B/C của kíp.</summary>
     public string? Shift { get; init; }
 
-    /// <summary>False = tổ/kíp đã ngừng trên sơ đồ tổ chức.</summary>
+    /// <summary>False = đơn vị gốc đã ngừng trên sơ đồ tổ chức.</summary>
     public bool IsOrgUnitActive { get; init; }
 
     /// <summary>Đội chứa tổ (đơn vị TEAM gần nhất phía trên), nếu có.</summary>
@@ -44,27 +50,19 @@ public class WorkReportUnitDto
     public bool CanManageEngineers { get; init; }
 }
 
-/// <summary>Tổ/kíp đang hoạt động trên sơ đồ nhưng chưa có đơn vị báo cáo, kèm gợi ý để xác nhận nhanh.</summary>
-public class UnconfiguredOrgUnitDto
+/// <summary>Chỗ gắn đơn vị tự đặt: xưởng hoặc 1 đội trong xưởng.</summary>
+public class WorkReportUnitParentOptionDto
 {
     public int OrgUnitId { get; init; }
-    public string OrgUnitCode { get; init; } = string.Empty;
-    public string OrgUnitName { get; init; } = string.Empty;
-    public string OrgUnitTypeCode { get; init; } = string.Empty;
-    public string? Shift { get; init; }
-    public string? TeamName { get; init; }
-    public int WorkshopId { get; init; }
-    public string WorkshopName { get; init; } = string.Empty;
-    public string SuggestedDisplayName { get; init; } = string.Empty;
-    public string SuggestedCodePrefix { get; init; } = string.Empty;
-    public string SuggestedLaborType { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public bool IsWorkshop { get; init; }
 }
 
 // ===== Request =====
 
 public abstract class WorkReportUnitRequestBase
 {
-    /// <summary>Để trống = lấy tên tổ/kíp trên sơ đồ.</summary>
+    /// <summary>Đơn vị theo sơ đồ: để trống = lấy tên tổ/kíp. Đơn vị tự đặt: bắt buộc.</summary>
     public string? DisplayName { get; set; }
 
     public string CodePrefix { get; set; } = string.Empty;
@@ -73,13 +71,11 @@ public abstract class WorkReportUnitRequestBase
     public string LaborType { get; set; } = string.Empty;
 }
 
+/// <summary>Thêm đơn vị tự đặt (tổ/kíp trên sơ đồ được tạo tự động).</summary>
 public class CreateWorkReportUnitRequest : WorkReportUnitRequestBase
 {
-    /// <summary>OrgUnit.Id của tổ (GROUP) hoặc kíp (SHIFT).</summary>
-    public int OrgUnitId { get; set; }
-
-    /// <summary>Null = xếp cuối xưởng.</summary>
-    public int? SortOrder { get; set; }
+    /// <summary>OrgUnit.Id của xưởng hoặc đội chứa đơn vị (đội trưởng/phó của đội đó cùng quản lý).</summary>
+    public int ParentOrgUnitId { get; set; }
 }
 
 public class UpdateWorkReportUnitRequest : WorkReportUnitRequestBase

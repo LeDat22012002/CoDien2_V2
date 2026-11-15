@@ -31,12 +31,15 @@ const DEFAULT_ERROR_MESSAGES: Record<number, string> = {
 export class ApiError extends Error {
   readonly status?: number;
   readonly errors?: Record<string, string[]>;
+  /** Phần `data` Server trả kèm lỗi (vd 409 xung đột ghi: dữ liệu mới nhất). */
+  readonly data?: unknown;
 
-  constructor(message: string, status?: number, errors?: Record<string, string[]>) {
+  constructor(message: string, status?: number, errors?: Record<string, string[]>, data?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.errors = errors;
+    this.data = data;
   }
 }
 
@@ -76,7 +79,7 @@ export const toApiError = (error: unknown): ApiError => {
     const message = data?.message
       || DEFAULT_ERROR_MESSAGES[status]
       || (status >= 500 ? DEFAULT_ERROR_MESSAGES[500] : DEFAULT_ERROR_MESSAGES[400]);
-    return new ApiError(message, status, data?.errors ?? undefined);
+    return new ApiError(message, status, data?.errors ?? undefined, data?.data ?? undefined);
   }
 
   return new ApiError(error instanceof Error ? error.message : 'Đã xảy ra lỗi không xác định.');

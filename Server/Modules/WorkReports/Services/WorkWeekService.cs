@@ -191,6 +191,21 @@ public class WorkWeekService(
             }
         }
 
+        // Hạn kế hoạch tuần N phải trước hạn báo cáo tuần N (áp dụng cho xưởng đang sửa, hoặc hạn chung).
+        // Tự tính vì hạn riêng vừa bỏ chưa được đánh dấu IsDeleted trước khi lưu
+        var keepsOverride = request.WorkshopId is not null && !request.ResetToDefault
+                            && (request.PlanDeadlineAt is not null || request.ReportDeadlineAt is not null);
+        var effectivePlan = keepsOverride ? request.PlanDeadlineAt ?? week.PlanDeadlineAt : week.PlanDeadlineAt;
+        var effectiveReport = keepsOverride ? request.ReportDeadlineAt ?? week.ReportDeadlineAt : week.ReportDeadlineAt;
+        if (effectivePlan > effectiveReport)
+        {
+            throw new ValidationException("Dữ liệu không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["planDeadlineAt"] = [$"Hạn kế hoạch ({effectivePlan:HH:mm dd/MM/yyyy}) không được sau hạn báo cáo "
+                                      + $"({effectiveReport:HH:mm dd/MM/yyyy}) của cùng tuần."],
+            });
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, request.WorkshopId, cancellationToken);

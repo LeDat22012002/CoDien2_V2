@@ -9,7 +9,7 @@ public interface IWorkReportUnitEngineerService
 
     /// <summary>
     /// Lưu cả danh sách kỹ sư phụ trách. Tổ HC: đội trưởng/phó hoặc quản đốc/phó; kíp: chỉ quản đốc/phó (hoặc admin).
-    /// Người bỏ ra kết thúc từ hôm nay (bắt đầu hôm nay thì xóa luôn), người thêm vào bắt đầu từ hôm nay.
+    /// Người bỏ ra kết thúc vào hôm qua, mất quyền ngay hôm nay (bắt đầu hôm nay thì xóa luôn); người thêm vào bắt đầu từ hôm nay.
     /// </summary>
     Task<IReadOnlyList<WorkReportUnitEngineerDto>> SetEngineersAsync(
         int unitId, SetUnitEngineersRequest request, CancellationToken cancellationToken);

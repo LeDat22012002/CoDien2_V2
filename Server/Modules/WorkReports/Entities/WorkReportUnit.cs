@@ -5,13 +5,22 @@ namespace Server.Modules.WorkReports.Entities;
 // ===== Entity =====
 
 /// <summary>
-/// Đơn vị báo cáo = 1 tổ (OrgUnit GROUP) hoặc 1 kíp (OrgUnit SHIFT) có form tuần riêng (tương ứng 1 "sheet tổ" trong Excel).
-/// Xưởng không lưu cứng mà tính từ cây tổ chức (tổ chuyển xưởng thì tuần mới theo xưởng mới).
+/// Đơn vị báo cáo có form tuần riêng (tương ứng 1 "sheet tổ" trong Excel):
+/// - Theo sơ đồ (IsCustom = false): 1 tổ (GROUP) / kíp (SHIFT), tự tạo khi tổ/kíp có trên sơ đồ
+///   (WorkReportUnitSyncService); quản đốc xóa (chưa có dữ liệu) thì không tự tạo lại, khôi phục được.
+/// - Tự đặt (IsCustom = true): quản đốc tạo thêm, gắn với 1 đội hoặc xưởng trên sơ đồ.
+/// Xưởng không lưu cứng mà tính từ cây tổ chức qua OrgUnitId (tổ chuyển xưởng thì tuần mới theo xưởng mới).
 /// </summary>
 public class WorkReportUnit : BaseEntity
 {
-    /// <summary>OrgUnit.Id của tổ/kíp; mỗi OrgUnit tối đa 1 đơn vị báo cáo.</summary>
+    /// <summary>
+    /// Đơn vị gốc trên sơ đồ: OrgUnit.Id của tổ/kíp (theo sơ đồ, mỗi tổ/kíp tối đa 1 đơn vị kể cả đã xóa),
+    /// hoặc của đội / xưởng chứa đơn vị tự đặt. Quyết định xưởng, đội trưởng quản lý, gợi ý người và kỹ sư.
+    /// </summary>
     public int OrgUnitId { get; set; }
+
+    /// <summary>True = đơn vị tự đặt (không phải tổ/kíp trên sơ đồ).</summary>
+    public bool IsCustom { get; set; }
 
     /// <summary>Tên hiện trên bảng, vd "Tổ cơ điện - theo ca - kíp B"; mặc định lấy tên OrgUnit.</summary>
     public string DisplayName { get; set; } = string.Empty;

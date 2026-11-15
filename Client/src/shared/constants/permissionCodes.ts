@@ -53,4 +53,8 @@ export const PERMISSION_CODES = {
   auditLogs: {
     view: 'audit-logs.view',
   },
+  workReports: {
+    submit: 'work-reports.submit',
+    manage: 'work-reports.manage',
+    configure: 'work-reports.configure',  },
 } as const;

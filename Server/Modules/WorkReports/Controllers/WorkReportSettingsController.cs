@@ -12,6 +12,9 @@ namespace Server.Modules.WorkReports.Controllers;
 [Route("api/work-report-settings")]
 public class WorkReportSettingsController(IWorkReportSettingService settingService) : ControllerBase
 {
+    [HasPermission(
+        PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage,
+        PermissionCodes.WorkReports.Configure)]
     [HttpGet]
     public async Task<ActionResult<ApiResponse<WorkReportSettingDto>>> Get(CancellationToken cancellationToken)
     {

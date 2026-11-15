@@ -51,6 +51,13 @@ public class EquipmentService(
     public Task<EquipmentDto?> GetByCodeAsync(string code, CancellationToken cancellationToken) =>
         equipmentRepository.GetByCodeAsync(code.Trim(), cancellationToken);
 
+    public async Task<IReadOnlyList<EquipmentDto>> GetByCodesAsync(
+        IReadOnlyCollection<string> codes, CancellationToken cancellationToken)
+    {
+        var normalized = codes.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList();
+        return normalized.Count == 0 ? [] : await equipmentRepository.GetByCodesAsync(normalized, cancellationToken);
+    }
+
     public async Task<EquipmentDto> CreateAsync(CreateEquipmentRequest request, CancellationToken cancellationToken)
     {
         Normalize(request);

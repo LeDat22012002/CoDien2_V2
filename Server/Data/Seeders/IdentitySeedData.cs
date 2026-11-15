@@ -58,6 +58,10 @@ public static class IdentitySeedData
         new(PermissionCodes.Incidents.Manage, "Quản lý báo cáo sự cố (sửa đầy đủ, xóa, import)", "incidents", 81),
         new(PermissionCodes.Incidents.UpdateProgress, "Cập nhật tiến độ báo cáo sự cố của xưởng mình", "incidents", 82),
 
+        new(PermissionCodes.WorkReports.Submit, "Lập kế hoạch, báo cáo tuần (kỹ sư phụ trách tổ/kíp)", "work-reports", 84),
+        new(PermissionCodes.WorkReports.Manage, "Quản lý báo cáo tuần của đội/xưởng (phân công kỹ sư, yêu cầu sửa, mở khóa)", "work-reports", 85),
+        new(PermissionCodes.WorkReports.Configure, "Cấu hình báo cáo tuần (đầu mục, hạn nộp, giờ công)", "work-reports", 87),
+
         new(PermissionCodes.AuditLogs.View, "Xem nhật ký hệ thống", "audit-logs", 90),
     ];
 
@@ -73,7 +77,11 @@ public static class IdentitySeedData
         new("issued-documents", "Sổ văn bản đã cấp", "/admin/issued-documents", "BookOutlined", "documents", PermissionCodes.Documents.View, 42),
         new("document-templates", "Danh sách văn bản", "/admin/document-templates", "ProfileOutlined", "documents", PermissionCodes.DocumentTemplates.Manage, 43),
         new("equipments", "Danh mục thiết bị", "/admin/equipments", "ToolOutlined", null, PermissionCodes.Equipments.Manage, 50),
-        new("system", "Quản trị hệ thống", null, "SettingOutlined", null, null, 90),
+        new("work-reports", "Báo cáo tuần", null, "CalendarOutlined", null, null, 60),
+        new("admin-work-reports", "Quản lý báo cáo tuần", "/admin/work-reports", "CalendarOutlined", "work-reports",
+            PermissionCodes.WorkReports.Manage, 61),
+        new("work-report-settings", "Cấu hình báo cáo tuần", "/admin/work-report-settings", "ScheduleOutlined", "work-reports",
+            PermissionCodes.WorkReports.Configure, 62),        new("system", "Quản trị hệ thống", null, "SettingOutlined", null, null, 90),
         new("users", "Tài khoản", "/admin/users", "UserOutlined", "system", PermissionCodes.Users.View, 91),
         new("roles", "Vai trò", "/admin/roles", "SafetyOutlined", "system", PermissionCodes.Roles.View, 92),
         new("permissions", "Phân quyền", "/admin/permissions", "KeyOutlined", "system", PermissionCodes.Roles.View, 93),
@@ -87,6 +95,8 @@ public static class IdentitySeedData
         new("public-reports", "Báo cáo nhà máy", null, null, null, null, 120, Area: PageAreas.Public),
         new("public-incidents", "Báo cáo sự cố", "/incidents", null, "public-reports", null, 121,
             Area: PageAreas.Public),
+        new("public-work-reports", "Báo cáo tuần", "/work-reports", null, "public-reports", null, 123,
+            Area: PageAreas.Public),
         new("public-powerbi", "Báo cáo PowerBI", null, null, "public-reports", null, 122, Area: PageAreas.Public,
             ExternalUrl: "https://app.powerbi.com/view?r=eyJrIjoiMjdhZGYxMWYtMTU3My00YzkzLWJjMDAtYjhmYzIzNTUwMGY4IiwidCI6ImIxNThlOWE1LTA2OTEtNGU0Zi1iYmExLTQxN2I5OWVjZDBhMCIsImMiOjEwfQ%3D%3D"),
         new("public-digital", "Số hóa", null, null, null, null, 130, Area: PageAreas.Public),
@@ -98,6 +108,8 @@ public static class IdentitySeedData
             Area: PageAreas.Public, ExternalUrl: "http://10.192.226.25:8082"),
 
         // Menu trang cá nhân /member: ai đăng nhập cũng thấy
+        new("member-work-reports", "Báo cáo công việc tuần", "/member/work-reports", "CalendarOutlined", null,
+            PermissionCodes.WorkReports.Submit, 205, Area: PageAreas.Member),
         new("member-incidents", "Báo cáo sự cố", "/member/incidents", "WarningOutlined", null, null, 210,
             Area: PageAreas.Member),
         new("member-documents", "Văn bản tôi đã lấy", "/member/documents", "FileTextOutlined", null, null, 220,

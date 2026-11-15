@@ -1383,6 +1383,87 @@ namespace Server.Data.Migrations
                     b.ToTable("MaterialPurpose", "dbo");
                 });
 
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WeeklyForm", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("CapacityMinutes")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CodePrefix")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("EngineerNames")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LaborType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<DateTime?>("PlanLockedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("PlanUnlockedUntil")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ReportLockedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ReportUnlockedUntil")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UnitName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("WorkReportUnitId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkWeekId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkshopId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkReportUnitId", "WorkWeekId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("WorkWeekId", "WorkshopId");
+
+                    b.ToTable("WeeklyForm", "dbo");
+                });
+
             modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -1463,6 +1544,238 @@ namespace Server.Data.Migrations
                     b.ToTable("WorkCategoryWorkshop", "dbo");
                 });
 
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("ActualMinutes")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("CodeSeq")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("EquipmentCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("EquipmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EquipmentName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Explanation")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("FiveS")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsUnplanned")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal?>("PlannedMinutes")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal?>("ResultPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("WeeklyFormId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("WorkPermit")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code");
+
+                    b.HasIndex("WeeklyFormId");
+
+                    b.HasIndex("WorkCategoryId");
+
+                    b.ToTable("WorkItem", "dbo");
+                });
+
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkItemCodeCounter", b =>
+                {
+                    b.Property<int>("WeeklyFormId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LastSeq")
+                        .HasColumnType("int");
+
+                    b.HasKey("WeeklyFormId", "WorkCategoryId");
+
+                    b.ToTable("WorkItemCodeCounter", "dbo");
+                });
+
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkItemWorker", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkItemId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("WorkItemId");
+
+                    b.ToTable("WorkItemWorker", "dbo");
+                });
+
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkMaterial", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("ActualQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsUnplanned")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MaterialCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("MaterialName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int?>("MaterialPurposeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal?>("PlannedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Uom")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateOnly?>("UsageDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("WeeklyFormId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkItemId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MaterialPurposeId");
+
+                    b.HasIndex("WeeklyFormId");
+
+                    b.HasIndex("WorkItemId");
+
+                    b.ToTable("WorkMaterial", "dbo");
+                });
+
             modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkReportSetting", b =>
                 {
                     b.Property<int>("Id")
@@ -1538,6 +1851,9 @@ namespace Server.Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsCustom")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -1564,7 +1880,7 @@ namespace Server.Data.Migrations
 
                     b.HasIndex("OrgUnitId")
                         .IsUnique()
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("[IsDeleted] = 0 AND [IsCustom] = 0");
 
                     b.ToTable("WorkReportUnit", "dbo");
                 });
@@ -1868,6 +2184,25 @@ namespace Server.Data.Migrations
                     b.Navigation("Type");
                 });
 
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WeeklyForm", b =>
+                {
+                    b.HasOne("Server.Modules.WorkReports.Entities.WorkReportUnit", "WorkReportUnit")
+                        .WithMany()
+                        .HasForeignKey("WorkReportUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Server.Modules.WorkReports.Entities.WorkWeek", "WorkWeek")
+                        .WithMany()
+                        .HasForeignKey("WorkWeekId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("WorkReportUnit");
+
+                    b.Navigation("WorkWeek");
+                });
+
             modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkCategoryWorkshop", b =>
                 {
                     b.HasOne("Server.Modules.WorkReports.Entities.WorkCategory", "WorkCategory")
@@ -1877,6 +2212,54 @@ namespace Server.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("WorkCategory");
+                });
+
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkItem", b =>
+                {
+                    b.HasOne("Server.Modules.WorkReports.Entities.WeeklyForm", "WeeklyForm")
+                        .WithMany("Items")
+                        .HasForeignKey("WeeklyFormId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Server.Modules.WorkReports.Entities.WorkCategory", "WorkCategory")
+                        .WithMany()
+                        .HasForeignKey("WorkCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("WeeklyForm");
+
+                    b.Navigation("WorkCategory");
+                });
+
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkItemWorker", b =>
+                {
+                    b.HasOne("Server.Modules.WorkReports.Entities.WorkItem", "WorkItem")
+                        .WithMany("Workers")
+                        .HasForeignKey("WorkItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkItem");
+                });
+
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkMaterial", b =>
+                {
+                    b.HasOne("Server.Modules.WorkReports.Entities.MaterialPurpose", "MaterialPurpose")
+                        .WithMany()
+                        .HasForeignKey("MaterialPurposeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Server.Modules.WorkReports.Entities.WorkItem", "WorkItem")
+                        .WithMany()
+                        .HasForeignKey("WorkItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MaterialPurpose");
+
+                    b.Navigation("WorkItem");
                 });
 
             modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkReportUnitEngineer", b =>
@@ -1930,9 +2313,19 @@ namespace Server.Data.Migrations
                     b.Navigation("Children");
                 });
 
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WeeklyForm", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkCategory", b =>
                 {
                     b.Navigation("Workshops");
+                });
+
+            modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkItem", b =>
+                {
+                    b.Navigation("Workers");
                 });
 
             modelBuilder.Entity("Server.Modules.WorkReports.Entities.WorkReportUnit", b =>

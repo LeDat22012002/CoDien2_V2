@@ -11,6 +11,15 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         {
             await next(context);
         }
+        catch (ConflictException ex)
+        {
+            await WriteErrorAsync(context, StatusCodes.Status409Conflict, new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = ex.LatestData,
+            });
+        }
         catch (AppException ex)
         {
             await WriteErrorAsync(context, GetStatusCode(ex), ApiResponse.Fail(ex.Message, ex.Errors));

@@ -56,9 +56,11 @@ public sealed class OrgTree
         return chain.Count >= 2 && chain[^1].ParentId is null ? chain[^2] : null;
     }
 
-    /// <summary>Đội (TEAM) gần nhất phía trên đơn vị.</summary>
+    /// <summary>Đội (TEAM) chứa đơn vị: chính nó nếu là đội, không thì đội gần nhất phía trên.</summary>
     public OrgUnitDto? GetTeam(int id) =>
-        GetAncestors(id).FirstOrDefault(x => x.TypeCode == OrgUnitTypeCodes.Team);
+        Get(id) is { TypeCode: OrgUnitTypeCodes.Team } self
+            ? self
+            : GetAncestors(id).FirstOrDefault(x => x.TypeCode == OrgUnitTypeCodes.Team);
 
     /// <summary>Đơn vị con cháu (không gồm chính nó), duyệt theo chiều rộng.</summary>
     public IReadOnlyList<OrgUnitDto> GetDescendants(int id)

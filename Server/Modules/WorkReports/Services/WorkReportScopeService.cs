@@ -33,34 +33,36 @@ public class WorkReportScopeService(
         var userId = currentUserService.UserId ?? throw new UnauthorizedException(InvalidSessionMessage);
         var canConfigure = await permissionChecker.HasPermissionAsync(
             userId, PermissionCodes.WorkReports.Configure, cancellationToken);
-        var canViewFactory = await permissionChecker.HasPermissionAsync(
-            userId, PermissionCodes.WorkReports.ViewFactory, cancellationToken);
+        var canSubmit = await permissionChecker.HasPermissionAsync(
+            userId, PermissionCodes.WorkReports.Submit, cancellationToken);
+        var canManage = await permissionChecker.HasPermissionAsync(
+            userId, PermissionCodes.WorkReports.Manage, cancellationToken);
 
         var employeeId = await employeeService.GetCurrentEmployeeIdAsync(cancellationToken);
         var engineerUnitIds = new HashSet<int>();
         var managedTeamIds = new HashSet<int>();
         var managedWorkshopIds = new HashSet<int>();
 
-        if (employeeId is { } id)
+        // Mã quyền quyết định vai trò; phân công / sơ đồ tổ chức quyết định tổ, đội, xưởng nào
+        if (employeeId is { } id && canSubmit)
         {
             engineerUnitIds.UnionWith(await unitRepository.GetUnitIdsOfEngineerAsync(id, Today, cancellationToken));
+        }
 
+        if (employeeId is { } managerId && canManage)
+        {
             var tree = await orgTreeProvider.GetAsync(cancellationToken);
-            var positions = await assignmentService.GetCurrentAssignmentsAsync([id], cancellationToken);
+            var positions = await assignmentService.GetCurrentAssignmentsAsync([managerId], cancellationToken);
             foreach (var position in positions.Where(x => x.UnitRole is UnitRoles.Head or UnitRoles.Deputy))
             {
                 var unit = tree.Get(position.OrgUnitId);
-                if (unit is null)
+                if (unit is null || unit.ParentId is null)
                 {
+                    // Trưởng/phó Nhà máy (Ban Giám đốc) xem toàn nhà máy ở trang công khai /work-reports
                     continue;
                 }
 
-                if (unit.ParentId is null)
-                {
-                    // Trưởng/phó Nhà máy (Ban Giám đốc) xem được mọi xưởng
-                    canViewFactory = true;
-                }
-                else if (tree.GetWorkshop(unit.Id)?.Id == unit.Id)
+                if (tree.GetWorkshop(unit.Id)?.Id == unit.Id)
                 {
                     // Trưởng/phó đơn vị cấp 1 (quản đốc/phó; đội trưởng của đội trực thuộc Nhà máy) quản lý cả đơn vị
                     managedWorkshopIds.Add(unit.Id);
@@ -76,18 +78,23 @@ public class WorkReportScopeService(
         {
             EmployeeId = employeeId,
             CanConfigure = canConfigure,
-            CanViewFactory = canViewFactory,
             EngineerUnitIds = engineerUnitIds,
             ManagedTeamIds = managedTeamIds,
             ManagedWorkshopIds = managedWorkshopIds,
         };
     }
 
-    public async Task<WorkReportUnitAccessDto> GetUnitAccessAsync(WorkReportUnit unit, CancellationToken cancellationToken)
+    public void UsePublicView() => _scope = new WorkReportScope { CanViewFactory = true };
+
+    public Task<WorkReportUnitAccessDto> GetUnitAccessAsync(WorkReportUnit unit, CancellationToken cancellationToken) =>
+        GetUnitAccessAsync(unit, null, cancellationToken);
+
+    public async Task<WorkReportUnitAccessDto> GetUnitAccessAsync(
+        WorkReportUnit unit, int? workshopId, CancellationToken cancellationToken)
     {
         var scope = await GetScopeAsync(cancellationToken);
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
-        return ComputeAccess(scope, tree, unit);
+        return ComputeAccess(scope, tree, unit, workshopId);
     }
 
     public async Task<bool> CanManageWorkshopAsync(int workshopId, CancellationToken cancellationToken)
@@ -136,15 +143,19 @@ public class WorkReportScopeService(
         };
     }
 
-    private static WorkReportUnitAccessDto ComputeAccess(WorkReportScope scope, OrgTree tree, WorkReportUnit unit)
+    /// <param name="formWorkshopId">Xưởng đã chụp trong form (tổ đã chuyển xưởng thì tuần cũ thuộc quản đốc xưởng cũ).</param>
+    private static WorkReportUnitAccessDto ComputeAccess(
+        WorkReportScope scope, OrgTree tree, WorkReportUnit unit, int? formWorkshopId = null)
     {
         var orgUnit = tree.Get(unit.OrgUnitId);
         var isShift = orgUnit?.TypeCode == OrgUnitTypeCodes.Shift;
-        var workshopId = tree.GetWorkshop(unit.OrgUnitId)?.Id;
+        var workshopId = formWorkshopId ?? tree.GetWorkshop(unit.OrgUnitId)?.Id;
 
         var isAdmin = scope.CanConfigure;
         var isWorkshopManager = workshopId is { } wsId && scope.ManagedWorkshopIds.Contains(wsId);
-        var isTeamManager = tree.GetAncestors(unit.OrgUnitId).Any(x => scope.ManagedTeamIds.Contains(x.Id));
+        // Đơn vị tự đặt gắn trực tiếp với đội: OrgUnitId chính là đội
+        var isTeamManager = scope.ManagedTeamIds.Contains(unit.OrgUnitId)
+                            || tree.GetAncestors(unit.OrgUnitId).Any(x => scope.ManagedTeamIds.Contains(x.Id));
         var isEngineer = scope.EngineerUnitIds.Contains(unit.Id);
 
         var role = isWorkshopManager ? WorkReportRoles.WorkshopManager

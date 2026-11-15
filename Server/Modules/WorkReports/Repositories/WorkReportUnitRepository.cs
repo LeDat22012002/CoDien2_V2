@@ -28,10 +28,40 @@ public class WorkReportUnitRepository(AppDbContext dbContext) : IWorkReportUnitR
         IReadOnlyCollection<int> ids, CancellationToken cancellationToken) =>
         await Units.Where(x => ids.Contains(x.Id)).ToListAsync(cancellationToken);
 
-    public Task<bool> IsOrgUnitConfiguredAsync(int orgUnitId, CancellationToken cancellationToken) =>
-        Units.AnyAsync(x => x.OrgUnitId == orgUnitId, cancellationToken);
+    public async Task<IReadOnlyList<WorkReportUnit>> GetAllIncludingDeletedAsync(CancellationToken cancellationToken) =>
+        await Units.AsNoTracking().IgnoreQueryFilters()
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+    public Task<WorkReportUnit?> FindDeletedByIdAsync(int id, CancellationToken cancellationToken) =>
+        Units.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == id && x.IsDeleted, cancellationToken);
+
+    public async Task<bool> HasDataAsync(int unitId, CancellationToken cancellationToken) =>
+        await dbContext.Set<WorkItem>().AnyAsync(x => x.WeeklyForm.WorkReportUnitId == unitId, cancellationToken)
+        || await dbContext.Set<WorkMaterial>().AnyAsync(
+            x => dbContext.Set<WeeklyForm>().Any(f => f.Id == x.WeeklyFormId && f.WorkReportUnitId == unitId),
+            cancellationToken);
+
+    public async Task<IReadOnlyList<WeeklyForm>> FindFormsAsync(int unitId, CancellationToken cancellationToken) =>
+        await dbContext.Set<WeeklyForm>().Where(x => x.WorkReportUnitId == unitId).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<WorkReportUnitEngineer>> FindAllEngineersAsync(
+        int unitId, CancellationToken cancellationToken) =>
+        await Engineers.Where(x => x.WorkReportUnitId == unitId).ToListAsync(cancellationToken);
 
     public void Add(WorkReportUnit unit) => Units.Add(unit);
+
+    public void Remove(WorkReportUnit unit) => Units.Remove(unit);
+
+    public void RemoveForm(WeeklyForm form) => dbContext.Set<WeeklyForm>().Remove(form);
+
+    public void Detach(IEnumerable<WorkReportUnit> units)
+    {
+        foreach (var unit in units)
+        {
+            dbContext.Entry(unit).State = EntityState.Detached;
+        }
+    }
 
     // ===== Kỹ sư phụ trách =====
 

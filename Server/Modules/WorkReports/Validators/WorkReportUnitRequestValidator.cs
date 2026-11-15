@@ -47,14 +47,18 @@ public static partial class WorkReportUnitRequestValidator
 
     public static void Validate(CreateWorkReportUnitRequest request)
     {
-        if (request.OrgUnitId <= 0)
+        var errors = new Dictionary<string, string[]>();
+        if (request.ParentOrgUnitId <= 0)
         {
-            throw new ValidationException("Dữ liệu không hợp lệ.", new Dictionary<string, string[]>
-            {
-                ["orgUnitId"] = ["Vui lòng chọn tổ/kíp."],
-            });
+            errors["parentOrgUnitId"] = ["Vui lòng chọn xưởng hoặc đội chứa đơn vị."];
         }
 
+        if (string.IsNullOrWhiteSpace(request.DisplayName))
+        {
+            errors["displayName"] = ["Tên đơn vị không được để trống."];
+        }
+
+        errors.ThrowIfInvalid();
         Validate((WorkReportUnitRequestBase)request);
     }
 }

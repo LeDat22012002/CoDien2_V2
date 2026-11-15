@@ -10,7 +10,7 @@ public class MyWorkReportScopeDto
     /// <summary>Có quyền work-reports.configure.</summary>
     public bool CanConfigure { get; init; }
 
-    /// <summary>Xem mọi xưởng (work-reports.view-factory hoặc trưởng/phó Nhà máy).</summary>
+    /// <summary>Xem mọi xưởng, chỉ xem (trang công khai /work-reports).</summary>
     public bool CanViewFactory { get; init; }
 
     public IReadOnlyList<WorkReportScopeWorkshopDto> Workshops { get; init; } = [];

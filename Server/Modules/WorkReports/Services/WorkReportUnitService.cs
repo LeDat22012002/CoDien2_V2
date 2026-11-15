@@ -1,7 +1,4 @@
-using System.Globalization;
-using System.Text;
 using Server.Data;
-using Server.Modules.Organization.DTOs;
 using Server.Modules.Organization.Entities;
 using Server.Modules.WorkReports.DTOs;
 using Server.Modules.WorkReports.Entities;
@@ -13,41 +10,39 @@ using Server.Shared.Exceptions;
 namespace Server.Modules.WorkReports.Services;
 
 /// <summary>
-/// Đơn vị báo cáo (tổ GROUP / kíp SHIFT). Thêm/sửa/sắp xếp: admin hoặc quản đốc/phó của xưởng.
+/// Đơn vị báo cáo. Mặc định = tổ/kíp trên sơ đồ (IWorkReportUnitSyncService tự tạo); thêm đơn vị tự đặt / sửa / xóa /
+/// khôi phục / sắp xếp: admin hoặc quản đốc/phó của xưởng.
 /// Xưởng của đơn vị tính từ cây tổ chức tại thời điểm đọc (tổ chuyển xưởng thì đi theo xưởng mới).
+/// Thêm / bật lại / sửa / khôi phục đơn vị → đồng bộ form của tuần đang làm việc ngay (không chờ tác vụ nền).
 /// </summary>
 public class WorkReportUnitService(
     IWorkReportUnitRepository unitRepository,
+    IWorkReportUnitSyncService unitSyncService,
     IWorkReportUnitEngineerService engineerService,
     IWorkReportScopeService scopeService,
+    IWeeklyFormService weeklyFormService,
     IOrgTreeProvider orgTreeProvider,
     IUnitOfWork unitOfWork) : IWorkReportUnitService
 {
     private const string NotFoundMessage = "Không tìm thấy đơn vị báo cáo.";
     private const int SortOrderStep = 10;
 
-    /// <summary>Loại đơn vị được làm đơn vị báo cáo.</summary>
-    private static readonly HashSet<string> ReportableTypes = [OrgUnitTypeCodes.Group, OrgUnitTypeCodes.Shift];
-
-    /// <summary>Từ bỏ đi khi gợi ý tiền tố (đã bỏ dấu, viết hoa).</summary>
-    private static readonly HashSet<string> PrefixStopWords = ["TO", "KIP", "NHOM", "THEO", "CA", "DOI"];
-
     public async Task<IReadOnlyList<WorkReportUnitDto>> GetListAsync(
         WorkReportUnitFilterRequest filter, CancellationToken cancellationToken)
     {
+        // Tổ/kíp mới trên sơ đồ → đơn vị báo cáo + form ngay khi mở danh sách
+        var createdIds = await unitSyncService.EnsureFromOrgChartAsync(filter.WorkshopId, cancellationToken);
+        if (createdIds.Count > 0)
+        {
+            await weeklyFormService.SyncFormsAsync(createdIds, cancellationToken);
+        }
+
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
         var units = (await unitRepository.GetListAsync(filter.IncludeInactive, cancellationToken))
             .Where(x => filter.WorkshopId is not { } workshopId || tree.GetWorkshop(x.OrgUnitId)?.Id == workshopId)
             .ToList();
 
-        var engineers = await engineerService.GetActiveByUnitAsync(
-            units.Select(x => x.Id).ToList(), cancellationToken);
-
-        var result = new List<WorkReportUnitDto>();
-        foreach (var unit in units)
-        {
-            result.Add(await ToDtoAsync(unit, tree, engineers, cancellationToken));
-        }
+        var result = await ToDtosAsync(units, tree, cancellationToken);
 
         // Theo thứ tự xưởng trên sơ đồ rồi thứ tự trong xưởng
         var workshopOrder = tree.GetWorkshops().Select((x, index) => (x.Id, index)).ToDictionary(x => x.Id, x => x.index);
@@ -63,38 +58,33 @@ public class WorkReportUnitService(
         var unit = await unitRepository.GetByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException(NotFoundMessage);
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
-        var engineers = await engineerService.GetActiveByUnitAsync([id], cancellationToken);
-
-        return await ToDtoAsync(unit, tree, engineers, cancellationToken);
+        return (await ToDtosAsync([unit], tree, cancellationToken))[0];
     }
 
-    public async Task<IReadOnlyList<UnconfiguredOrgUnitDto>> GetUnconfiguredAsync(
-        int workshopId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<WorkReportUnitDto>> GetDeletedAsync(int workshopId, CancellationToken cancellationToken)
     {
+        var tree = await GetWorkshopTreeAsync(workshopId, cancellationToken);
         await EnsureCanManageWorkshopAsync(workshopId, cancellationToken);
 
-        var tree = await orgTreeProvider.GetAsync(cancellationToken);
-        var workshop = tree.Get(workshopId) ?? throw new NotFoundException("Không tìm thấy xưởng.");
-        var configuredOrgUnitIds = (await unitRepository.GetListAsync(includeInactive: true, cancellationToken))
-            .Select(x => x.OrgUnitId)
-            .ToHashSet();
+        var units = (await unitRepository.GetAllIncludingDeletedAsync(cancellationToken))
+            .Where(x => x.IsDeleted && tree.GetWorkshop(x.OrgUnitId)?.Id == workshopId)
+            .OrderBy(x => x.DisplayName)
+            .ToList();
 
-        return tree.GetDescendants(workshopId)
-            .Where(x => x.IsActive && ReportableTypes.Contains(x.TypeCode) && !configuredOrgUnitIds.Contains(x.Id))
-            .Select(x => new UnconfiguredOrgUnitDto
-            {
-                OrgUnitId = x.Id,
-                OrgUnitCode = x.Code,
-                OrgUnitName = x.Name,
-                OrgUnitTypeCode = x.TypeCode,
-                Shift = x.Shift,
-                TeamName = tree.GetTeam(x.Id)?.Name,
-                WorkshopId = workshop.Id,
-                WorkshopName = workshop.Name,
-                SuggestedDisplayName = x.Name,
-                SuggestedCodePrefix = SuggestCodePrefix(x),
-                SuggestedLaborType = x.TypeCode == OrgUnitTypeCodes.Shift ? LaborTypes.Shift : LaborTypes.Hc,
-            })
+        return await ToDtosAsync(units, tree, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<WorkReportUnitParentOptionDto>> GetParentOptionsAsync(
+        int workshopId, CancellationToken cancellationToken)
+    {
+        var tree = await GetWorkshopTreeAsync(workshopId, cancellationToken);
+        await EnsureCanManageWorkshopAsync(workshopId, cancellationToken);
+
+        var workshop = tree.Get(workshopId)!;
+        return new[] { new WorkReportUnitParentOptionDto { OrgUnitId = workshop.Id, Name = workshop.Name, IsWorkshop = true } }
+            .Concat(tree.GetDescendants(workshopId)
+                .Where(x => x.IsActive && x.TypeCode == OrgUnitTypeCodes.Team)
+                .Select(x => new WorkReportUnitParentOptionDto { OrgUnitId = x.Id, Name = x.Name }))
             .ToList();
     }
 
@@ -105,37 +95,35 @@ public class WorkReportUnitService(
         WorkReportUnitRequestValidator.Validate(request);
 
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
-        var orgUnit = tree.Get(request.OrgUnitId);
-        if (orgUnit is null || !orgUnit.IsActive || !ReportableTypes.Contains(orgUnit.TypeCode))
+        var parent = tree.Get(request.ParentOrgUnitId);
+        var workshop = parent is null ? null : tree.GetWorkshop(parent.Id);
+        if (parent is null || !parent.IsActive || workshop is null
+            || (parent.Id != workshop.Id && parent.TypeCode != OrgUnitTypeCodes.Team))
         {
-            throw FieldError("orgUnitId", "Chỉ chọn được tổ hoặc kíp đang hoạt động trên sơ đồ tổ chức.");
+            throw FieldError("parentOrgUnitId", "Chỉ gắn được với xưởng hoặc đội đang hoạt động trên sơ đồ tổ chức.");
         }
 
-        var workshop = tree.GetWorkshop(orgUnit.Id)
-            ?? throw new BusinessException("Tổ/kíp chưa thuộc xưởng nào trên sơ đồ tổ chức.");
         await EnsureCanManageWorkshopAsync(workshop.Id, cancellationToken);
-
-        if (await unitRepository.IsOrgUnitConfiguredAsync(orgUnit.Id, cancellationToken))
-        {
-            throw new BusinessException($"'{orgUnit.Name}' đã là đơn vị báo cáo.");
-        }
 
         var unitsInWorkshop = await GetUnitsInWorkshopAsync(workshop.Id, tree, cancellationToken);
         EnsureCodePrefixAvailable(request.CodePrefix, null, unitsInWorkshop);
 
         var unit = new WorkReportUnit
         {
-            OrgUnitId = orgUnit.Id,
-            DisplayName = request.DisplayName ?? orgUnit.Name,
+            OrgUnitId = parent.Id,
+            IsCustom = true,
+            DisplayName = request.DisplayName!,
             CodePrefix = request.CodePrefix,
             LaborType = request.LaborType,
-            SortOrder = request.SortOrder
-                        ?? (unitsInWorkshop.Count == 0 ? 0 : unitsInWorkshop.Max(x => x.SortOrder)) + SortOrderStep,
+            SortOrder = (unitsInWorkshop.Count == 0 ? 0 : unitsInWorkshop.Max(x => x.SortOrder)) + SortOrderStep,
             IsActive = true,
         };
 
         unitRepository.Add(unit);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Tạo form cho tuần đang chạy (báo cáo chưa khóa) và tuần kế hoạch
+        await weeklyFormService.SyncFormsAsync([unit.Id], cancellationToken);
 
         return await GetByIdAsync(unit.Id, cancellationToken);
     }
@@ -151,19 +139,99 @@ public class WorkReportUnitService(
 
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
         var workshop = tree.GetWorkshop(unit.OrgUnitId)
-            ?? throw new BusinessException("Tổ/kíp chưa thuộc xưởng nào trên sơ đồ tổ chức.");
+            ?? throw new BusinessException("Đơn vị chưa thuộc xưởng nào trên sơ đồ tổ chức.");
         await EnsureCanManageWorkshopAsync(workshop.Id, cancellationToken);
+
+        // Bật lại đơn vị: đơn vị gốc trên sơ đồ phải còn hoạt động
+        var orgUnit = tree.Get(unit.OrgUnitId);
+        if (request.IsActive && !unit.IsActive && (orgUnit is null || !orgUnit.IsActive))
+        {
+            throw new BusinessException(
+                $"'{orgUnit?.Name ?? unit.DisplayName}' đã ngừng trên sơ đồ tổ chức, không bật lại đơn vị báo cáo được.");
+        }
+
+        if (unit.IsCustom && request.DisplayName is null)
+        {
+            throw FieldError("displayName", "Tên đơn vị không được để trống.");
+        }
 
         var unitsInWorkshop = await GetUnitsInWorkshopAsync(workshop.Id, tree, cancellationToken);
         EnsureCodePrefixAvailable(request.CodePrefix, id, unitsInWorkshop);
 
-        // Đổi tiền tố chỉ áp dụng cho mã sinh sau này; mã công việc đã sinh giữ nguyên
-        unit.DisplayName = request.DisplayName ?? tree.Get(unit.OrgUnitId)?.Name ?? unit.DisplayName;
+        // Đổi tiền tố chỉ áp dụng cho form chưa cấp mã; mã công việc đã sinh giữ nguyên
+        unit.DisplayName = request.DisplayName ?? orgUnit?.Name ?? unit.DisplayName;
         unit.CodePrefix = request.CodePrefix;
         unit.LaborType = request.LaborType;
         unit.IsActive = request.IsActive;
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Cập nhật tên / loại giờ công của form chưa khóa; bật lại → tạo form; ngừng → bỏ form trống tuần sau
+        await weeklyFormService.SyncFormsAsync([id], cancellationToken);
+
+        return await GetByIdAsync(id, cancellationToken);
+    }
+
+    public async Task DeleteAsync(int id, CancellationToken cancellationToken)
+    {
+        var unit = await unitRepository.FindByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException(NotFoundMessage);
+
+        var tree = await orgTreeProvider.GetAsync(cancellationToken);
+        var workshop = tree.GetWorkshop(unit.OrgUnitId)
+            ?? throw new BusinessException("Đơn vị chưa thuộc xưởng nào trên sơ đồ tổ chức.");
+        await EnsureCanManageWorkshopAsync(workshop.Id, cancellationToken);
+
+        if (await unitRepository.HasDataAsync(id, cancellationToken))
+        {
+            throw new BusinessException(
+                $"'{unit.DisplayName}' đã có kế hoạch / báo cáo, không xóa được để giữ lịch sử. Hãy chuyển sang \"Ngừng dùng\".");
+        }
+
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            // Chưa có dữ liệu: bỏ form trống và phân công kỹ sư; tổ/kíp theo sơ đồ giữ dòng đã xóa để không tự tạo lại
+            foreach (var form in await unitRepository.FindFormsAsync(id, ct))
+            {
+                unitRepository.RemoveForm(form);
+            }
+
+            foreach (var engineer in await unitRepository.FindAllEngineersAsync(id, ct))
+            {
+                unitRepository.RemoveEngineer(engineer);
+            }
+
+            unitRepository.Remove(unit);
+            await unitOfWork.SaveChangesAsync(ct);
+        }, cancellationToken);
+    }
+
+    public async Task<WorkReportUnitDto> RestoreAsync(int id, CancellationToken cancellationToken)
+    {
+        var unit = await unitRepository.FindDeletedByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy đơn vị báo cáo đã xóa.");
+
+        var tree = await orgTreeProvider.GetAsync(cancellationToken);
+        var orgUnit = tree.Get(unit.OrgUnitId);
+        var workshop = tree.GetWorkshop(unit.OrgUnitId);
+        if (orgUnit is null || !orgUnit.IsActive || workshop is null)
+        {
+            throw new BusinessException(
+                $"'{orgUnit?.Name ?? unit.DisplayName}' đã ngừng trên sơ đồ tổ chức, không khôi phục được.");
+        }
+
+        await EnsureCanManageWorkshopAsync(workshop.Id, cancellationToken);
+
+        // Tiền tố đã bị đơn vị khác dùng trong lúc bị xóa → tự thêm hậu tố
+        var unitsInWorkshop = await GetUnitsInWorkshopAsync(workshop.Id, tree, cancellationToken);
+        var usedPrefixes = new HashSet<string>(unitsInWorkshop.Select(x => x.CodePrefix), StringComparer.OrdinalIgnoreCase);
+
+        unit.IsDeleted = false;
+        unit.IsActive = true;
+        unit.CodePrefix = WorkReportUnitPrefixes.MakeUnique(unit.CodePrefix, usedPrefixes);
+        unit.SortOrder = (unitsInWorkshop.Count == 0 ? 0 : unitsInWorkshop.Max(x => x.SortOrder)) + SortOrderStep;
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await weeklyFormService.SyncFormsAsync([id], cancellationToken);
         return await GetByIdAsync(id, cancellationToken);
     }
 
@@ -193,42 +261,60 @@ public class WorkReportUnitService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<WorkReportUnitDto> ToDtoAsync(
-        WorkReportUnit unit,
-        OrgTree tree,
-        IReadOnlyDictionary<int, IReadOnlyList<WorkReportUnitEngineerDto>> engineers,
-        CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<WorkReportUnitDto>> ToDtosAsync(
+        IReadOnlyList<WorkReportUnit> units, OrgTree tree, CancellationToken cancellationToken)
     {
-        var orgUnit = tree.Get(unit.OrgUnitId);
-        var workshop = tree.GetWorkshop(unit.OrgUnitId);
-        var team = tree.GetTeam(unit.OrgUnitId);
-        var access = await scopeService.GetUnitAccessAsync(unit, cancellationToken);
+        var engineers = await engineerService.GetActiveByUnitAsync(
+            units.Where(x => !x.IsDeleted).Select(x => x.Id).ToList(), cancellationToken);
 
-        return new WorkReportUnitDto
+        var result = new List<WorkReportUnitDto>();
+        foreach (var unit in units)
         {
-            Id = unit.Id,
-            OrgUnitId = unit.OrgUnitId,
-            OrgUnitCode = orgUnit?.Code ?? string.Empty,
-            OrgUnitName = orgUnit?.Name ?? string.Empty,
-            OrgUnitTypeCode = orgUnit?.TypeCode ?? string.Empty,
-            Shift = orgUnit?.Shift,
-            IsOrgUnitActive = orgUnit?.IsActive ?? false,
-            TeamId = team?.Id,
-            TeamName = team?.Name,
-            WorkshopId = workshop?.Id,
-            WorkshopName = workshop?.Name,
-            DisplayName = unit.DisplayName,
-            CodePrefix = unit.CodePrefix,
-            LaborType = unit.LaborType,
-            SortOrder = unit.SortOrder,
-            IsActive = unit.IsActive,
-            Engineers = engineers.GetValueOrDefault(unit.Id, []),
-            CanConfigure = access.CanConfigure,
-            CanManageEngineers = access.CanManageEngineers,
-        };
+            var orgUnit = tree.Get(unit.OrgUnitId);
+            var workshop = tree.GetWorkshop(unit.OrgUnitId);
+            var team = tree.GetTeam(unit.OrgUnitId);
+            var access = await scopeService.GetUnitAccessAsync(unit, cancellationToken);
+
+            result.Add(new WorkReportUnitDto
+            {
+                Id = unit.Id,
+                OrgUnitId = unit.OrgUnitId,
+                OrgUnitCode = orgUnit?.Code ?? string.Empty,
+                OrgUnitName = orgUnit?.Name ?? string.Empty,
+                OrgUnitTypeCode = orgUnit?.TypeCode ?? string.Empty,
+                IsCustom = unit.IsCustom,
+                Shift = orgUnit?.Shift,
+                IsOrgUnitActive = orgUnit?.IsActive ?? false,
+                TeamId = team?.Id,
+                TeamName = team?.Name,
+                WorkshopId = workshop?.Id,
+                WorkshopName = workshop?.Name,
+                DisplayName = unit.DisplayName,
+                CodePrefix = unit.CodePrefix,
+                LaborType = unit.LaborType,
+                SortOrder = unit.SortOrder,
+                IsActive = unit.IsActive,
+                Engineers = engineers.GetValueOrDefault(unit.Id, []),
+                CanConfigure = access.CanConfigure,
+                CanManageEngineers = !unit.IsDeleted && access.CanManageEngineers,
+            });
+        }
+
+        return result;
     }
 
-    /// <summary>Mọi đơn vị báo cáo (kể cả ngừng dùng) đang thuộc xưởng.</summary>
+    private async Task<OrgTree> GetWorkshopTreeAsync(int workshopId, CancellationToken cancellationToken)
+    {
+        var tree = await orgTreeProvider.GetAsync(cancellationToken);
+        if (tree.Get(workshopId) is null || tree.GetWorkshop(workshopId)?.Id != workshopId)
+        {
+            throw new NotFoundException("Không tìm thấy xưởng.");
+        }
+
+        return tree;
+    }
+
+    /// <summary>Mọi đơn vị báo cáo (kể cả ngừng dùng, không gồm đã xóa) đang thuộc xưởng.</summary>
     private async Task<IReadOnlyList<WorkReportUnit>> GetUnitsInWorkshopAsync(
         int workshopId, OrgTree tree, CancellationToken cancellationToken) =>
         (await unitRepository.GetListAsync(includeInactive: true, cancellationToken))
@@ -252,52 +338,6 @@ public class WorkReportUnitService(
         {
             throw FieldError("codePrefix", $"Tiền tố '{codePrefix}' đã dùng cho '{duplicate.DisplayName}' trong xưởng.");
         }
-    }
-
-    /// <summary>
-    /// Gợi ý tiền tố từ tên viết tắt (hoặc tên): bỏ dấu, bỏ các từ "Tổ/Kíp/Nhóm/theo ca/Đội";
-    /// còn 1 cụm thì giữ nguyên (vd "CK-TBMP"), nhiều cụm thì lấy chữ cái đầu (vd "cơ điện B" → "CDB").
-    /// </summary>
-    private static string SuggestCodePrefix(OrgUnitDto orgUnit)
-    {
-        var source = RemoveDiacritics(orgUnit.ShortName ?? orgUnit.Name).ToUpperInvariant();
-        var words = source
-            .Split(new[] { ' ', '_', ',', '(', ')' }, StringSplitOptions.RemoveEmptyEntries)
-            .Where(x => !PrefixStopWords.Contains(x))
-            .ToList();
-
-        var prefix = words.Count switch
-        {
-            0 => orgUnit.Code,
-            1 => words[0],
-            _ => string.Concat(words.Select(x => x[0])),
-        };
-
-        // Kíp: thêm ca nếu chưa có ở cuối
-        if (orgUnit.Shift is { Length: > 0 } shift && !prefix.EndsWith(shift, StringComparison.OrdinalIgnoreCase))
-        {
-            prefix += shift.ToUpperInvariant();
-        }
-
-        prefix = new string(prefix.Where(c => char.IsLetterOrDigit(c) || c is '-' or '.').ToArray());
-        return prefix.Length > WorkReportUnitRequestValidator.CodePrefixMaxLength
-            ? prefix[..WorkReportUnitRequestValidator.CodePrefixMaxLength]
-            : prefix;
-    }
-
-    private static string RemoveDiacritics(string value)
-    {
-        var normalized = value.Replace('đ', 'd').Replace('Đ', 'D').Normalize(NormalizationForm.FormD);
-        var builder = new StringBuilder(normalized.Length);
-        foreach (var c in normalized)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
-            {
-                builder.Append(c);
-            }
-        }
-
-        return builder.ToString().Normalize(NormalizationForm.FormC);
     }
 
     private static void Normalize(WorkReportUnitRequestBase request)

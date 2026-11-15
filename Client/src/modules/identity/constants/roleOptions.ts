@@ -9,6 +9,7 @@ export const PERMISSION_MODULE_LABELS: Record<string, string> = {
   documents: 'Văn bản',
   equipments: 'Thiết bị',
   incidents: 'Sự cố',
+  'work-reports': 'Báo cáo tuần',
   'audit-logs': 'Nhật ký hệ thống',
 };
 

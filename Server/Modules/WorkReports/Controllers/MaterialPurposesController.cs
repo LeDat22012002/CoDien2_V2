@@ -12,6 +12,9 @@ namespace Server.Modules.WorkReports.Controllers;
 [Route("api/material-purposes")]
 public class MaterialPurposesController(IMaterialPurposeService purposeService) : ControllerBase
 {
+    [HasPermission(
+        PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage,
+        PermissionCodes.WorkReports.Configure)]
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<MaterialPurposeDto>>>> GetList(
         [FromQuery] bool includeInactive, CancellationToken cancellationToken)

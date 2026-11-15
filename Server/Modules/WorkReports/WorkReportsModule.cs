@@ -15,6 +15,9 @@ public static class WorkReportsModule
         services.AddScoped<IWorkReportSettingRepository, WorkReportSettingRepository>();
         services.AddScoped<IWorkReportUnitRepository, WorkReportUnitRepository>();
         services.AddScoped<IWorkWeekRepository, WorkWeekRepository>();
+        services.AddScoped<IWeeklyFormRepository, WeeklyFormRepository>();
+        services.AddScoped<IWorkItemRepository, WorkItemRepository>();
+        services.AddScoped<IWorkMaterialRepository, WorkMaterialRepository>();
 
         // Scoped: cây đơn vị và phạm vi người gọi chỉ tính 1 lần mỗi request
         services.AddScoped<IOrgTreeProvider, OrgTreeProvider>();
@@ -23,8 +26,12 @@ public static class WorkReportsModule
         services.AddScoped<IWorkCategoryService, WorkCategoryService>();
         services.AddScoped<IMaterialPurposeService, MaterialPurposeService>();
         services.AddScoped<IWorkWeekService, WorkWeekService>();
+        services.AddScoped<IWeeklyFormService, WeeklyFormService>();
+        services.AddScoped<IWorkItemService, WorkItemService>();
+        services.AddScoped<IWorkMaterialService, WorkMaterialService>();
         services.AddScoped<IWorkReportSettingService, WorkReportSettingService>();
         services.AddScoped<IWorkReportUnitEngineerService, WorkReportUnitEngineerService>();
+        services.AddScoped<IWorkReportUnitSyncService, WorkReportUnitSyncService>();
         services.AddScoped<IWorkReportUnitService, WorkReportUnitService>();
 
         services.AddHostedService<WorkWeekGeneratorService>();

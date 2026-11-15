@@ -7,9 +7,12 @@ using Server.Shared.Models;
 
 namespace Server.Modules.WorkReports.Controllers;
 
-/// <summary>Đầu mục công việc (nhóm A–I). Xem: chỉ cần đăng nhập; thêm/sửa/ngừng dùng: work-reports.configure.</summary>
+/// <summary>Đầu mục công việc (nhóm A–I). Xem: một trong các quyền work-reports.*; thêm/sửa/ngừng dùng: work-reports.configure.</summary>
 [ApiController]
 [Route("api/work-categories")]
+[HasPermission(
+    PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage,
+    PermissionCodes.WorkReports.Configure)]
 public class WorkCategoriesController(IWorkCategoryService categoryService) : ControllerBase
 {
     [HttpGet]

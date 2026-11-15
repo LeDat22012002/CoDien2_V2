@@ -15,3 +15,9 @@ public class NotFoundException(string message) : AppException(message);
 public class UnauthorizedException(string message) : AppException(message);
 
 public class ForbiddenException(string message) : AppException(message);
+
+/// <summary>Xung đột ghi đồng thời (dữ liệu đã bị người khác sửa) → 409, kèm dữ liệu mới nhất để client hiển thị lại.</summary>
+public class ConflictException(string message, object? latestData = null) : AppException(message)
+{
+    public object? LatestData { get; } = latestData;
+}

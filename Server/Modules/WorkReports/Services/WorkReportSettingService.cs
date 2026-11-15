@@ -10,6 +10,7 @@ namespace Server.Modules.WorkReports.Services;
 public class WorkReportSettingService(
     IWorkReportSettingRepository settingRepository,
     IWorkWeekService workWeekService,
+    IWeeklyFormService weeklyFormService,
     IUnitOfWork unitOfWork) : IWorkReportSettingService
 {
     public async Task<WorkReportSettingDto> GetAsync(CancellationToken cancellationToken) =>
@@ -36,6 +37,9 @@ public class WorkReportSettingService(
         // Cùng 1 lần SaveChanges với cấu hình mới
         await workWeekService.RecalculateDefaultDeadlinesAsync(setting, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Giờ công hiệu dụng mới áp dụng cho form chưa khóa báo cáo; form đã khóa giữ số cũ
+        await weeklyFormService.SyncFormsAsync(null, cancellationToken);
 
         return ToDto(setting);
     }

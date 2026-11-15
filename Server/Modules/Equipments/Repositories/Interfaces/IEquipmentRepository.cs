@@ -15,6 +15,9 @@ public interface IEquipmentRepository
 
     Task<EquipmentDto?> GetByCodeAsync(string code, CancellationToken cancellationToken);
 
+    /// <summary>Thiết bị có mã trong danh sách (bỏ qua mã không có).</summary>
+    Task<IReadOnlyList<EquipmentDto>> GetByCodesAsync(IReadOnlyCollection<string> codes, CancellationToken cancellationToken);
+
     /// <summary>Có tracking; dùng khi cập nhật / xóa.</summary>
     Task<Equipment?> FindByIdAsync(int id, CancellationToken cancellationToken);
 

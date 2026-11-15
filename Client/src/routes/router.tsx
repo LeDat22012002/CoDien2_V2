@@ -79,6 +79,15 @@ export const router = createBrowserRouter([
               ),
           },
           {
+            path: "work-reports",
+            // Báo cáo tuần mọi xưởng (Ban Giám đốc), chỉ xem; bảng nhiều cột nên dùng hết bề rộng
+            handle: { isFullScreen: true } satisfies PublicRouteHandle,
+            lazy: () =>
+              import("@/modules/workReports/pages/FactoryWorkReportPage").then(
+                toRoute,
+              ),
+          },
+          {
             path: "*",
             lazy: () => import("@/shared/pages/NotFoundPage").then(toRoute),
           },
@@ -235,9 +244,46 @@ export const router = createBrowserRouter([
                   },
                 ],
               },
+              {
+                element: <PageGuard pagePath="/admin/work-reports" />,
+                children: [
+                  {
+                    path: "admin/work-reports",
+                    lazy: () =>
+                      import(
+                        "@/modules/workReports/pages/WorkReportManagementPage"
+                      ).then(toRoute),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/work-report-settings" />,
+                children: [
+                  {
+                    path: "admin/work-report-settings",
+                    lazy: () =>
+                      import(
+                        "@/modules/workReports/pages/WorkReportSettingsPage"
+                      ).then(toRoute),
+                  },
+                ],
+              },
               // Các route quản trị khác đặt ở đây (nhớ thêm vào APP_ROUTE_PATHS ở shared/constants/routes.ts)
 
               // Trang cá nhân (menu Area MEMBER, Sider tự đổi sang menu thành viên theo tiền tố /member)
+              {
+                // Kỹ sư (work-reports.submit): tổ/kíp được phân công
+                element: <PageGuard pagePath="/member/work-reports" />,
+                children: [
+                  {
+                    path: "member/work-reports",
+                    lazy: () =>
+                      import("@/modules/workReports/pages/WorkReportPage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
               {
                 element: <PageGuard pagePath="/member/incidents" />,
                 children: [

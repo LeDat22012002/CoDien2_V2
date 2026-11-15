@@ -16,7 +16,8 @@ public class WorkReportUnitConfiguration : IEntityTypeConfiguration<WorkReportUn
         builder.Property(x => x.CodePrefix).HasMaxLength(20).IsRequired();
         builder.Property(x => x.LaborType).HasMaxLength(10).IsUnicode(false).IsRequired();
 
-        // Mỗi tổ/kíp tối đa 1 đơn vị báo cáo. Tiền tố duy nhất trong xưởng: kiểm tra ở Service (xưởng tính từ cây tổ chức)
-        builder.HasIndex(x => x.OrgUnitId).IsUnique().HasFilter("[IsDeleted] = 0");
+        // Mỗi tổ/kíp tối đa 1 đơn vị báo cáo theo sơ đồ (đơn vị tự đặt cùng đội/xưởng thì nhiều).
+        // Tiền tố duy nhất trong xưởng: kiểm tra ở Service (xưởng tính từ cây tổ chức)
+        builder.HasIndex(x => x.OrgUnitId).IsUnique().HasFilter("[IsDeleted] = 0 AND [IsCustom] = 0");
     }
 }

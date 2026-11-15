@@ -26,7 +26,7 @@ public class EngineerSuggestionDto
 
 // ===== Request =====
 
-/// <summary>Danh sách kỹ sư phụ trách mới (lưu cả danh sách): người bỏ ra kết thúc từ hôm nay, người thêm vào bắt đầu từ hôm nay.</summary>
+/// <summary>Danh sách kỹ sư phụ trách mới (lưu cả danh sách): người bỏ ra mất quyền ngay hôm nay, người thêm vào bắt đầu từ hôm nay.</summary>
 public class SetUnitEngineersRequest
 {
     public List<int> EmployeeIds { get; set; } = [];

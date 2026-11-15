@@ -62,6 +62,13 @@ public class EquipmentRepository(AppDbContext dbContext) : IEquipmentRepository
             .Select(x => new EquipmentDto { Id = x.Id, Code = x.Code, Name = x.Name })
             .FirstOrDefaultAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<EquipmentDto>> GetByCodesAsync(
+        IReadOnlyCollection<string> codes, CancellationToken cancellationToken) =>
+        await Equipments.AsNoTracking()
+            .Where(x => codes.Contains(x.Code))
+            .Select(x => new EquipmentDto { Id = x.Id, Code = x.Code, Name = x.Name })
+            .ToListAsync(cancellationToken);
+
     public Task<Equipment?> FindByIdAsync(int id, CancellationToken cancellationToken) =>
         Equipments.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 

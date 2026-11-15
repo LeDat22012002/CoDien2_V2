@@ -7,9 +7,12 @@ using Server.Shared.Models;
 
 namespace Server.Modules.WorkReports.Controllers;
 
-/// <summary>Kỳ tuần và hạn nộp. Xem: đăng nhập; chỉnh hạn (chung / riêng xưởng): work-reports.configure.</summary>
+/// <summary>Kỳ tuần và hạn nộp. Xem: một trong các quyền work-reports.*; chỉnh hạn (chung / riêng xưởng): work-reports.configure.</summary>
 [ApiController]
 [Route("api/work-weeks")]
+[HasPermission(
+    PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage,
+    PermissionCodes.WorkReports.Configure)]
 public class WorkWeeksController(IWorkWeekService weekService) : ControllerBase
 {
     /// <summary>Các tuần của 1 năm ISO; truyền workshopId để có hạn áp dụng cho xưởng đó.</summary>

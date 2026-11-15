@@ -157,7 +157,7 @@ public class WorkCategoryService(
         request.WorkshopIds = request.WorkshopIds?.Distinct().ToList() ?? [];
     }
 
-    private static WorkCategoryDto ToDto(WorkCategory category) => new()
+    public static WorkCategoryDto ToDto(WorkCategory category) => new()
     {
         Id = category.Id,
         Code = category.Code,
