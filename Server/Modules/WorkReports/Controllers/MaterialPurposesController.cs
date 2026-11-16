@@ -13,8 +13,10 @@ namespace Server.Modules.WorkReports.Controllers;
 public class MaterialPurposesController(IMaterialPurposeService purposeService) : ControllerBase
 {
     [HasPermission(
-        PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage,
-        PermissionCodes.WorkReports.Configure)]
+        PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage, PermissionCodes.WorkReports.Configure,
+        PermissionCodes.WorkReports.PlanCreate, PermissionCodes.WorkReports.PlanUpdate, PermissionCodes.WorkReports.PlanDelete,
+        PermissionCodes.WorkReports.ReportCreate, PermissionCodes.WorkReports.ReportUpdate,
+        PermissionCodes.WorkReports.ReportDelete)]
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<MaterialPurposeDto>>>> GetList(
         [FromQuery] bool includeInactive, CancellationToken cancellationToken)

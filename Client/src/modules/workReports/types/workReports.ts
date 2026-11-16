@@ -5,7 +5,7 @@ export type WorkReportPhase = "PLAN" | "REPORT";
 /** Kiểu xem Bảng công việc (chỉ ở FE): ALL = mọi tổ/kíp trong 1 bảng; SHEET = mỗi tổ/kíp 1 sheet. */
 export type WorkGridLayout = "ALL" | "SHEET";
 
-/** NOT_STARTED: báo cáo chưa tới tuần; OPEN: đang nhập; LOCKED: quá hạn (chỉ quản đốc/phó sửa). */
+/** NOT_STARTED: báo cáo chưa tới tuần; OPEN: đang nhập; LOCKED: quá hạn (không ai sửa, chỉ admin mở khóa). */
 export type FormPhaseStatus = "NOT_STARTED" | "OPEN" | "LOCKED";
 
 export type LaborType = "HC" | "KIP";
@@ -22,6 +22,13 @@ export type WorkerOptionScope = "UNIT" | "TEAM" | "WORKSHOP";
 
 // ===== Phạm vi =====
 
+/** Thêm / sửa / xóa dòng (và vật tư) của 1 giai đoạn. */
+export interface WorkReportRights {
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+}
+
 export interface WorkReportUnitAccess {
   unitId: number;
   orgUnitId: number;
@@ -30,9 +37,10 @@ export interface WorkReportUnitAccess {
   sortOrder: number;
   role: WorkReportRole;
   canView: boolean;
-  canEdit: boolean;
-  canEditLocked: boolean;
-  canRequestRevision: boolean;
+  /** Kỹ sư phụ trách: đủ quyền; người khác: quyền admin cấp (work-reports.plan.*) trong đội/xưởng mình. */
+  plan: WorkReportRights;
+  report: WorkReportRights;
+  /** Mở khóa kế hoạch / báo cáo đã quá hạn (chỉ admin). */
   canUnlock: boolean;
   canManageEngineers: boolean;
   canConfigure: boolean;
@@ -219,7 +227,8 @@ export interface WorkItemWorker {
   displayName: string;
 }
 
-export interface WorkItem {
+/** Phần chung của dòng kế hoạch và dòng báo cáo. */
+export interface WorkItemBase {
   id: number;
   weeklyFormId: number;
   tt?: number | null;
@@ -232,9 +241,28 @@ export interface WorkItem {
   equipmentCode?: string | null;
   equipmentName?: string | null;
   description: string;
-  workDate: string;
+  /** (7) Ngày bắt đầu "YYYY-MM-DD". */
+  startDate: string;
+  /** (7) Ngày kết thúc; bằng ngày bắt đầu = làm trong 1 ngày. */
+  endDate: string;
   workerCount: number;
   workers: WorkItemWorker[];
+  note?: string | null;
+  sortOrder: number;
+  rowVersion: string;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+}
+
+export interface WorkPlanItem extends WorkItemBase {
+  plannedMinutes?: number | null;
+}
+
+export interface WorkReportItem extends WorkItemBase {
+  /** Dòng kế hoạch gốc; null = việc phát sinh. */
+  planItemId?: number | null;
+  isUnplanned: boolean;
+  /** Giờ KH chụp từ dòng kế hoạch. */
   plannedMinutes?: number | null;
   actualMinutes?: number | null;
   effectiveActualMinutes: number;
@@ -243,15 +271,10 @@ export interface WorkItem {
   workPermit?: string | null;
   fiveS?: string | null;
   explanation?: string | null;
-  note?: string | null;
-  isUnplanned: boolean;
-  sortOrder: number;
-  rowVersion: string;
-  updatedAt?: string | null;
-  updatedBy?: string | null;
 }
 
-export interface WeeklyForm {
+/** Phần chung của form tuần 1 tổ/kíp ở lưới kế hoạch / báo cáo. */
+export interface WeeklyFormBase {
   formId: number;
   unitId: number;
   workWeekId: number;
@@ -270,29 +293,50 @@ export interface WeeklyForm {
   reportStatus: FormPhaseStatus;
   reportDeadlineAt: string;
   role: WorkReportRole;
+  /** Được thêm / sửa / xóa ngay lúc này (đã tính mở/khóa). */
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
   canEditNow: boolean;
-  canEditLocked: boolean;
-  canRequestRevision: boolean;
+  /** Admin: mở khóa / khóa lại. */
   canUnlock: boolean;
+  /** Quá hạn nhưng đang được admin mở khóa (tới deadlineAt). */
+  isUnlocked: boolean;
   itemCount: number;
   totalPlannedMinutes: number;
   totalActualMinutes: number;
-  items: WorkItem[];
 }
 
-export interface WorkReportGrid {
+export interface WeeklyPlanForm extends WeeklyFormBase {
+  items: WorkPlanItem[];
+}
+
+export interface WeeklyReportForm extends WeeklyFormBase {
+  items: WorkReportItem[];
+  /** Dòng kế hoạch chưa đưa vào báo cáo (chỉ người đang thêm được dòng báo cáo mới có). */
+  suggestions: WorkPlanItem[];
+}
+
+interface WorkGridBase<TPhase extends WorkReportPhase, TForm> {
   workshopId: number;
   workshopName: string;
-  phase: WorkReportPhase;
+  phase: TPhase;
   title: string;
   week: WorkWeek;
   categories: WorkCategory[];
-  forms: WeeklyForm[];
+  forms: TForm[];
 }
+
+export type WorkPlanGrid = WorkGridBase<"PLAN", WeeklyPlanForm>;
+export type WorkReportGrid = WorkGridBase<"REPORT", WeeklyReportForm>;
+/** Lưới của giai đoạn đang xem (phân biệt bằng phase). */
+export type WorkGrid = WorkPlanGrid | WorkReportGrid;
+export type WeeklyForm = WeeklyPlanForm | WeeklyReportForm;
 
 export interface WorkReportFilter {
   workshopId: number;
   weekId: number;
+  /** Chọn API /plan hoặc /report (không gửi lên Server). */
   phase: WorkReportPhase;
   unitId?: number;
 }
@@ -302,53 +346,39 @@ export interface WorkItemWorkerRequest {
   displayName?: string | null;
 }
 
-export interface WorkItemRequest {
+interface WorkItemRequestBase {
   workCategoryId: number;
   equipmentCode?: string | null;
   equipmentName?: string | null;
   description: string;
-  workDate?: string | null;
+  startDate?: string | null;
+  /** Trống = bằng ngày bắt đầu. */
+  endDate?: string | null;
   workers: WorkItemWorkerRequest[];
+  note?: string | null;
+  sortOrder?: number | null;
+}
+
+export interface PlanItemRequest extends WorkItemRequestBase {
+  plannedMinutes?: number | null;
+}
+
+export interface UpdatePlanItemRequest extends PlanItemRequest {
+  rowVersion: string;
+}
+
+export interface ReportItemRequest extends WorkItemRequestBase {
+  /** Giờ KH tự điền: Server chỉ nhận với dòng thêm ở báo cáo (bắt buộc), dòng từ kế hoạch giữ giờ KH. */
   plannedMinutes?: number | null;
   actualMinutes?: number | null;
   resultPercent?: number | null;
   workPermit?: string | null;
   fiveS?: string | null;
   explanation?: string | null;
-  note?: string | null;
-  sortOrder?: number | null;
 }
 
-export interface UpdateWorkItemRequest extends WorkItemRequest {
+export interface UpdateReportItemRequest extends ReportItemRequest {
   rowVersion: string;
-}
-
-/** 1 dòng dán từ Excel: mỗi ô là chuỗi thô, Server chuẩn hóa. */
-export interface PastedWorkItemRow {
-  rowIndex: number;
-  category?: string;
-  equipmentCode?: string;
-  equipmentName?: string;
-  description?: string;
-  workDate?: string;
-  workers?: string;
-  plannedMinutes?: string;
-  actualMinutes?: string;
-  resultPercent?: string;
-  workPermit?: string;
-  fiveS?: string;
-  explanation?: string;
-  note?: string;
-}
-
-export interface PastedRowError {
-  rowIndex: number;
-  errors: Record<string, string[]>;
-}
-
-export interface BatchCreateWorkItemsResult {
-  created: WorkItem[];
-  errors: PastedRowError[];
 }
 
 export interface WorkerOption {
@@ -385,6 +415,7 @@ export interface WorkMaterial {
   materialPurposeId?: number | null;
   materialPurposeCode?: string | null;
   note?: string | null;
+  /** Báo cáo: vật tư phát sinh (không chép từ kế hoạch). */
   isUnplanned: boolean;
   updatedAt?: string | null;
   updatedBy?: string | null;

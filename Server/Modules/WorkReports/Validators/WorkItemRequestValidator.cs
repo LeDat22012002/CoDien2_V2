@@ -4,7 +4,7 @@ using Server.Shared.Extensions;
 
 namespace Server.Modules.WorkReports.Validators;
 
-/// <summary>Kiểm tra dữ liệu 1 dòng công việc theo giai đoạn (đã chuẩn hóa ở Service).</summary>
+/// <summary>Kiểm tra dữ liệu 1 dòng kế hoạch / báo cáo (đã chuẩn hóa ở Service).</summary>
 public static class WorkItemRequestValidator
 {
     public const int DescriptionMaxLength = 1000;
@@ -19,15 +19,52 @@ public static class WorkItemRequestValidator
     /// <summary>Giờ công tối đa 1 dòng (phút) để chặn gõ nhầm: 50 người × 7 ngày × 24 giờ.</summary>
     public const decimal MaxMinutes = 504000m;
 
-    /// <param name="isPlan">Đang ghi giai đoạn kế hoạch.</param>
-    /// <param name="isUnplanned">Dòng phát sinh (chỉ có ở báo cáo).</param>
-    /// <param name="categoryEditable">Có nhận đầu mục (kế hoạch, hoặc dòng phát sinh).</param>
-    public static Dictionary<string, string[]> Collect(
-        WorkItemRequestBase request, WorkWeek week, bool isPlan, bool isUnplanned, bool categoryEditable)
+    public static void ValidatePlan(PlanItemRequest request, WorkWeek week)
+    {
+        var errors = CollectCommon(request, week);
+        CheckMinutes(errors, "plannedMinutes", request.PlannedMinutes, "Giờ công kế hoạch", required: true);
+        errors.ThrowIfInvalid();
+    }
+
+    /// <param name="isUnplanned">Dòng thêm ở báo cáo: bắt buộc tự điền giờ công kế hoạch.</param>
+    public static void ValidateReport(ReportItemRequest request, WorkWeek week, bool isUnplanned)
+    {
+        var errors = CollectCommon(request, week);
+        if (isUnplanned)
+        {
+            CheckMinutes(errors, "plannedMinutes", request.PlannedMinutes, "Giờ công kế hoạch", required: true);
+        }
+
+        CheckMinutes(errors, "actualMinutes", request.ActualMinutes, "Giờ công thực tế", required: false);
+
+        if (request.ResultPercent is < 0 or > 100)
+        {
+            errors["resultPercent"] = ["Kết quả thực hiện từ 0 đến 100%."];
+        }
+
+        if (request.WorkPermit is not null && !WorkPermitValues.All.Contains(request.WorkPermit))
+        {
+            errors["workPermit"] = ["GPLV chỉ nhận Có / Không hoặc để trống."];
+        }
+
+        if (request.FiveS?.Length > FiveSMaxLength)
+        {
+            errors["fiveS"] = [$"5S tối đa {FiveSMaxLength} ký tự."];
+        }
+
+        if (request.Explanation?.Length > ExplanationMaxLength)
+        {
+            errors["explanation"] = [$"Diễn giải tối đa {ExplanationMaxLength} ký tự."];
+        }
+
+        errors.ThrowIfInvalid();
+    }
+
+    private static Dictionary<string, string[]> CollectCommon(WorkItemRequestBase request, WorkWeek week)
     {
         var errors = new Dictionary<string, string[]>();
 
-        if (categoryEditable && request.WorkCategoryId <= 0)
+        if (request.WorkCategoryId <= 0)
         {
             errors["workCategoryId"] = ["Vui lòng chọn công việc thực hiện (đầu mục)."];
         }
@@ -41,13 +78,25 @@ public static class WorkItemRequestValidator
             errors["description"] = [$"Hạng mục công việc tối đa {DescriptionMaxLength} ký tự."];
         }
 
-        if (request.WorkDate is not { } workDate)
+        var weekRange = $"{week.StartDate:dd/MM/yyyy} – {week.EndDate:dd/MM/yyyy}";
+        if (request.StartDate is not { } startDate)
         {
-            errors["workDate"] = ["Vui lòng nhập ngày thực hiện."];
+            errors["startDate"] = ["Vui lòng nhập ngày bắt đầu."];
         }
-        else if (workDate < week.StartDate || workDate > week.EndDate)
+        else if (startDate < week.StartDate || startDate > week.EndDate)
         {
-            errors["workDate"] = [$"Ngày thực hiện phải trong tuần {week.StartDate:dd/MM/yyyy} – {week.EndDate:dd/MM/yyyy}."];
+            errors["startDate"] = [$"Ngày bắt đầu phải trong tuần {weekRange}."];
+        }
+        else if (request.EndDate is { } endDate)
+        {
+            if (endDate < startDate)
+            {
+                errors["endDate"] = ["Ngày kết thúc không được trước ngày bắt đầu."];
+            }
+            else if (endDate > week.EndDate)
+            {
+                errors["endDate"] = [$"Ngày kết thúc phải trong tuần {weekRange}."];
+            }
         }
 
         if (request.EquipmentCode?.Length > EquipmentCodeMaxLength)
@@ -74,35 +123,6 @@ public static class WorkItemRequestValidator
             errors["workers"] = [$"Tên người thực hiện tối đa {WorkerNameMaxLength} ký tự."];
         }
 
-        if (isPlan)
-        {
-            CheckMinutes(errors, "plannedMinutes", request.PlannedMinutes, "Giờ công kế hoạch", required: true);
-        }
-        else
-        {
-            CheckMinutes(errors, "actualMinutes", request.ActualMinutes, "Giờ công thực tế", required: isUnplanned);
-
-            if (request.ResultPercent is < 0 or > 100)
-            {
-                errors["resultPercent"] = ["Kết quả thực hiện từ 0 đến 100%."];
-            }
-
-            if (request.WorkPermit is not null && !WorkPermitValues.All.Contains(request.WorkPermit))
-            {
-                errors["workPermit"] = ["GPLV chỉ nhận Có / Không hoặc để trống."];
-            }
-
-            if (request.FiveS?.Length > FiveSMaxLength)
-            {
-                errors["fiveS"] = [$"5S tối đa {FiveSMaxLength} ký tự."];
-            }
-
-            if (request.Explanation?.Length > ExplanationMaxLength)
-            {
-                errors["explanation"] = [$"Diễn giải tối đa {ExplanationMaxLength} ký tự."];
-            }
-        }
-
         if (request.Note?.Length > NoteMaxLength)
         {
             errors["note"] = [$"Ghi chú tối đa {NoteMaxLength} ký tự."];
@@ -115,10 +135,6 @@ public static class WorkItemRequestValidator
 
         return errors;
     }
-
-    public static void Validate(
-        WorkItemRequestBase request, WorkWeek week, bool isPlan, bool isUnplanned, bool categoryEditable) =>
-        Collect(request, week, isPlan, isUnplanned, categoryEditable).ThrowIfInvalid();
 
     private static void CheckMinutes(
         Dictionary<string, string[]> errors, string key, decimal? value, string label, bool required)

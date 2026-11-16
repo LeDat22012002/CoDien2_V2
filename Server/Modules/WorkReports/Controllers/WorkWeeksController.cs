@@ -11,8 +11,10 @@ namespace Server.Modules.WorkReports.Controllers;
 [ApiController]
 [Route("api/work-weeks")]
 [HasPermission(
-    PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage,
-    PermissionCodes.WorkReports.Configure)]
+    PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage, PermissionCodes.WorkReports.Configure,
+    PermissionCodes.WorkReports.PlanCreate, PermissionCodes.WorkReports.PlanUpdate, PermissionCodes.WorkReports.PlanDelete,
+    PermissionCodes.WorkReports.ReportCreate, PermissionCodes.WorkReports.ReportUpdate,
+    PermissionCodes.WorkReports.ReportDelete)]
 public class WorkWeeksController(IWorkWeekService weekService) : ControllerBase
 {
     /// <summary>Các tuần của 1 năm ISO; truyền workshopId để có hạn áp dụng cho xưởng đó.</summary>

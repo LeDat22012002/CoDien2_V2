@@ -2,6 +2,10 @@ using Server.Modules.WorkReports.DTOs;
 
 namespace Server.Modules.WorkReports.Services.Interfaces;
 
+/// <summary>
+/// Phần chung của kế hoạch và báo cáo: form tuần, quyền + trạng thái giai đoạn, mở khóa, khung lưới / tổng hợp.
+/// Dòng và vật tư của từng giai đoạn ở IWorkPlanService / IWorkReportService và các service vật tư.
+/// </summary>
 public interface IWeeklyFormService
 {
     /// <summary>
@@ -13,10 +17,11 @@ public interface IWeeklyFormService
     Task SyncFormsAsync(IReadOnlyCollection<int>? unitIds, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Form + quyền + trạng thái giai đoạn. forEdit = true: người gọi phải thêm/sửa được ngay
-    /// (ném 403 nếu không có quyền nhập, 400 nếu chưa tới tuần / đã khóa).
+    /// Form + quyền + trạng thái giai đoạn. action khác View: người gọi phải làm được thao tác đó ngay
+    /// (ném 403 nếu không có quyền, 400 nếu chưa tới tuần / đã khóa).
     /// </summary>
-    Task<WeeklyFormContext> GetContextAsync(int formId, string phase, bool forEdit, CancellationToken cancellationToken);
+    Task<WeeklyFormContext> GetContextAsync(
+        int formId, string phase, WorkItemAction action, CancellationToken cancellationToken);
 
     /// <summary>
     /// Form của xưởng trong tuần mà người gọi xem được, theo thứ tự đơn vị trong xưởng.
@@ -25,7 +30,33 @@ public interface IWeeklyFormService
     Task<IReadOnlyList<WeeklyFormContext>> GetVisibleFormsAsync(
         int workshopId, int weekId, string phase, int? unitId, CancellationToken cancellationToken);
 
-    Task<WorkReportGridDto> GetGridAsync(WorkReportGridRequest request, CancellationToken cancellationToken);
+    /// <summary>
+    /// Dựng lưới của 1 giai đoạn: buildForms nhận các form xem được, trả DTO từng form + Id đầu mục đã có dòng
+    /// (để giữ cột đầu mục đã ngừng dùng nhưng còn dữ liệu).
+    /// </summary>
+    Task<WorkGridDto<TForm>> BuildGridAsync<TForm>(
+        WorkReportGridRequest request,
+        string phase,
+        Func<IReadOnlyList<WeeklyFormContext>, Task<(IReadOnlyList<TForm> Forms, IReadOnlySet<int> UsedCategoryIds)>> buildForms,
+        CancellationToken cancellationToken)
+        where TForm : WeeklyFormDto;
 
-    Task<WorkReportSummaryDto> GetSummaryAsync(WorkReportGridRequest request, CancellationToken cancellationToken);
+    /// <summary>Sheet Tổng hợp của 1 giai đoạn từ phút công theo (form, đầu mục) và vật tư của các form.</summary>
+    Task<WorkReportSummaryDto> BuildSummaryAsync(
+        WorkReportGridRequest request,
+        string phase,
+        Func<IReadOnlyList<int>, Task<IReadOnlyList<SummaryEntry>>> loadEntries,
+        Func<IReadOnlyList<int>, Task<IReadOnlyList<SummaryMaterial>>> loadMaterials,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Admin mở khóa giai đoạn đã quá hạn của form tới request.Until (null = khóa lại ngay).
+    /// </summary>
+    Task UnlockAsync(int formId, string phase, UnlockFormRequest request, CancellationToken cancellationToken);
 }
+
+/// <summary>Phút công của 1 dòng cho Tổng hợp.</summary>
+public readonly record struct SummaryEntry(int FormId, int CategoryId, decimal Minutes);
+
+/// <summary>Vật tư của 1 form cho Tổng hợp (đếm đầu mã).</summary>
+public readonly record struct SummaryMaterial(int FormId, string? MaterialCode, string MaterialName);

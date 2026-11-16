@@ -1,13 +1,13 @@
-import { Col, DatePicker, Form, Input, InputNumber, Modal, Row, Select } from 'antd';
+import { Col, DatePicker, Form, Input, InputNumber, Modal, Row, Select, Typography } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from '@/shared/utils/dayjs';
 import { applyServerErrors } from '@/shared/utils/formErrors';
-import { toIsoDate } from '@/shared/utils/format';
+import { formatNumber, toIsoDate } from '@/shared/utils/format';
 import { notify } from '@/shared/utils/notify';
 import { useMaterialPurposes, useSaveWorkMaterial } from '@/modules/workReports/hooks/useWorkReportQueries';
 import type {
   WeeklyForm,
-  WorkItem,
+  WorkItemBase,
   WorkMaterial,
   WorkMaterialRequest,
   WorkReportPhase,
@@ -37,16 +37,15 @@ interface MaterialFormModalProps {
 }
 
 /**
- * Thêm / sửa vật tư gắn 1 dòng công việc. Kế hoạch nhập số lượng KH;
- * báo cáo nhập số lượng thực tế (trống = bằng KH), vật tư thêm ở báo cáo là vật tư phát sinh.
+ * Thêm / sửa vật tư gắn 1 dòng của giai đoạn đang xem (kế hoạch: dòng kế hoạch; báo cáo: dòng báo cáo).
+ * Kế hoạch nhập số lượng KH; báo cáo nhập số lượng thực tế (vật tư chép từ kế hoạch: trống = bằng KH).
  */
 export const MaterialFormModal = ({ open, form, phase, week, material, onClose }: MaterialFormModalProps) => {
   const [formInstance] = Form.useForm<MaterialFormValues>();
   const purposesQuery = useMaterialPurposes();
   const saveMutation = useSaveWorkMaterial();
   const isPlan = phase === 'PLAN';
-  // Kế hoạch chỉ gắn được dòng kế hoạch
-  const workItems: WorkItem[] = form.items.filter((item) => !isPlan || !item.isUnplanned);
+  const workItems: WorkItemBase[] = form.items;
 
   const handleSubmit = async () => {
     let values: MaterialFormValues;
@@ -132,7 +131,7 @@ export const MaterialFormModal = ({ open, form, phase, week, material, onClose }
                   value: item.id,
                   label: `${item.code} – ${item.description}`,
                 }))}
-                notFoundContent="Form chưa có dòng công việc"
+                notFoundContent={isPlan ? 'Tổ/kíp chưa có dòng kế hoạch' : 'Tổ/kíp chưa có dòng báo cáo'}
               />
             </Form.Item>
           </Col>
@@ -168,6 +167,11 @@ export const MaterialFormModal = ({ open, form, phase, week, material, onClose }
                 name="actualQuantity"
                 label="Số lượng thực tế"
                 tooltip={material?.isUnplanned === false ? 'Để trống = bằng số lượng kế hoạch' : undefined}
+                extra={
+                  material?.plannedQuantity !== null && material?.plannedQuantity !== undefined ? (
+                    <Typography.Text type="secondary">KH: {formatNumber(material.plannedQuantity, 3)}</Typography.Text>
+                  ) : undefined
+                }
               >
                 <InputNumber min={0} className="w-full" decimalSeparator="," />
               </Form.Item>

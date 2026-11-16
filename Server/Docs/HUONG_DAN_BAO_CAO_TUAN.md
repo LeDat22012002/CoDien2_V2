@@ -15,10 +15,11 @@
 | GĐ 1 – Nền tảng (BE) | 🔵 Xong code, đã rà soát & sửa (15/11), chờ xác nhận | Mục 12 |
 | GĐ 2 – Form nhập (BE) | 🔵 Xong code (trừ xuất Excel), chờ xác nhận | Migration `AddWorkReportsForms`; test `Docs/TEST_GD2_BAO_CAO_TUAN.md`. Mục 13 |
 | GĐ 2 – Xuất Excel | ⬜ Làm bước cuối | Cần file mẫu chính thức (nhiều sheet theo tổ + Tổng hợp + Vật tư) |
-| GĐ 3 – Quy trình (khóa, mở khóa, yêu cầu sửa, lịch sử, cảnh báo) | ⬜ Chưa làm | Cột `*LockedAt`, `*UnlockedUntil` đã có trên `WeeklyForm` |
-| GĐ 4 – Cộng tác thời gian thực (SignalR) | ⬜ Chưa làm | |
+| GĐ 3 – Quy trình (lịch sử, cảnh báo) | ⬜ Chưa làm | Mở khóa (admin) đã làm ở mục 16; **bỏ yêu cầu chỉnh sửa** (16/11/2026) |
+| GĐ 4 – Cộng tác thời gian thực (SignalR) | 🔵 Cập nhật tức thì khi lưu đã xong code (16/11), chờ xác nhận | Mục 17. Chưa có hiển thị "ai đang sửa dòng nào" |
 | GĐ 5 – Màn hình xưởng & nhà máy, dashboard | ⬜ Chưa làm | |
 | FE (Client) GĐ 1–2 | 🔵 Xong code, chờ xác nhận | Module `Client/src/modules/workReports`; lưới bằng AntD Table (không thêm thư viện). Mục 15 |
+| Tách kế hoạch / báo cáo, quyền thêm/sửa/xóa, mở khóa (16/11) | 🔵 Xong code BE + FE, chờ xác nhận | Migration `SplitWorkPlanReport` (chưa chạy lên DB). Mục 16 |
 
 Ký hiệu: ⬜ chưa làm · 🟡 đang làm · 🔵 xong, chờ xác nhận · ✅ đã xác nhận.
 
@@ -51,7 +52,7 @@ Ký hiệu: ⬜ chưa làm · 🟡 đang làm · 🔵 xong, chờ xác nhận ·
 |---|---|
 | Đơn vị báo cáo (Unit) | Một tổ (`GROUP`) hoặc một kíp (`SHIFT`, ca A/B/C) có form tuần riêng; tương ứng một "sheet tổ" trong Excel |
 | Form tuần (WeeklyForm) | Dữ liệu của 1 đơn vị trong 1 tuần, gồm 2 giai đoạn **Kế hoạch** và **Báo cáo** |
-| Dòng công việc (WorkItem) | 1 dòng trên lưới; **dùng chung cho kế hoạch và báo cáo** |
+| Dòng công việc | 1 dòng trên lưới. **Từ 16/11/2026 tách 2 bảng**: dòng kế hoạch (`WorkPlanItem`) và dòng báo cáo (`WorkReportItem`) — mục 16 |
 | Dòng phát sinh | Dòng thêm ở giai đoạn báo cáo, không có trong kế hoạch (`IsUnplanned`) |
 | Đầu mục công việc (WorkCategory) | Nhóm A–I: BT-LV1…LV4, BT phản ứng, PHNB, CTCT, 5S, Khác |
 | KTV / Kỹ sư phụ trách | Kỹ sư được phân công nhập form của tổ/kíp |
@@ -197,26 +198,30 @@ Tác vụ nền (6 giờ/lần): tạo kỳ tuần; tạo đơn vị cho tổ/k�
 
 ## 5. Phân quyền
 
-| Vai trò | Phạm vi | Xem | Nhập/Sửa (form mở) | Sửa khi khóa | Yêu cầu sửa | Mở khóa | Đổi KS phụ trách |
+> Cập nhật 16/11/2026 (mục 16): thêm/sửa/xóa tách thành 6 quyền riêng; quản đốc/đội trưởng chỉ còn cấu hình tổ/kíp + phân công kỹ sư; bỏ "sửa khi khóa" và "yêu cầu chỉnh sửa"; chỉ admin mở khóa.
+
+| Vai trò | Phạm vi | Xem | Thêm/sửa/xóa (khi đang mở) | Khi đã khóa | Mở khóa | Cấu hình tổ/kíp | Đổi KS phụ trách |
 |---|---|---|---|---|---|---|---|
-| Kỹ sư phụ trách / kỹ sư trong kíp | Đơn vị được phân công | ✔ | ✔ | ✖ | — | ✖ | ✖ |
-| Đội trưởng / Đội phó | Mọi đơn vị trong đội | ✔ | ✔ | **✖** | ✔ | ✖ | ✔ (trong đội) |
-| Quản đốc / Phó QĐ | Mọi đơn vị trong xưởng | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ (trong xưởng) |
-| Ban Giám đốc / cấp nhà máy | Mọi xưởng | ✔ | ✖ | ✖ | **✖ (chỉ xem)** | ✖ | ✖ |
-| Admin | Toàn bộ | ✔ | — | — | — | ✔ | ✔ + cấu hình |
+| Kỹ sư phụ trách (`submit` + phân công) | Tổ/kíp được phân công | ✔ | ✔ **mặc định** (kế hoạch + báo cáo) | ✖ | ✖ | ✖ | ✖ |
+| Đội trưởng / Đội phó (`manage`) | Tổ trong đội | ✔ | Chỉ khi admin cấp `plan.*` / `report.*` | ✖ | ✖ | ✖ | ✔ (tổ HC trong đội) |
+| Quản đốc / Phó QĐ (`manage`) | Mọi tổ/kíp trong xưởng | ✔ | Chỉ khi admin cấp `plan.*` / `report.*` | ✖ | ✖ | ✔ | ✔ (trong xưởng) |
+| Ban Giám đốc / mọi người | Mọi xưởng | ✔ (không thấy gợi ý từ kế hoạch) | ✖ | ✖ | ✖ | ✖ | ✖ |
+| Admin (`configure`) | Toàn bộ | ✔ | Khi được cấp `plan.*` / `report.*` (mọi xưởng) | ✖ | ✔ | ✔ | ✔ + cấu hình |
 
 - **Mã quyền (gán theo role) quyết định vai trò được dùng**, không có quyền thì dù đứng trên sơ đồ cũng không vào được:
   | Mã quyền | Role gán | Vai trò | Trang |
   |---|---|---|---|
-  | `work-reports.submit` | Kỹ sư (`KY_SU`) | Kỹ sư phụ trách: nhập tổ/kíp được phân công | MEMBER `/member/work-reports` |
-  | `work-reports.manage` | Quản đốc, đội trưởng (`QUAN_DOC`…) | Đội trưởng/phó, quản đốc/phó (theo chức vụ trên sơ đồ): xem/sửa đội/xưởng, phân công kỹ sư, yêu cầu sửa, mở khóa | ADMIN `/admin/work-reports` |
+  | `work-reports.submit` | Kỹ sư (`KY_SU`) | Kỹ sư phụ trách: thêm/sửa/xóa kế hoạch, báo cáo tổ/kíp được phân công (không cần 6 quyền dưới) | MEMBER `/member/work-reports` |
+  | `work-reports.manage` | Quản đốc, đội trưởng (`QUAN_DOC`…) | Xem đội/xưởng (theo chức vụ trên sơ đồ), cấu hình tổ/kíp (quản đốc), phân công kỹ sư | ADMIN `/admin/work-reports` |
+  | `work-reports.plan.create` / `.plan.update` / `.plan.delete` | Admin tự cấp cho role khác | Thêm / sửa / xóa dòng (+ vật tư) **kế hoạch** trong phạm vi trưởng/phó (đội → tổ thuộc đội; xưởng → mọi tổ/kíp; admin → mọi xưởng) | (dùng trên trang của role) |
+  | `work-reports.report.create` / `.report.update` / `.report.delete` | Admin tự cấp cho role khác | Như trên cho dòng (+ vật tư) **báo cáo**; `report.create` gồm cả đưa dòng kế hoạch vào báo cáo | |
   | *(không cần quyền)* | Ban Giám đốc, mọi người (kể cả chưa đăng nhập) | Xem mọi xưởng, chỉ xem | PUBLIC `/work-reports` (API `GET /api/work-reports/public/*`) |
-  | `work-reports.configure` | Quản trị | Đầu mục, mục đích vật tư, hạn, hằng số, đơn vị mọi xưởng | ADMIN `/admin/work-report-settings` |
+  | `work-reports.configure` | Quản trị | Đầu mục, mục đích vật tư, hạn, hằng số, đơn vị mọi xưởng; **mở khóa / khóa lại** | ADMIN `/admin/work-report-settings` |
 - Không còn mã `work-reports.view-factory`: trang xem toàn nhà máy là trang công khai, giống trang Sự cố.
-- **Phạm vi** suy ra từ sơ đồ: `WorkReportUnitEngineer` + `vUnitMember` (HEAD/DEPUTY của `TEAM` / `WORKSHOP`), giống cách module Incidents kiểm tra "cùng xưởng".
+- **Phạm vi** suy ra từ sơ đồ: `WorkReportUnitEngineer` + `vUnitMember` (HEAD/DEPUTY của `TEAM` / `WORKSHOP`), giống cách module Incidents kiểm tra "cùng xưởng". Chức vụ trưởng/phó chỉ được tính khi người dùng có `manage` hoặc 1 trong 6 quyền thêm/sửa/xóa.
 - Quyền trên form tính theo **xưởng đã chụp trong form** (tổ đã chuyển xưởng → tuần cũ do quản đốc xưởng cũ quản lý). Kỹ sư phụ trách tính theo **phân công hôm nay**.
-- "Sửa khi khóa" không áp dụng cho báo cáo **chưa tới tuần** (chưa ai nhập được).
-- Mọi API ghi kiểm tra lại phạm vi + trạng thái khóa ở server; FE chỉ ẩn/hiện nút.
+- Quá hạn (kế hoạch hoặc báo cáo) thì **không ai sửa được** cho tới khi admin mở khóa (đặt thời điểm mở tới, tối đa 30 ngày; có thể khóa lại ngay).
+- Mọi API ghi kiểm tra lại phạm vi + quyền + trạng thái khóa ở server; FE chỉ ẩn/hiện nút.
 
 ---
 
@@ -296,20 +301,22 @@ Không lưu: Số người (đếm), Chênh lệch (tính), Tuần (từ kỳ tu
 
 **`WorkItemCodeCounter`** (không BaseEntity, không FK) — khóa (`WeeklyFormId`, `WorkCategoryId`), `LastSeq`. Lấy số: `UPDLOCK, HOLDLOCK` trong `ExecuteInTransactionAsync`.
 
+> **Từ 16/11/2026** `WorkItem`, `WorkItemWorker`, `WorkMaterial` được thay bằng 2 bộ bảng riêng cho kế hoạch / báo cáo, `WorkDate` thành `StartDate` + `EndDate` — xem mục 16.2.
+
 ### 7.3 GĐ 3 (đã chừa chỗ)
-`RevisionRequest` (form, dòng, cột, nội dung, người yêu cầu, trạng thái, phản hồi), `WorkItemHistory` (ai, lúc nào, dòng/cột, cũ → mới), thông báo trên web.
+`WorkItemHistory` (ai, lúc nào, dòng/cột, cũ → mới), thông báo trên web. ~~`RevisionRequest`~~ (bỏ yêu cầu chỉnh sửa 16/11/2026).
 
 ---
 
 ## 8. Quy tắc nghiệp vụ trong Service
 
 - **Sinh mã**: bộ đếm `WorkItemCodeCounter` đọc bằng `UPDLOCK, HOLDLOCK` trong `ExecuteInTransactionAsync`; số đã cấp không dùng lại.
-- **Theo giai đoạn** (`?phase=PLAN|REPORT`; trường không thuộc giai đoạn bị **bỏ qua**, không báo lỗi):
-  - Kế hoạch: thêm/sửa/xóa dòng kế hoạch; nhận (3)(5)(6)(7)(9)(11)(18); (11) bắt buộc. Dòng phát sinh không sửa/xóa ở kế hoạch.
-  - Báo cáo: dòng kế hoạch **không xóa**, **không sửa** (3)(11); sửa (5)(6)(7)(9)(12)(14)–(18). Thêm dòng phát sinh (`IsUnplanned`, không có (11), (12) bắt buộc) ở **mọi đầu mục**; dòng phát sinh sửa được cả (3), xóa được.
-- **Kiểm tra**: đầu mục đang dùng + áp dụng cho xưởng của form (chỉ kiểm khi thêm/đổi); ngày trong T2–CN; phút 0–504.000; kết quả 0–100; GPLV ∈ {Có, Không, trống} (nhận "co", "x", "Đã có GPLV", "ko", "chưa có"…); người thực hiện ≤ 50, nhân viên chọn phải tồn tại.
+- **Theo giai đoạn** (từ 16/11/2026 mỗi giai đoạn có API và bảng riêng — mục 16):
+  - Kế hoạch: thêm/sửa/xóa tự do trong hạn kế hoạch; nhận (3)(5)(6)(7)(9)(11)(18); (11) bắt buộc.
+  - Báo cáo: thêm/sửa/xóa tự do trong từng đầu mục khi báo cáo mở; nhận (5)(6)(7)(9)(12)(14)–(18); việc phát sinh (không từ kế hoạch) bắt buộc (12). Dòng đưa vào từ kế hoạch giữ mã, đầu mục, (11).
+- **Kiểm tra**: đầu mục đang dùng + áp dụng cho xưởng của form (chỉ kiểm khi thêm/đổi); ngày bắt đầu, ngày kết thúc trong T2–CN, kết thúc ≥ bắt đầu (trống = bằng bắt đầu); phút 0–504.000; kết quả 0–100; GPLV ∈ {Có, Không, trống} (nhận "co", "x", "Đã có GPLV", "ko", "chưa có"…); người thực hiện ≤ 50, nhân viên chọn phải tồn tại.
 - **Thiết bị**: mã có trong danh mục → tự gắn `EquipmentId` (tên trống thì lấy tên danh mục); không có → gõ tự do.
-- **Phạm vi**: `WorkReportScopeService` (mục 5). Sửa được ngay = `CanEdit` và giai đoạn mở, hoặc `CanEditLocked` khi đã khóa.
+- **Phạm vi**: `WorkReportScopeService` (mục 5). Thêm / sửa / xóa được ngay = có quyền tương ứng của giai đoạn (`Access.Plan` / `Access.Report`) **và** giai đoạn đang mở (trong hạn hoặc admin đã mở khóa).
 - **Cạnh tranh ghi**: sửa dòng phải gửi `rowVersion`; lệch → **409** kèm dòng mới nhất trong `data`. Mọi lần sửa đều ghi dòng cha nên rowVersion tăng cả khi chỉ đổi người thực hiện.
 - **Xóa dòng**: xóa mềm dòng + vật tư gắn với dòng.
 
@@ -327,7 +334,7 @@ Không lưu: Số người (đếm), Chênh lệch (tính), Tuần (từ kỳ tu
 - `GET /api/work-report-units/{id}/engineers`, `PUT /api/work-report-units/{id}/engineers` (lưu cả danh sách)
 - `GET /api/work-report-units/{id}/engineer-suggestions`
 
-**Form & lưới** — xem bảng chi tiết mục 13.3.
+**Form & lưới** — xem bảng chi tiết mục 16.3 (thay mục 13.3 từ 16/11/2026).
 
 ---
 
@@ -427,6 +434,9 @@ Gợi ý: chạy thử một xưởng song song với Excel 2 tuần trước kh
 - **Sửa (chỉ thêm hàm đọc)** Equipments: `IEquipmentService.GetByCodesAsync` (+ repository).
 
 ### 13.3 API (prefix `/api/work-reports`, chỉ cần đăng nhập; phạm vi + khóa kiểm tra trong Service)
+
+> **Đã thay bằng mục 16.3 (16/11/2026)**: API tách `/plan/*` và `/report/*`, bỏ `?phase=` và `items/batch` (dán Excel). Bảng dưới giữ để tham khảo lịch sử.
+
 | API | Mô tả |
 |---|---|
 | `GET grid?workshopId=&weekId=&phase=&unitId=` | Bảng công việc: đầu mục dùng được, các form xem được (thứ tự I, II…, trạng thái, hạn, `canEditNow`, tổng phút), dòng theo đầu mục + TT. Tuần đang làm việc tự tạo form còn thiếu |
@@ -473,7 +483,7 @@ Bổ sung khi code:
 | Route | Area | Quyền | Nội dung |
 |---|---|---|---|
 | `/member/work-reports` "Báo cáo công việc tuần" | MEMBER | `work-reports.submit` | Kỹ sư: chọn xưởng, giai đoạn (Báo cáo tuần / Kế hoạch tuần), tuần (◀ ▶, năm, "Tuần hiện tại"). Tab **Bảng công việc**, **Tổng hợp**, **Vật tư xưởng** |
-| `/admin/work-reports` "Báo cáo tuần › Quản lý báo cáo tuần" | ADMIN | `work-reports.manage` | Đội trưởng, quản đốc: như trên + tab **Đơn vị & kỹ sư** (tổ/kíp theo sơ đồ tự có; thêm đơn vị tự đặt, sửa tên / tiền tố / HC-KIP / ngừng dùng, xóa + mục "Đã xóa" để khôi phục, thứ tự, phân công kỹ sư). GĐ 3 thêm yêu cầu sửa / mở khóa ở đây |
+| `/admin/work-reports` "Báo cáo tuần › Quản lý báo cáo tuần" | ADMIN | `work-reports.manage` | Đội trưởng, quản đốc: như trên + tab **Đơn vị & kỹ sư** (tổ/kíp theo sơ đồ tự có; thêm đơn vị tự đặt, sửa tên / tiền tố / HC-KIP / ngừng dùng, xóa + mục "Đã xóa" để khôi phục, thứ tự, phân công kỹ sư). Thêm/sửa/xóa dòng chỉ khi admin cấp `plan.*` / `report.*`. Admin thấy nút **Mở khóa** trên dòng tổ/kíp đã khóa |
 | `/admin/work-report-settings` "Báo cáo tuần › Cấu hình báo cáo tuần" | ADMIN | `work-reports.configure` | Tab Cấu hình chung, Đầu mục công việc, Mục đích vật tư, Hạn nộp theo tuần (hạn chung / riêng xưởng) |
 | `/work-reports` "Báo cáo nhà máy › Báo cáo tuần" | PUBLIC (toàn màn hình) | không cần (kể cả chưa đăng nhập) | Ban Giám đốc xem mọi xưởng, chỉ xem: Bảng công việc, Tổng hợp, Vật tư xưởng, vật tư từng tổ |
 
@@ -482,19 +492,77 @@ Trang công khai đọc qua `PublicWorkReportsController` (`[AllowAnonymous]`, c
 Bật trang + menu trên DB đang dùng: khởi động Server bản mới 1 lần (seeder thêm 3 quyền) → `sqlcmd -S <server> -d NM_CD2 -I -f 65001 -i Data/Scripts/AddWorkReportPages.sql` (chạy lặp lại an toàn; gắn quyền cho trang member cũ, đưa trang cấu hình vào nhóm) → gán quyền cho role ở **Vai trò / Phân quyền**. DB mới: seeder tạo sẵn các trang.
 
 ### 15.2 Bảng công việc
-- **1 bảng cho cả xưởng, giống sheet Excel** (`WorkGridTable`): tiêu đề "BÁO CÁO/KẾ HOẠCH CÔNG VIỆC - <xưởng> / Tuần…", cột (1)…(18) theo file cũ + Tổ thực hiện, KTV phụ trách, Tuần; nhóm tiêu đề "Nhân sự thực hiện (Người)", "Giờ công thực hiện (phút)". Dùng **AntD Table**: **bảng có thanh cuộn riêng** (ngang + dọc, cao = phần màn hình còn lại, tối thiểu 420px), tiêu đề cột đứng yên (nền đặc); chữ dài xuống dòng như Wrap text. Cột nhỏ thứ 2 (không cố định) có nút sửa / xóa dòng, lưu / hủy khi đang sửa. Cột TT không đặt `align` để ô gộp của dòng tiêu đề căn trái.
+- **Từ 16/11/2026 tách 2 bảng** `PlanGridTable` / `ReportGridTable` (mục 16.4); mô tả dưới vẫn đúng phần giao diện chung.
+- **1 bảng cho cả xưởng, giống sheet Excel**: tiêu đề "BÁO CÁO/KẾ HOẠCH CÔNG VIỆC - <xưởng> / Tuần…", cột (1)…(18) theo file cũ + Tổ thực hiện, KTV phụ trách, Tuần; nhóm tiêu đề "Nhân sự thực hiện (Người)", "Giờ công thực hiện (phút)". Dùng **AntD Table**: **bảng có thanh cuộn riêng** (ngang + dọc, cao = phần màn hình còn lại, tối thiểu 420px), tiêu đề cột đứng yên (nền đặc); chữ dài xuống dòng như Wrap text. Cột nhỏ thứ 2 (không cố định) có nút sửa / xóa dòng, lưu / hủy khi đang sửa. Cột TT không đặt `align` để ô gộp của dòng tiêu đề căn trái.
 - Dòng tổ/kíp (I, II…, nền vàng): trạng thái (Đang nhập / Đã khóa / Chưa tới tuần), hạn, số dòng, tổng phút, vai trò; nút **Vật tư** (luôn thấy khi cuộn ngang). Chữ bảng 12px, viền ô đậm (giống lưới Excel).
 - Dòng đầu mục (A, B…, nền xanh) có nút "+ Thêm dòng" **chỉ ở giai đoạn kế hoạch**; báo cáo không thêm việc phát sinh trên bảng (người dùng bỏ 15/11/2026; API vẫn hỗ trợ). Đầu mục trống chỉ hiện khi đang lập kế hoạch. Lọc tổ/kíp ở ô chọn phía trên bảng.
 - Sửa tại chỗ từng dòng: double-click hoặc nút bút; **Enter lưu (ô 1 dòng), Esc hủy, Tab chuyển ô**; hạng mục / diễn giải / ghi chú là ô nhiều dòng; ô giờ công nhận "8h" (= số người × 8 × 60, hiện gợi ý "= 8 giờ"); người thực hiện chọn nhân viên (gợi ý tổ/kíp → đội → xưởng) hoặc gõ tên + Enter; Equipment gõ để tìm trong danh mục hoặc gõ tự do.
 - 409: báo "người khác vừa sửa", bỏ bản đang sửa, tải lại dòng mới nhất. Lỗi kiểm tra gắn vào từng ô.
-- **Dán Excel**: đã bỏ nút trên bảng (người dùng yêu cầu 15/11/2026). `PasteItemsModal` và API `items/batch` vẫn giữ, bật lại chỉ cần gắn nút.
-- **Vật tư** (Drawer): thêm/sửa/xóa vật tư gắn mã công việc; kế hoạch nhập SL KH, báo cáo nhập SL thực tế (trống = KH).
+- **Dán Excel**: đã gỡ hẳn (16/11/2026) cả `PasteItemsModal` lẫn API `items/batch`.
+- **Vật tư**: tab Vật tư xưởng, thêm/sửa/xóa vật tư gắn mã công việc của giai đoạn đang xem; kế hoạch nhập SL KH, báo cáo nhập SL thực tế (vật tư chép từ kế hoạch: trống = KH).
 
 ### 15.3 Quyết định FE
 - Bảng công việc dùng **AntD Table** (không thêm thư viện lưới). Đã thử react-data-grid (15/11/2026) nhưng người dùng thấy giao diện không đẹp → gỡ, quay về AntD Table. Không cố định cột (dòng tiêu đề tổ/đầu mục gộp ngang qua mọi cột); nội dung dòng tiêu đề dùng `sticky` để luôn thấy khi cuộn ngang.
 - `ApiError` (shared) thêm `data` để đọc dòng mới nhất khi 409.
 - 3 trang dùng chung `components/WorkReportWorkspace` (`mode` = `submit` / `manage` / `factory`); lưới tự chỉ xem khi `canEditNow = false`.
 - Đơn vị & kỹ sư cấu hình theo xưởng trong trang Quản lý báo cáo tuần (quản đốc không cần quyền `configure`).
+
+## 16. Tách kế hoạch / báo cáo, quyền thêm/sửa/xóa, mở khóa (16/11/2026)
+
+### 16.1 Nghiệp vụ (người dùng chốt 16/11/2026)
+- **Kế hoạch và báo cáo là 2 bảng, 2 API riêng**; thêm/sửa/xóa cũng tách riêng từng giai đoạn.
+- **Kế hoạch**: thêm/sửa/xóa tùy ý trong hạn kế hoạch. Quá hạn → khóa, **chỉ admin mở khóa** (mở tới 1 thời điểm, tối đa 30 ngày, có thể khóa lại).
+- **Báo cáo**: thêm/sửa/xóa tự do trong từng đầu mục khi báo cáo đang mở (00:00 T2 → hạn báo cáo); quá hạn → khóa, chỉ admin mở khóa.
+- **Gợi ý từ kế hoạch**: dòng kế hoạch chưa đưa vào báo cáo hiện mờ trong bảng báo cáo, **chỉ người đang thêm được dòng báo cáo thấy** (kỹ sư phụ trách / người được cấp `report.create`); trang xem (admin, công khai) không thấy. Bấm "Đưa vào" (hoặc "Đưa tất cả kế hoạch vào báo cáo") → chép thành dòng báo cáo: giữ mã công việc, đầu mục, giờ KH, ngày, người, ghi chú, vật tư kế hoạch (SL KH). Xóa dòng báo cáo đó → kế hoạch lại thành gợi ý.
+- **Hiển thị ở trang xem**: dòng báo cáo lưu xong là thấy ngay (người dùng chọn "Hiện ngay từng dòng"); hết hạn thì toàn bộ báo cáo đã nhập vẫn hiện, gợi ý không hiện.
+- **Dòng thêm ở báo cáo** (việc phát sinh): người nhập **tự điền giờ công kế hoạch (11)** (bắt buộc); giờ thực tế (12) trống = bằng KH. Dòng từ kế hoạch giữ giờ KH, không sửa (bổ sung 16/11/2026). Ô giờ công bỏ dòng gợi ý "≈ … giờ".
+- **Thời gian thực hiện (7)**: ngày bắt đầu + ngày kết thúc (cả kế hoạch và báo cáo), trong tuần, kết thúc ≥ bắt đầu. Cùng ngày → hiện 1 ngày; khác ngày → hiện "dd/MM – dd/MM/yyyy".
+- **Quyền**: xem mục 5. Bỏ "quản đốc sửa khi khóa" và **bỏ yêu cầu chỉnh sửa**.
+- **Vật tư**: tách theo 2 bảng (vật tư kế hoạch gắn dòng kế hoạch; vật tư báo cáo gắn dòng báo cáo).
+
+### 16.2 Dữ liệu (migration `SplitWorkPlanReport`)
+- Lớp chung (không phải bảng): `WorkItemBase<TWorker>` — `WeeklyFormId`, `WorkCategoryId`, `Code`, `CodeSeq`, `EquipmentId?`, `EquipmentCode`, `EquipmentName`, `Description`, **`StartDate`, `EndDate`**, `Note`, `SortOrder`, `RowVersion`, `Workers`; `WorkItemWorkerBase`; `WorkMaterialBase`.
+- **`WorkPlanItem`** (+ `PlannedMinutes`) / **`WorkPlanItemWorker`** / **`WorkPlanMaterial`** (`WorkPlanItemId`, `Quantity`).
+- **`WorkReportItem`** (+ `PlanItemId?` — null = việc phát sinh, unique lọc `IsDeleted = 0`; `PlannedMinutes` chụp từ kế hoạch; `ActualMinutes`, `ResultPercent`, `WorkPermit`, `FiveS`, `Explanation`) / **`WorkReportItemWorker`** / **`WorkReportMaterial`** (`WorkReportItemId`, `PlanMaterialId?`, `PlannedQuantity?`, `ActualQuantity?`).
+- `WorkItemCodeCounter` giữ nguyên, dùng chung 2 giai đoạn (mã kế hoạch và việc phát sinh không trùng nhau).
+- Migration chép dữ liệu cũ: dòng không phát sinh → `WorkPlanItem` (giữ Id); dòng phát sinh + dòng kế hoạch đã nhập số liệu thực hiện → `WorkReportItem` (kèm người, vật tư); `WorkDate` → `StartDate = EndDate`; rồi xóa 3 bảng cũ. Down chỉ dựng lại cấu trúc cũ (không chép ngược).
+- Chạy: `dotnet ef database update --configuration Release` (Server không tự migrate). Khởi động lại Server để seeder thêm 6 quyền mới.
+
+### 16.3 API
+Chung (`/api/work-reports`): `GET my-scope`, `GET worker-options`.
+
+| Kế hoạch `/api/work-reports/plan` | Báo cáo `/api/work-reports/report` | Quyền (ngoài phạm vi trong Service) |
+|---|---|---|
+| `GET grid?workshopId=&weekId=&unitId=` | `GET grid?…` (form có `suggestions` cho người nhập) | đọc: mọi quyền `work-reports.*` |
+| `GET summary`, `GET materials`, `GET forms/{formId}/materials` | như kế hoạch | đọc |
+| `POST forms/{formId}/items` | `POST forms/{formId}/items` (việc phát sinh) | `submit` hoặc `plan.create` / `report.create` |
+| — | `POST forms/{formId}/items/from-plan` `{ planItemIds }` | `submit` hoặc `report.create` |
+| `PUT items/{id}` (có `rowVersion`, 409) | `PUT items/{id}` | `submit` hoặc `*.update` |
+| `DELETE items/{id}` (+ vật tư) | `DELETE items/{id}` (+ vật tư) | `submit` hoặc `*.delete` |
+| `POST/PUT/DELETE` vật tư: `forms/{formId}/materials`, `materials/{id}` | như kế hoạch | theo create/update/delete của giai đoạn |
+| `POST forms/{formId}/unlock` `{ until }` (null = khóa lại) | như kế hoạch | `configure` |
+
+Công khai (`[AllowAnonymous]`, chỉ GET): `/api/work-reports/public/{scope, weeks, weeks/current}`, `/public/plan/{grid, summary, materials, forms/{id}/materials}`, `/public/report/{…}`.
+Form trong lưới trả `canCreate`, `canUpdate`, `canDelete` (đã tính mở/khóa), `canEditNow`, `canUnlock`, `isUnlocked`; bỏ `canEditLocked`, `canRequestRevision`. `WorkReportUnitAccessDto`: `plan` / `report` (`canCreate/canUpdate/canDelete`), bỏ `canEdit`, `canEditLocked`, `canRequestRevision`.
+
+### 16.4 Code
+- **BE**: Entities `WorkItemBase`, `WorkPlanItem`, `WorkReportItem`, `WorkMaterialBase`; cấu hình EF `Data/Configurations/WorkItemConfigurations.cs`; repo generic `WorkItemRepository<,>` (+ `WorkPlanItemRepository`, `WorkReportItemRepository`), `WorkMaterialRepository<>`; bộ đếm mã chuyển sang `WeeklyFormRepository.NextCodeSeqAsync`. Services: `WeeklyFormService` (form, quyền + trạng thái, mở khóa, khung lưới/tổng hợp dùng chung), `WorkPlanService`, `WorkReportService`, `WorkMaterialServiceBase` (+ `WorkPlanMaterialService`, `WorkReportMaterialService`), `WorkItemSupport` (chuẩn hóa, người, thiết bị, rowVersion), `WorkerOptionService`. Controllers `WorkPlanController`, `WorkReportItemsController`, `WorkReportsController` (chỉ còn phần chung), `PublicWorkReportsController`. Bỏ `WorkItemService`, `WorkMaterialService` cũ, `WorkItemInputParser` (dán Excel).
+- **Quyền**: `PermissionCodes.WorkReports.PlanCreate/Update/Delete`, `ReportCreate/Update/Delete` (seeder thêm khi khởi động); `WorkReportScope` có `HeadTeamIds`, `HeadWorkshopIds`, `PlanRights`, `ReportRights`, `CanManage` (`ManagedTeamIds/ManagedWorkshopIds` = khi có `manage`).
+- **FE**: `components/grid/` — `sheetGridShared.tsx` (dựng dòng, sửa tại chỗ, cột chung), `SheetGridHeaders.tsx` (dòng tổ/đầu mục), `PlanGridTable.tsx`, `ReportGridTable.tsx` (dòng gợi ý chữ nhạt + nút "Đưa vào", "Đưa tất cả…"), `FormUnlockButton.tsx` (admin), `GridRowActions.tsx`. `WorkGridView` chọn bảng theo `grid.phase`. API FE theo đường dẫn giai đoạn (`PHASE_PATH`). Bỏ `WorkGridTable`, `PasteItemsModal`, `FormMaterialsDrawer` (không dùng), hàm dán Excel.
+
+### 16.5 Test tích hợp đã chạy (DB thật, transaction rồi rollback)
+Chạy migration: số dòng chép khớp, bảng cũ đã xóa. Khóa kế hoạch chặn thêm; admin mở khóa → mở; mở khóa thời điểm đã qua → 400; ngày kết thúc < bắt đầu → 400; thêm KH 2 ngày / 1 ngày; vật tư KH; sửa + 409; không có quyền xóa → 403; gợi ý có dòng KH; không có `report.create` → không gợi ý; đưa vào báo cáo giữ mã + giờ KH + ngày + vật tư; đưa lại → 400; việc phát sinh thiếu giờ thực tế → 400; sửa dòng từ KH không đổi được đầu mục; tổng hợp; xóa dòng báo cáo → thành gợi ý, đưa lại được; xóa KH xóa vật tư KH, dòng báo cáo vẫn giữ; khóa lại; trang xem không gợi ý, không sửa.
+
+## 17. Cập nhật tức thì (SignalR) — 16/11/2026
+
+- Người dùng chốt: thêm gói npm `@microsoft/signalr` (^8.0.7, MIT, đóng gói cùng app); đẩy tức thì khi **lưu / xóa dòng (kế hoạch, báo cáo), đưa kế hoạch vào báo cáo, thêm/sửa/xóa vật tư, admin mở / khóa lại**. Chưa đẩy thay đổi cấu hình (đơn vị, kỹ sư, hạn, đầu mục).
+- **Server**: hub `Modules/WorkReports/Hubs/WorkReportHub` tại `/api/hubs/work-reports` (`[AllowAnonymous]`, map ở `Api/Program.cs`). Client gọi `JoinWeek(workshopId, weekId)` / `LeaveWeek`; nhóm `ws:{xưởng}:week:{tuần}`. `IWorkReportNotifier.FormChangedAsync(form, phase)` gửi sự kiện `FormChanged` `{ workshopId, weekId, formId, phase }` sau khi lưu thành công (gọi trong `WorkPlanService`, `WorkReportService`, `WorkMaterialServiceBase`, `WeeklyFormService.UnlockAsync`); lỗi gửi chỉ ghi log.
+- **Tin không chứa dữ liệu** → mỗi trang tự tải lại qua API của mình nên đúng quyền (trang xem không thấy gợi ý từ kế hoạch); vì vậy hub không cần đăng nhập, trang công khai `/work-reports` cũng nhận.
+- `AuditLogMiddleware` bỏ qua `/api/hubs/*` (không ghi nhật ký, không bọc response của negotiate / long polling).
+- **Client**: `hooks/useWorkReportLiveUpdates.ts` (gọi trong `WorkReportWorkspace`): 1 kết nối / trang, vào nhóm theo xưởng + tuần đang xem, nhận `FormChanged` → làm mới query nhóm `data` (lưới, Tổng hợp, Vật tư), gộp tin trong 300ms; tự nối lại (0s, 2s, 5s, 10s, rồi 30s/lần), nối lại xong vào lại nhóm và tải lại 1 lần. Không kết nối được thì trang vẫn dùng bình thường.
+- Dòng đang sửa không bị mất khi dữ liệu tự làm mới; lưu vẫn gửi `rowVersion` lúc bắt đầu sửa → người khác vừa sửa cùng dòng thì 409 như cũ. Dòng đang sửa bị người khác xóa → thoát chế độ sửa.
+- Vite proxy `/api` bật `ws: true`. **IIS**: bật Windows feature **WebSocket Protocol** (Server Manager → Web Server → Application Development); chưa bật thì SignalR tự dùng long polling (vẫn chạy, chậm hơn).
+- Đã thử: Server bản mới, negotiate không cần đăng nhập, kết nối WebSocket, `JoinWeek` / `LeaveWeek` từ gói client.
 
 ## 14. Nhật ký thay đổi
 
@@ -510,3 +578,6 @@ Bật trang + menu trên DB đang dùng: khởi động Server bản mới 1 l�
 | 15/11/2026 | **FE GĐ 1–2 xong code, chờ xác nhận** (mục 15): module `workReports` ở Client, 2 trang `/member/work-reports`, `/admin/work-report-settings`; script `Data/Scripts/AddWorkReportPages.sql`. |
 | 15/11/2026 | **Đơn vị báo cáo mặc định theo sơ đồ** (mục 4): bỏ bước xác nhận "Tổ/kíp chưa cấu hình" (bỏ API `unconfigured`); `WorkReportUnitSyncService` tự tạo đơn vị cho tổ/kíp (khi mở lưới / danh sách đơn vị, tác vụ nền); thêm `IsCustom` (migration `AddWorkReportUnitCustom`: chỉ mục `OrgUnitId` duy nhất chỉ áp cho đơn vị theo sơ đồ) — đơn vị tự đặt có `OrgUnitId` = đội / xưởng chứa nó; API xóa (chặn khi có dữ liệu), đã xóa, khôi phục, parent-options. `OrgTree.GetTeam` trả chính nó nếu là đội. Test tích hợp (rollback) đạt. |
 | 15/11/2026 | **Phân quyền theo role** (mục 5, 15.1): sửa lỗi 2 mã quyền chưa có trong `IdentitySeedData` (DB chưa từng có); thêm `work-reports.submit` (kỹ sư) và `work-reports.manage` (đội trưởng, quản đốc); vai trò trong `WorkReportScopeService` cần quyền tương ứng, bỏ việc trưởng/phó Nhà máy tự xem toàn nhà máy; API gắn `[HasPermission]`. Trang: member (submit), `/admin/work-reports` Quản lý báo cáo tuần (manage, mới), cấu hình vào nhóm menu "Báo cáo tuần", `/work-reports` công khai cho BGĐ (mới, ai cũng xem được, không cần đăng nhập; `PublicWorkReportsController`). Bỏ mã `work-reports.view-factory`. Viết lại `AddWorkReportPages.sql`. |
+| 16/11/2026 | **Tách kế hoạch / báo cáo** (mục 16): 2 bộ bảng (migration `SplitWorkPlanReport`, chép dữ liệu cũ), API `/plan/*` và `/report/*` (+ công khai), 2 bảng FE riêng. Ngày bắt đầu / kết thúc. Báo cáo thêm/sửa/xóa tự do; gợi ý từ kế hoạch chỉ người nhập thấy, "Đưa vào báo cáo". 6 quyền thêm/sửa/xóa (`work-reports.plan.*`, `.report.*`) cho role khác ngoài kỹ sư; `manage` chỉ còn cấu hình tổ/kíp + phân công. Bỏ sửa khi khóa, bỏ yêu cầu chỉnh sửa; chỉ admin mở khóa (API `unlock`, nút trên dòng tổ/kíp). Gỡ hẳn dán Excel. |
+| 16/11/2026 | Báo cáo: dòng thêm mới / việc phát sinh tự điền giờ công kế hoạch (bắt buộc), giờ thực tế không còn bắt buộc; bỏ dòng gợi ý "≈ giờ" dưới ô giờ công (kế hoạch + báo cáo). |
+| 16/11/2026 | **Cập nhật tức thì (SignalR)** (mục 17): hub `/api/hubs/work-reports`, sự kiện `FormChanged` khi lưu/xóa dòng, vật tư, đưa kế hoạch vào báo cáo, mở khóa; Client tự làm mới lưới / Tổng hợp / Vật tư. Thêm gói `@microsoft/signalr`. |

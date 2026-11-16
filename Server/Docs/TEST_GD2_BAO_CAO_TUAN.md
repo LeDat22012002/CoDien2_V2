@@ -2,6 +2,8 @@
 
 > Mục đích: kiểm tra BE GĐ 2 trước khi người dùng **xác nhận**. Đánh ✅ / ❌ vào từng bước, ghi lỗi gặp vào cuối file.
 > Nghiệp vụ: `Docs/HUONG_DAN_BAO_CAO_TUAN.md` mục 3, 8, 13.
+>
+> **Lưu ý 16/11/2026:** kế hoạch / báo cáo đã tách bảng và API (HUONG_DAN mục 16). Các bước dùng `?phase=`, `items/batch` trong file này **không còn đúng**; test theo `Docs/HUONG_DAN_TEST_BAO_CAO_TUAN.md` phần C.
 
 ---
 

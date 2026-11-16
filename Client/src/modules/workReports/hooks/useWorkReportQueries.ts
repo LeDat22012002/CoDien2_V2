@@ -1,12 +1,14 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  batchCreateWorkItems,
+  acceptPlanItems,
   createMaterialPurpose,
+  createPlanItem,
+  createReportItem,
   createWorkCategory,
-  createWorkItem,
   createWorkMaterial,
   createWorkReportUnit,
-  deleteWorkItem,
+  deletePlanItem,
+  deleteReportItem,
   deleteWorkReportUnit,
   getDeletedWorkReportUnits,
   getUnitParentOptions,
@@ -20,7 +22,7 @@ import {
   getWorkCategories,
   getWorkerOptions,
   getWorkingWeeks,
-  getWorkReportGrid,
+  getWorkGrid,
   getWorkReportSetting,
   getWorkReportSummary,
   getWorkReportUnits,
@@ -30,9 +32,11 @@ import {
   setMaterialPurposeActive,
   setUnitEngineers,
   setWorkCategoryActive,
+  unlockWeeklyForm,
   updateMaterialPurpose,
+  updatePlanItem,
+  updateReportItem,
   updateWorkCategory,
-  updateWorkItem,
   updateWorkMaterial,
   updateWorkReportSetting,
   updateWorkReportUnit,
@@ -43,13 +47,14 @@ import { useIsPublicWorkReport } from '@/modules/workReports/hooks/workReportVie
 import type {
   CreateWorkReportUnitRequest,
   MaterialPurposeRequest,
-  PastedWorkItemRow,
-  UpdateWorkItemRequest,
+  PlanItemRequest,
+  ReportItemRequest,
+  UpdatePlanItemRequest,
+  UpdateReportItemRequest,
   UpdateWorkReportUnitRequest,
   UpdateWorkWeekDeadlineRequest,
   WorkCategoryRequest,
   WorkerOptionScope,
-  WorkItemRequest,
   WorkMaterialRequest,
   WorkReportFilter,
   WorkReportPhase,
@@ -268,11 +273,12 @@ export const useSetUnitEngineers = () => {
 
 // ===== Lưới, tổng hợp, vật tư =====
 
-export const useWorkReportGrid = (filter: WorkReportFilter | undefined) => {
+/** Lưới của giai đoạn trong filter: kế hoạch (WorkPlanGrid) hoặc báo cáo (WorkReportGrid), phân biệt bằng grid.phase. */
+export const useWorkGrid = (filter: WorkReportFilter | undefined) => {
   const isPublic = useIsPublicWorkReport();
   return useQuery({
     queryKey: [...WORK_REPORT_QUERY_KEYS.grid(filter), isPublic],
-    queryFn: () => (isPublic ? publicWorkReportsApi.getGrid : getWorkReportGrid)(filter as WorkReportFilter),
+    queryFn: () => (isPublic ? publicWorkReportsApi.getGrid : getWorkGrid)(filter as WorkReportFilter),
     enabled: filter !== undefined,
     placeholderData: keepPreviousData,
   });
@@ -328,37 +334,66 @@ export const useEquipmentOptions = (keyword: string, isEnabled: boolean) =>
 
 const useInvalidateData = () => useInvalidate(WORK_REPORT_QUERY_KEYS.data);
 
-export const useSaveWorkItem = () => {
+// ===== Dòng kế hoạch =====
+
+export const useSavePlanItem = () => {
   const invalidate = useInvalidateData();
   return useMutation({
     mutationFn: (
       args:
-        | { mode: 'create'; formId: number; phase: WorkReportPhase; request: WorkItemRequest }
-        | { mode: 'update'; id: number; phase: WorkReportPhase; request: UpdateWorkItemRequest },
-    ) =>
-      args.mode === 'create'
-        ? createWorkItem(args.formId, args.phase, args.request)
-        : updateWorkItem(args.id, args.phase, args.request),
+        | { mode: 'create'; formId: number; request: PlanItemRequest }
+        | { mode: 'update'; id: number; request: UpdatePlanItemRequest },
+    ) => (args.mode === 'create' ? createPlanItem(args.formId, args.request) : updatePlanItem(args.id, args.request)),
     onSettled: invalidate,
   });
 };
 
-export const useDeleteWorkItem = () => {
+export const useDeletePlanItem = () => {
+  const invalidate = useInvalidateData();
+  return useMutation({ mutationFn: (id: number) => deletePlanItem(id), onSuccess: invalidate });
+};
+
+// ===== Dòng báo cáo =====
+
+export const useSaveReportItem = () => {
   const invalidate = useInvalidateData();
   return useMutation({
-    mutationFn: ({ id, phase }: { id: number; phase: WorkReportPhase }) => deleteWorkItem(id, phase),
+    mutationFn: (
+      args:
+        | { mode: 'create'; formId: number; request: ReportItemRequest }
+        | { mode: 'update'; id: number; request: UpdateReportItemRequest },
+    ) =>
+      args.mode === 'create' ? createReportItem(args.formId, args.request) : updateReportItem(args.id, args.request),
+    onSettled: invalidate,
+  });
+};
+
+export const useDeleteReportItem = () => {
+  const invalidate = useInvalidateData();
+  return useMutation({ mutationFn: (id: number) => deleteReportItem(id), onSuccess: invalidate });
+};
+
+/** Đưa dòng kế hoạch (gợi ý) vào báo cáo. */
+export const useAcceptPlanItems = () => {
+  const invalidate = useInvalidateData();
+  return useMutation({
+    mutationFn: ({ formId, planItemIds }: { formId: number; planItemIds: number[] }) =>
+      acceptPlanItems(formId, planItemIds),
+    onSettled: invalidate,
+  });
+};
+
+/** Admin mở khóa (until ISO) / khóa lại (until null) 1 giai đoạn của form. */
+export const useUnlockWeeklyForm = () => {
+  const invalidate = useInvalidateData();
+  return useMutation({
+    mutationFn: ({ phase, formId, until }: { phase: WorkReportPhase; formId: number; until: string | null }) =>
+      unlockWeeklyForm(phase, formId, until),
     onSuccess: invalidate,
   });
 };
 
-export const useBatchCreateWorkItems = () => {
-  const invalidate = useInvalidateData();
-  return useMutation({
-    mutationFn: ({ formId, phase, rows }: { formId: number; phase: WorkReportPhase; rows: PastedWorkItemRow[] }) =>
-      batchCreateWorkItems(formId, phase, rows),
-    onSuccess: invalidate,
-  });
-};
+// ===== Vật tư =====
 
 export const useSaveWorkMaterial = () => {
   const invalidate = useInvalidateData();

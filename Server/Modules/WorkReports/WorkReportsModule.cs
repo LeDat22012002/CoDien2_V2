@@ -16,8 +16,10 @@ public static class WorkReportsModule
         services.AddScoped<IWorkReportUnitRepository, WorkReportUnitRepository>();
         services.AddScoped<IWorkWeekRepository, WorkWeekRepository>();
         services.AddScoped<IWeeklyFormRepository, WeeklyFormRepository>();
-        services.AddScoped<IWorkItemRepository, WorkItemRepository>();
-        services.AddScoped<IWorkMaterialRepository, WorkMaterialRepository>();
+        services.AddScoped<IWorkPlanItemRepository, WorkPlanItemRepository>();
+        services.AddScoped<IWorkReportItemRepository, WorkReportItemRepository>();
+        services.AddScoped<IWorkPlanMaterialRepository, WorkPlanMaterialRepository>();
+        services.AddScoped<IWorkReportMaterialRepository, WorkReportMaterialRepository>();
 
         // Scoped: cây đơn vị và phạm vi người gọi chỉ tính 1 lần mỗi request
         services.AddScoped<IOrgTreeProvider, OrgTreeProvider>();
@@ -27,8 +29,16 @@ public static class WorkReportsModule
         services.AddScoped<IMaterialPurposeService, MaterialPurposeService>();
         services.AddScoped<IWorkWeekService, WorkWeekService>();
         services.AddScoped<IWeeklyFormService, WeeklyFormService>();
-        services.AddScoped<IWorkItemService, WorkItemService>();
-        services.AddScoped<IWorkMaterialService, WorkMaterialService>();
+        // Cập nhật tức thì (SignalR): hub map ở Program.cs (WorkReportHub.Path)
+        services.AddSignalR();
+        services.AddScoped<IWorkReportNotifier, WorkReportNotifier>();
+
+        services.AddScoped<WorkItemSupport>();
+        services.AddScoped<IWorkerOptionService, WorkerOptionService>();
+        services.AddScoped<IWorkPlanService, WorkPlanService>();
+        services.AddScoped<IWorkReportService, WorkReportService>();
+        services.AddScoped<IWorkPlanMaterialService, WorkPlanMaterialService>();
+        services.AddScoped<IWorkReportMaterialService, WorkReportMaterialService>();
         services.AddScoped<IWorkReportSettingService, WorkReportSettingService>();
         services.AddScoped<IWorkReportUnitEngineerService, WorkReportUnitEngineerService>();
         services.AddScoped<IWorkReportUnitSyncService, WorkReportUnitSyncService>();

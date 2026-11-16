@@ -4,28 +4,108 @@ using Server.Modules.WorkReports.Entities;
 
 namespace Server.Modules.WorkReports.Services;
 
-/// <summary>Map dòng công việc / vật tư sang DTO (dùng chung cho lưới, thêm/sửa, dán Excel, vật tư).</summary>
+/// <summary>Map dòng kế hoạch / báo cáo và vật tư sang DTO.</summary>
 public static class WorkItemMapper
 {
     /// <summary>Id nhân viên xuất hiện trong danh sách người thực hiện (để lấy tên hiện tại theo lô).</summary>
-    public static IReadOnlyList<int> CollectEmployeeIds(IEnumerable<WorkItem> items) =>
-        items.SelectMany(x => x.Workers)
+    public static IReadOnlyList<int> CollectEmployeeIds(IEnumerable<WorkItemWorkerBase> workers) =>
+        workers
             .Where(x => x.EmployeeId is not null)
             .Select(x => x.EmployeeId!.Value)
             .Distinct()
             .ToList();
 
-    public static WorkItemDto ToDto(
-        WorkItem item,
+    public static WorkPlanItemDto ToDto(
+        WorkPlanItem item,
         IReadOnlyDictionary<int, WorkCategory> categories,
         IReadOnlyDictionary<int, EmployeeBriefDto> employees,
         int? tt = null)
     {
-        var category = categories.GetValueOrDefault(item.WorkCategoryId);
-        var planned = item.PlannedMinutes ?? 0;
-        var effectiveActual = item.ActualMinutes ?? item.PlannedMinutes ?? 0;
+        var dto = Common<WorkPlanItemDto, WorkPlanItemWorker>(item, categories, employees, tt);
+        dto.PlannedMinutes = item.PlannedMinutes;
+        return dto;
+    }
 
-        return new WorkItemDto
+    public static WorkReportItemDto ToDto(
+        WorkReportItem item,
+        IReadOnlyDictionary<int, WorkCategory> categories,
+        IReadOnlyDictionary<int, EmployeeBriefDto> employees,
+        int? tt = null)
+    {
+        var dto = Common<WorkReportItemDto, WorkReportItemWorker>(item, categories, employees, tt);
+        var effectiveActual = EffectiveActualMinutes(item);
+        dto.PlanItemId = item.PlanItemId;
+        dto.IsUnplanned = item.PlanItemId is null;
+        dto.PlannedMinutes = item.PlannedMinutes;
+        dto.ActualMinutes = item.ActualMinutes;
+        dto.EffectiveActualMinutes = effectiveActual;
+        dto.DiffMinutes = effectiveActual - (item.PlannedMinutes ?? 0);
+        dto.ResultPercent = item.ResultPercent;
+        dto.WorkPermit = item.WorkPermit;
+        dto.FiveS = item.FiveS;
+        dto.Explanation = item.Explanation;
+        return dto;
+    }
+
+    /// <summary>(12) thực tế, chưa nhập thì bằng kế hoạch.</summary>
+    public static decimal EffectiveActualMinutes(WorkReportItem item) => item.ActualMinutes ?? item.PlannedMinutes ?? 0;
+
+    public static WorkMaterialDto ToDto(WorkPlanMaterial material, WeeklyForm form, WorkPlanItem? item) => new()
+    {
+        Id = material.Id,
+        WeeklyFormId = material.WeeklyFormId,
+        UnitName = form.UnitName,
+        WorkItemId = material.WorkPlanItemId,
+        WorkItemCode = item?.Code ?? string.Empty,
+        WorkItemDescription = item?.Description,
+        EngineerNames = form.EngineerNames,
+        MaterialCode = material.MaterialCode,
+        MaterialName = material.MaterialName,
+        Uom = material.Uom,
+        PlannedQuantity = material.Quantity,
+        EffectiveActualQuantity = material.Quantity,
+        UsageDate = material.UsageDate,
+        MaterialPurposeId = material.MaterialPurposeId,
+        MaterialPurposeCode = material.MaterialPurpose?.Code,
+        Note = material.Note,
+        UpdatedAt = material.UpdatedAt ?? material.CreatedAt,
+        UpdatedBy = material.UpdatedBy ?? material.CreatedBy,
+    };
+
+    public static WorkMaterialDto ToDto(WorkReportMaterial material, WeeklyForm form, WorkReportItem? item) => new()
+    {
+        Id = material.Id,
+        WeeklyFormId = material.WeeklyFormId,
+        UnitName = form.UnitName,
+        WorkItemId = material.WorkReportItemId,
+        WorkItemCode = item?.Code ?? string.Empty,
+        WorkItemDescription = item?.Description,
+        EngineerNames = form.EngineerNames,
+        MaterialCode = material.MaterialCode,
+        MaterialName = material.MaterialName,
+        Uom = material.Uom,
+        PlannedQuantity = material.PlannedQuantity,
+        ActualQuantity = material.ActualQuantity,
+        EffectiveActualQuantity = material.ActualQuantity ?? material.PlannedQuantity,
+        UsageDate = material.UsageDate,
+        MaterialPurposeId = material.MaterialPurposeId,
+        MaterialPurposeCode = material.MaterialPurpose?.Code,
+        Note = material.Note,
+        IsUnplanned = material.PlanMaterialId is null,
+        UpdatedAt = material.UpdatedAt ?? material.CreatedAt,
+        UpdatedBy = material.UpdatedBy ?? material.CreatedBy,
+    };
+
+    private static TDto Common<TDto, TWorker>(
+        WorkItemBase<TWorker> item,
+        IReadOnlyDictionary<int, WorkCategory> categories,
+        IReadOnlyDictionary<int, EmployeeBriefDto> employees,
+        int? tt)
+        where TDto : WorkItemDtoBase, new()
+        where TWorker : WorkItemWorkerBase
+    {
+        var category = categories.GetValueOrDefault(item.WorkCategoryId);
+        return new TDto
         {
             Id = item.Id,
             WeeklyFormId = item.WeeklyFormId,
@@ -39,7 +119,8 @@ public static class WorkItemMapper
             EquipmentCode = item.EquipmentCode,
             EquipmentName = item.EquipmentName,
             Description = item.Description,
-            WorkDate = item.WorkDate,
+            StartDate = item.StartDate,
+            EndDate = item.EndDate,
             WorkerCount = item.Workers.Count,
             Workers = item.Workers
                 .OrderBy(x => x.SortOrder).ThenBy(x => x.Id)
@@ -55,44 +136,11 @@ public static class WorkItemMapper
                     };
                 })
                 .ToList(),
-            PlannedMinutes = item.PlannedMinutes,
-            ActualMinutes = item.ActualMinutes,
-            EffectiveActualMinutes = effectiveActual,
-            DiffMinutes = effectiveActual - planned,
-            ResultPercent = item.ResultPercent,
-            WorkPermit = item.WorkPermit,
-            FiveS = item.FiveS,
-            Explanation = item.Explanation,
             Note = item.Note,
-            IsUnplanned = item.IsUnplanned,
             SortOrder = item.SortOrder,
             RowVersion = Convert.ToBase64String(item.RowVersion),
             UpdatedAt = item.UpdatedAt ?? item.CreatedAt,
             UpdatedBy = item.UpdatedBy ?? item.CreatedBy,
         };
     }
-
-    public static WorkMaterialDto ToDto(WorkMaterial material, WeeklyForm form) => new()
-    {
-        Id = material.Id,
-        WeeklyFormId = material.WeeklyFormId,
-        UnitName = form.UnitName,
-        WorkItemId = material.WorkItemId,
-        WorkItemCode = material.WorkItem?.Code ?? string.Empty,
-        WorkItemDescription = material.WorkItem?.Description,
-        EngineerNames = form.EngineerNames,
-        MaterialCode = material.MaterialCode,
-        MaterialName = material.MaterialName,
-        Uom = material.Uom,
-        PlannedQuantity = material.PlannedQuantity,
-        ActualQuantity = material.ActualQuantity,
-        EffectiveActualQuantity = material.ActualQuantity ?? material.PlannedQuantity,
-        UsageDate = material.UsageDate,
-        MaterialPurposeId = material.MaterialPurposeId,
-        MaterialPurposeCode = material.MaterialPurpose?.Code,
-        Note = material.Note,
-        IsUnplanned = material.IsUnplanned,
-        UpdatedAt = material.UpdatedAt ?? material.CreatedAt,
-        UpdatedBy = material.UpdatedBy ?? material.CreatedBy,
-    };
 }

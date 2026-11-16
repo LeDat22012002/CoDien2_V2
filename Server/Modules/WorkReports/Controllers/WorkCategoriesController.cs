@@ -11,8 +11,10 @@ namespace Server.Modules.WorkReports.Controllers;
 [ApiController]
 [Route("api/work-categories")]
 [HasPermission(
-    PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage,
-    PermissionCodes.WorkReports.Configure)]
+    PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage, PermissionCodes.WorkReports.Configure,
+    PermissionCodes.WorkReports.PlanCreate, PermissionCodes.WorkReports.PlanUpdate, PermissionCodes.WorkReports.PlanDelete,
+    PermissionCodes.WorkReports.ReportCreate, PermissionCodes.WorkReports.ReportUpdate,
+    PermissionCodes.WorkReports.ReportDelete)]
 public class WorkCategoriesController(IWorkCategoryService categoryService) : ControllerBase
 {
     [HttpGet]

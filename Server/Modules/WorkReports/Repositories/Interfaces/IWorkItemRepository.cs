@@ -2,34 +2,35 @@ using Server.Modules.WorkReports.Entities;
 
 namespace Server.Modules.WorkReports.Repositories.Interfaces;
 
-public interface IWorkItemRepository
+/// <summary>Dòng kế hoạch (<see cref="WorkPlanItem"/>) hoặc dòng báo cáo (<see cref="WorkReportItem"/>), kèm người thực hiện.</summary>
+public interface IWorkItemRepository<TItem> where TItem : class
 {
-    /// <summary>Không tracking, kèm người thực hiện: dòng của các form (bỏ dòng phát sinh nếu includeUnplanned = false).</summary>
-    Task<IReadOnlyList<WorkItem>> GetByFormIdsAsync(
-        IReadOnlyCollection<int> formIds, bool includeUnplanned, CancellationToken cancellationToken);
+    /// <summary>Không tracking.</summary>
+    Task<IReadOnlyList<TItem>> GetByFormIdsAsync(IReadOnlyCollection<int> formIds, CancellationToken cancellationToken);
 
-    /// <summary>Không tracking, kèm người thực hiện.</summary>
-    Task<WorkItem?> GetByIdAsync(int id, CancellationToken cancellationToken);
+    /// <summary>Không tracking.</summary>
+    Task<IReadOnlyList<TItem>> GetByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken);
 
-    /// <summary>Có tracking, kèm người thực hiện; dùng khi sửa / xóa.</summary>
-    Task<WorkItem?> FindByIdAsync(int id, CancellationToken cancellationToken);
+    /// <summary>Không tracking.</summary>
+    Task<TItem?> GetByIdAsync(int id, CancellationToken cancellationToken);
+
+    /// <summary>Có tracking.</summary>
+    Task<TItem?> FindByIdAsync(int id, CancellationToken cancellationToken);
 
     Task<int> GetMaxSortOrderAsync(int formId, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Cấp STT tiếp theo cho (form, đầu mục): đọc bộ đếm bằng UPDLOCK, HOLDLOCK rồi tăng.
-    /// Phải gọi trong IUnitOfWork.ExecuteInTransactionAsync; bộ đếm được lưu cùng lần SaveChanges.
-    /// </summary>
-    Task<int> NextCodeSeqAsync(int formId, int categoryId, CancellationToken cancellationToken);
+    void Add(TItem item);
 
-    void Add(WorkItem item);
+    void Remove(TItem item);
 
-    /// <summary>Xóa mềm.</summary>
-    void Remove(WorkItem item);
+    /// <summary>Gắn rowVersion client gửi lên làm giá trị gốc để EF phát hiện người khác đã sửa (409).</summary>
+    void PrepareConcurrentUpdate(TItem item, byte[] clientRowVersion);
+}
 
-    /// <summary>
-    /// Đánh dấu dòng đã sửa (để rowversion luôn tăng, kể cả khi chỉ đổi người thực hiện)
-    /// và so rowversion client gửi lên khi lưu: lệch → DbUpdateConcurrencyException.
-    /// </summary>
-    void PrepareConcurrentUpdate(WorkItem item, byte[] clientRowVersion);
+public interface IWorkPlanItemRepository : IWorkItemRepository<WorkPlanItem>;
+
+public interface IWorkReportItemRepository : IWorkItemRepository<WorkReportItem>
+{
+    /// <summary>Id dòng kế hoạch đã có dòng báo cáo (chưa xóa) trong form.</summary>
+    Task<IReadOnlySet<int>> GetAcceptedPlanItemIdsAsync(int formId, CancellationToken cancellationToken);
 }

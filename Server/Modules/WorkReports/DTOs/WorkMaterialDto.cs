@@ -2,6 +2,7 @@ namespace Server.Modules.WorkReports.DTOs;
 
 // ===== Response =====
 
+/// <summary>Vật tư kế hoạch (WorkItemId = Id dòng kế hoạch) hoặc báo cáo (WorkItemId = Id dòng báo cáo).</summary>
 public class WorkMaterialDto
 {
     public int Id { get; init; }
@@ -32,7 +33,10 @@ public class WorkMaterialDto
     public int? MaterialPurposeId { get; init; }
     public string? MaterialPurposeCode { get; init; }
     public string? Note { get; init; }
+
+    /// <summary>Báo cáo: vật tư phát sinh (không chép từ kế hoạch).</summary>
     public bool IsUnplanned { get; init; }
+
     public DateTime? UpdatedAt { get; init; }
     public string? UpdatedBy { get; init; }
 }
@@ -40,8 +44,8 @@ public class WorkMaterialDto
 // ===== Request =====
 
 /// <summary>
-/// Vật tư gắn 1 dòng công việc của form. Trường không thuộc giai đoạn bị bỏ qua:
-/// PLAN nhận số lượng kế hoạch; REPORT nhận số lượng thực tế (vật tư phát sinh không có số kế hoạch).
+/// Vật tư gắn 1 dòng công việc cùng giai đoạn của form. Trường không thuộc giai đoạn bị bỏ qua:
+/// kế hoạch nhận PlannedQuantity; báo cáo nhận ActualQuantity (số kế hoạch chỉ có khi chép từ kế hoạch).
 /// </summary>
 public abstract class WorkMaterialRequestBase
 {
@@ -64,7 +68,4 @@ public class WorkshopMaterialFilterRequest
 {
     public int WorkshopId { get; set; }
     public int WeekId { get; set; }
-
-    /// <summary>PLAN | REPORT.</summary>
-    public string Phase { get; set; } = string.Empty;
 }

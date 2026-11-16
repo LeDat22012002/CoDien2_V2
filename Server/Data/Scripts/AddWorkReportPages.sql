@@ -10,6 +10,9 @@
  *   work-reports.manage     Đội trưởng, quản đốc  ADMIN /admin/work-reports         "Báo cáo tuần › Quản lý báo cáo tuần"
  *   work-reports.configure  Quản trị              ADMIN /admin/work-report-settings "Báo cáo tuần › Cấu hình báo cáo tuần"
  *   (không quyền)           Ban Giám đốc, mọi người  PUBLIC /work-reports          "Báo cáo nhà máy › Báo cáo tuần" (chỉ xem)
+ *
+ * Từ 16/11/2026 có thêm 6 quyền không gắn trang (seeder tự thêm): work-reports.plan.create|update|delete,
+ * work-reports.report.create|update|delete — admin cấp cho role ngoài kỹ sư để thêm/sửa/xóa dòng trong đội/xưởng mình.
  */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;

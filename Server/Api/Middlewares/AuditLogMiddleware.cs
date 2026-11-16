@@ -44,8 +44,10 @@ public class AuditLogMiddleware(RequestDelegate next, ILogger<AuditLogMiddleware
     public async Task InvokeAsync(HttpContext context, IAuditLogQueue auditLogQueue)
     {
         var request = context.Request;
+        // /api/hubs: kết nối SignalR (negotiate, long polling) — không phải thao tác người dùng, không bọc response
         if (!AuditedMethods.Contains(request.Method)
             || !request.Path.StartsWithSegments("/api")
+            || request.Path.StartsWithSegments("/api/hubs")
             || ExcludedPaths.Contains(request.Path.Value ?? string.Empty))
         {
             await next(context);

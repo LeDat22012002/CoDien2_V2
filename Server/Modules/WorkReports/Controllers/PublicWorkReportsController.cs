@@ -8,15 +8,18 @@ namespace Server.Modules.WorkReports.Controllers;
 
 /// <summary>
 /// Trang công khai /work-reports (Ban Giám đốc xem, ai cũng xem được, không cần đăng nhập): chỉ đọc, mọi xưởng.
-/// Mọi action gọi UsePublicView trước để phạm vi không phụ thuộc người đăng nhập (form trả canEditNow = false).
+/// Mọi action gọi UsePublicView trước để phạm vi không phụ thuộc người đăng nhập (form trả canCreate/Update/Delete = false,
+/// báo cáo không kèm gợi ý từ kế hoạch). Kế hoạch: /plan/*, báo cáo: /report/*.
 /// </summary>
 [ApiController]
 [Route("api/work-reports/public")]
 [AllowAnonymous]
 public class PublicWorkReportsController(
     IWorkReportScopeService scopeService,
-    IWeeklyFormService formService,
-    IWorkMaterialService materialService,
+    IWorkPlanService planService,
+    IWorkReportService reportService,
+    IWorkPlanMaterialService planMaterialService,
+    IWorkReportMaterialService reportMaterialService,
     IWorkWeekService weekService) : ControllerBase
 {
     /// <summary>Các xưởng có đơn vị báo cáo (bộ chọn xưởng).</summary>
@@ -46,39 +49,79 @@ public class PublicWorkReportsController(
         return Ok(ApiResponse<WorkingWeeksDto>.Ok(result));
     }
 
-    [HttpGet("grid")]
-    public async Task<ActionResult<ApiResponse<WorkReportGridDto>>> GetGrid(
+    // ===== Kế hoạch =====
+
+    [HttpGet("plan/grid")]
+    public async Task<ActionResult<ApiResponse<WorkGridDto<WeeklyPlanFormDto>>>> GetPlanGrid(
         [FromQuery] WorkReportGridRequest request, CancellationToken cancellationToken)
     {
         scopeService.UsePublicView();
-        var result = await formService.GetGridAsync(request, cancellationToken);
-        return Ok(ApiResponse<WorkReportGridDto>.Ok(result));
+        var result = await planService.GetGridAsync(request, cancellationToken);
+        return Ok(ApiResponse<WorkGridDto<WeeklyPlanFormDto>>.Ok(result));
     }
 
-    [HttpGet("summary")]
-    public async Task<ActionResult<ApiResponse<WorkReportSummaryDto>>> GetSummary(
+    [HttpGet("plan/summary")]
+    public async Task<ActionResult<ApiResponse<WorkReportSummaryDto>>> GetPlanSummary(
         [FromQuery] WorkReportGridRequest request, CancellationToken cancellationToken)
     {
         scopeService.UsePublicView();
-        var result = await formService.GetSummaryAsync(request, cancellationToken);
+        var result = await planService.GetSummaryAsync(request, cancellationToken);
         return Ok(ApiResponse<WorkReportSummaryDto>.Ok(result));
     }
 
-    [HttpGet("materials")]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkMaterialDto>>>> GetWorkshopMaterials(
+    [HttpGet("plan/materials")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkMaterialDto>>>> GetPlanMaterials(
         [FromQuery] WorkshopMaterialFilterRequest filter, CancellationToken cancellationToken)
     {
         scopeService.UsePublicView();
-        var result = await materialService.GetWorkshopMaterialsAsync(filter, cancellationToken);
+        var result = await planMaterialService.GetWorkshopMaterialsAsync(filter, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<WorkMaterialDto>>.Ok(result));
     }
 
-    [HttpGet("forms/{formId:int}/materials")]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkMaterialDto>>>> GetFormMaterials(
-        int formId, [FromQuery] string phase, CancellationToken cancellationToken)
+    [HttpGet("plan/forms/{formId:int}/materials")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkMaterialDto>>>> GetPlanFormMaterials(
+        int formId, CancellationToken cancellationToken)
     {
         scopeService.UsePublicView();
-        var result = await materialService.GetByFormAsync(formId, phase, cancellationToken);
+        var result = await planMaterialService.GetByFormAsync(formId, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<WorkMaterialDto>>.Ok(result));
+    }
+
+    // ===== Báo cáo =====
+
+    [HttpGet("report/grid")]
+    public async Task<ActionResult<ApiResponse<WorkGridDto<WeeklyReportFormDto>>>> GetReportGrid(
+        [FromQuery] WorkReportGridRequest request, CancellationToken cancellationToken)
+    {
+        scopeService.UsePublicView();
+        var result = await reportService.GetGridAsync(request, cancellationToken);
+        return Ok(ApiResponse<WorkGridDto<WeeklyReportFormDto>>.Ok(result));
+    }
+
+    [HttpGet("report/summary")]
+    public async Task<ActionResult<ApiResponse<WorkReportSummaryDto>>> GetReportSummary(
+        [FromQuery] WorkReportGridRequest request, CancellationToken cancellationToken)
+    {
+        scopeService.UsePublicView();
+        var result = await reportService.GetSummaryAsync(request, cancellationToken);
+        return Ok(ApiResponse<WorkReportSummaryDto>.Ok(result));
+    }
+
+    [HttpGet("report/materials")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkMaterialDto>>>> GetReportMaterials(
+        [FromQuery] WorkshopMaterialFilterRequest filter, CancellationToken cancellationToken)
+    {
+        scopeService.UsePublicView();
+        var result = await reportMaterialService.GetWorkshopMaterialsAsync(filter, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<WorkMaterialDto>>.Ok(result));
+    }
+
+    [HttpGet("report/forms/{formId:int}/materials")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkMaterialDto>>>> GetReportFormMaterials(
+        int formId, CancellationToken cancellationToken)
+    {
+        scopeService.UsePublicView();
+        var result = await reportMaterialService.GetByFormAsync(formId, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<WorkMaterialDto>>.Ok(result));
     }
 }

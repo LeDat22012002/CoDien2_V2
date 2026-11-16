@@ -36,11 +36,14 @@ public class WorkReportUnitRepository(AppDbContext dbContext) : IWorkReportUnitR
     public Task<WorkReportUnit?> FindDeletedByIdAsync(int id, CancellationToken cancellationToken) =>
         Units.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == id && x.IsDeleted, cancellationToken);
 
-    public async Task<bool> HasDataAsync(int unitId, CancellationToken cancellationToken) =>
-        await dbContext.Set<WorkItem>().AnyAsync(x => x.WeeklyForm.WorkReportUnitId == unitId, cancellationToken)
-        || await dbContext.Set<WorkMaterial>().AnyAsync(
-            x => dbContext.Set<WeeklyForm>().Any(f => f.Id == x.WeeklyFormId && f.WorkReportUnitId == unitId),
-            cancellationToken);
+    public async Task<bool> HasDataAsync(int unitId, CancellationToken cancellationToken)
+    {
+        var formIds = dbContext.Set<WeeklyForm>().Where(f => f.WorkReportUnitId == unitId).Select(f => f.Id);
+        return await dbContext.Set<WorkPlanItem>().AnyAsync(x => formIds.Contains(x.WeeklyFormId), cancellationToken)
+               || await dbContext.Set<WorkReportItem>().AnyAsync(x => formIds.Contains(x.WeeklyFormId), cancellationToken)
+               || await dbContext.Set<WorkPlanMaterial>().AnyAsync(x => formIds.Contains(x.WeeklyFormId), cancellationToken)
+               || await dbContext.Set<WorkReportMaterial>().AnyAsync(x => formIds.Contains(x.WeeklyFormId), cancellationToken);
+    }
 
     public async Task<IReadOnlyList<WeeklyForm>> FindFormsAsync(int unitId, CancellationToken cancellationToken) =>
         await dbContext.Set<WeeklyForm>().Where(x => x.WorkReportUnitId == unitId).ToListAsync(cancellationToken);

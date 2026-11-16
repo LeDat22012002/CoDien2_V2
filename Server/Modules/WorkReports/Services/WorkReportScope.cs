@@ -11,15 +11,42 @@ public sealed class WorkReportScope
     /// <summary>work-reports.configure (SUPER_ADMIN luôn có).</summary>
     public bool CanConfigure { get; init; }
 
+    /// <summary>work-reports.manage: xem, cấu hình tổ/kíp, phân công kỹ sư trong đội/xưởng mình là trưởng/phó.</summary>
+    public bool CanManage { get; init; }
+
     /// <summary>Xem mọi xưởng, chỉ xem: request của trang công khai (IWorkReportScopeService.UsePublicView).</summary>
     public bool CanViewFactory { get; init; }
 
     /// <summary>Id đơn vị báo cáo người gọi là kỹ sư phụ trách (cần work-reports.submit).</summary>
     public IReadOnlySet<int> EngineerUnitIds { get; init; } = new HashSet<int>();
 
-    /// <summary>OrgUnit.Id các Đội (TEAM) người gọi là trưởng/phó (cần work-reports.manage).</summary>
-    public IReadOnlySet<int> ManagedTeamIds { get; init; } = new HashSet<int>();
+    /// <summary>OrgUnit.Id các Đội (TEAM) người gọi là trưởng/phó (chỉ tính khi có manage hoặc quyền thêm/sửa/xóa).</summary>
+    public IReadOnlySet<int> HeadTeamIds { get; init; } = new HashSet<int>();
 
-    /// <summary>OrgUnit.Id các xưởng (đơn vị cấp 1) người gọi là trưởng/phó (cần work-reports.manage).</summary>
-    public IReadOnlySet<int> ManagedWorkshopIds { get; init; } = new HashSet<int>();
+    /// <summary>OrgUnit.Id các xưởng (đơn vị cấp 1) người gọi là trưởng/phó (chỉ tính khi có manage hoặc quyền thêm/sửa/xóa).</summary>
+    public IReadOnlySet<int> HeadWorkshopIds { get; init; } = new HashSet<int>();
+
+    /// <summary>Quyền thêm/sửa/xóa kế hoạch do admin cấp (work-reports.plan.*), dùng trong phạm vi trưởng/phó.</summary>
+    public PhaseRights PlanRights { get; init; } = PhaseRights.None;
+
+    /// <summary>Quyền thêm/sửa/xóa báo cáo do admin cấp (work-reports.report.*).</summary>
+    public PhaseRights ReportRights { get; init; } = PhaseRights.None;
+
+    /// <summary>Đội người gọi quản lý (manage + trưởng/phó đội).</summary>
+    public IReadOnlySet<int> ManagedTeamIds => CanManage ? HeadTeamIds : EmptySet;
+
+    /// <summary>Xưởng người gọi quản lý (manage + quản đốc/phó).</summary>
+    public IReadOnlySet<int> ManagedWorkshopIds => CanManage ? HeadWorkshopIds : EmptySet;
+
+    private static readonly IReadOnlySet<int> EmptySet = new HashSet<int>();
+}
+
+/// <summary>Thêm / sửa / xóa dòng (và vật tư) của 1 giai đoạn.</summary>
+public readonly record struct PhaseRights(bool Create, bool Update, bool Delete)
+{
+    public static readonly PhaseRights None = new(false, false, false);
+
+    public static readonly PhaseRights All = new(true, true, true);
+
+    public bool Any => Create || Update || Delete;
 }

@@ -2,7 +2,6 @@ import type { OperationStatus } from '@/shared/constants/operationStatus';
 import type {
   FormPhaseStatus,
   LaborType,
-  PastedWorkItemRow,
   WorkerOptionScope,
   WorkReportPhase,
   WorkReportRole,
@@ -50,62 +49,4 @@ export const ROLE_LABELS: Record<WorkReportRole, string> = {
   ENGINEER: 'Kỹ sư phụ trách',
   VIEWER: 'Chỉ xem',
   NONE: '—',
-};
-
-/** Ô dán Excel: thứ tự cột đúng như sheet tổ của file Excel cũ (kế hoạch 12 cột, báo cáo 18 cột). Null = bỏ qua. */
-type PastedField = Exclude<keyof PastedWorkItemRow, 'rowIndex'>;
-
-export const PASTE_COLUMNS: Record<WorkReportPhase, { label: string; field: PastedField | null }[]> = {
-  PLAN: [
-    { label: '(1) TT', field: null },
-    { label: '(2) Tổ thực hiện', field: null },
-    { label: '(3) Công việc thực hiện', field: 'category' },
-    { label: '(4) Mã công việc', field: null },
-    { label: '(5) Equipment', field: 'equipmentCode' },
-    { label: '(6) Hạng mục công việc', field: 'description' },
-    { label: '(7) Ngày thực hiện', field: 'workDate' },
-    { label: '(8) Số người', field: null },
-    { label: '(9) Tên người thực hiện', field: 'workers' },
-    { label: '(10) KTV phụ trách', field: null },
-    { label: '(11) Giờ công KH (phút)', field: 'plannedMinutes' },
-    { label: '(18) Ghi chú', field: 'note' },
-  ],
-  REPORT: [
-    { label: '(1) TT', field: null },
-    { label: '(2) Tổ thực hiện', field: null },
-    { label: '(3) Công việc thực hiện', field: 'category' },
-    { label: '(4) Mã công việc', field: null },
-    { label: '(5) Equipment', field: 'equipmentCode' },
-    { label: '(6) Hạng mục công việc', field: 'description' },
-    { label: '(7) Ngày thực hiện', field: 'workDate' },
-    { label: '(8) Số người', field: null },
-    { label: '(9) Tên người thực hiện', field: 'workers' },
-    { label: '(10) KTV phụ trách', field: null },
-    { label: '(11) Giờ công KH', field: null },
-    { label: '(12) Giờ công thực tế (phút)', field: 'actualMinutes' },
-    { label: '(13) Chênh lệch', field: null },
-    { label: '(14) Kết quả %', field: 'resultPercent' },
-    { label: '(15) GPLV', field: 'workPermit' },
-    { label: '(16) 5S', field: 'fiveS' },
-    { label: '(17) Diễn giải', field: 'explanation' },
-    { label: '(18) Ghi chú', field: 'note' },
-  ],
-};
-
-/** Tên cột (key lỗi Server) → nhãn hiển thị khi báo lỗi dòng dán. */
-export const WORK_ITEM_FIELD_LABELS: Record<string, string> = {
-  category: 'Công việc thực hiện',
-  workCategoryId: 'Công việc thực hiện',
-  equipmentCode: 'Equipment',
-  equipmentName: 'Tên thiết bị',
-  description: 'Hạng mục',
-  workDate: 'Ngày thực hiện',
-  workers: 'Người thực hiện',
-  plannedMinutes: 'Giờ công KH',
-  actualMinutes: 'Giờ công thực tế',
-  resultPercent: 'Kết quả %',
-  workPermit: 'GPLV',
-  fiveS: '5S',
-  explanation: 'Diễn giải',
-  note: 'Ghi chú',
 };

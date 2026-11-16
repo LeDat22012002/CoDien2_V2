@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: env.API_PROXY_TARGET || "http://localhost:5000",
           changeOrigin: true,
+          // SignalR (/api/hubs/*) dùng WebSocket
+          ws: true,
         },
       },
     },

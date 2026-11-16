@@ -2,23 +2,26 @@ using Server.Modules.WorkReports.Entities;
 
 namespace Server.Modules.WorkReports.Repositories.Interfaces;
 
-public interface IWorkMaterialRepository
+/// <summary>Vật tư kế hoạch (<see cref="WorkPlanMaterial"/>) hoặc báo cáo (<see cref="WorkReportMaterial"/>).</summary>
+public interface IWorkMaterialRepository<TMaterial> where TMaterial : WorkMaterialBase
 {
-    /// <summary>Không tracking, kèm dòng công việc và mục đích: vật tư của các form (bỏ vật tư phát sinh nếu includeUnplanned = false).</summary>
-    Task<IReadOnlyList<WorkMaterial>> GetByFormIdsAsync(
-        IReadOnlyCollection<int> formIds, bool includeUnplanned, CancellationToken cancellationToken);
+    /// <summary>Không tracking, kèm mục đích.</summary>
+    Task<IReadOnlyList<TMaterial>> GetByFormIdsAsync(IReadOnlyCollection<int> formIds, CancellationToken cancellationToken);
 
-    /// <summary>Không tracking, kèm dòng công việc và mục đích.</summary>
-    Task<WorkMaterial?> GetByIdAsync(int id, CancellationToken cancellationToken);
+    /// <summary>Không tracking, kèm mục đích.</summary>
+    Task<TMaterial?> GetByIdAsync(int id, CancellationToken cancellationToken);
 
     /// <summary>Có tracking.</summary>
-    Task<WorkMaterial?> FindByIdAsync(int id, CancellationToken cancellationToken);
+    Task<TMaterial?> FindByIdAsync(int id, CancellationToken cancellationToken);
 
-    /// <summary>Có tracking: vật tư của 1 dòng công việc (xóa theo dòng).</summary>
-    Task<IReadOnlyList<WorkMaterial>> FindByWorkItemIdAsync(int workItemId, CancellationToken cancellationToken);
+    /// <summary>Có tracking: vật tư của các dòng.</summary>
+    Task<IReadOnlyList<TMaterial>> FindByItemIdsAsync(IReadOnlyCollection<int> itemIds, CancellationToken cancellationToken);
 
-    void Add(WorkMaterial material);
+    void Add(TMaterial material);
 
-    /// <summary>Xóa mềm.</summary>
-    void Remove(WorkMaterial material);
+    void Remove(TMaterial material);
 }
+
+public interface IWorkPlanMaterialRepository : IWorkMaterialRepository<WorkPlanMaterial>;
+
+public interface IWorkReportMaterialRepository : IWorkMaterialRepository<WorkReportMaterial>;

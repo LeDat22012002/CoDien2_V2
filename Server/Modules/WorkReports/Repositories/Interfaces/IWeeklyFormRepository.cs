@@ -18,8 +18,17 @@ public interface IWeeklyFormRepository
     /// <summary>Id các form đã cấp ít nhất 1 mã công việc.</summary>
     Task<IReadOnlyList<int>> GetFormIdsWithCodesAsync(IReadOnlyCollection<int> formIds, CancellationToken cancellationToken);
 
-    /// <summary>Id các form có ít nhất 1 dòng công việc (chưa xóa).</summary>
+    /// <summary>Id các form có ít nhất 1 dòng kế hoạch hoặc báo cáo (chưa xóa).</summary>
     Task<IReadOnlyList<int>> GetFormIdsWithItemsAsync(IReadOnlyCollection<int> formIds, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Cấp số thứ tự mã công việc tiếp theo của (form, đầu mục), dùng chung cho kế hoạch và báo cáo.
+    /// Gọi trong transaction: đọc bộ đếm bằng UPDLOCK, HOLDLOCK.
+    /// </summary>
+    Task<int> NextCodeSeqAsync(int formId, int categoryId, CancellationToken cancellationToken);
+
+    /// <summary>Có tracking: ghi thời điểm mở khóa (admin).</summary>
+    Task<WeeklyForm?> FindByIdAsync(int id, CancellationToken cancellationToken);
 
     void Add(WeeklyForm form);
 

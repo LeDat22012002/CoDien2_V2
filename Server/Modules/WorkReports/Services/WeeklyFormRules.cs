@@ -1,10 +1,9 @@
-using Server.Modules.WorkReports.DTOs;
 using Server.Modules.WorkReports.Entities;
 
 namespace Server.Modules.WorkReports.Services;
 
-/// <summary>Trạng thái 1 giai đoạn của form tại thời điểm tính.</summary>
-public readonly record struct PhaseState(string Status, DateTime DeadlineAt)
+/// <summary>Trạng thái 1 giai đoạn của form tại thời điểm tính; IsUnlocked = đã quá hạn nhưng admin đang mở khóa.</summary>
+public readonly record struct PhaseState(string Status, DateTime DeadlineAt, bool IsUnlocked = false)
 {
     public bool IsOpen => Status == FormPhaseStatuses.Open;
 }
@@ -13,7 +12,7 @@ public readonly record struct PhaseState(string Status, DateTime DeadlineAt)
 /// Quy tắc mở/khóa form (tính tại thời điểm gọi, không phụ thuộc tác vụ nền):
 /// - Kế hoạch tuần W: mở từ khi tạo form tới hạn kế hoạch hiệu lực (hạn riêng xưởng → hạn chung).
 /// - Báo cáo tuần W: mở từ 00:00 thứ 2 của tuần W tới hạn báo cáo hiệu lực.
-/// - Đã quá hạn nhưng quản đốc mở khóa (UnlockedUntil, GĐ 3) thì mở tới thời điểm đó.
+/// - Đã quá hạn: khóa với mọi người; admin mở khóa (UnlockedUntil) thì mở lại tới thời điểm đó.
 /// </summary>
 public static class WeeklyFormRules
 {
@@ -31,10 +30,6 @@ public static class WeeklyFormRules
 
     public static PhaseState GetState(WeeklyForm form, WorkWeek week, string phase, DateTime now) =>
         phase == WorkReportPhases.Plan ? GetPlanState(form, week, now) : GetReportState(form, week, now);
-
-    /// <summary>Được thêm/sửa/xóa ngay: có quyền nhập và giai đoạn đang mở, hoặc quản đốc/phó khi đã khóa.</summary>
-    public static bool CanEditNow(WorkReportUnitAccessDto access, PhaseState state) =>
-        access.CanEdit && (state.IsOpen || (state.Status == FormPhaseStatuses.Locked && access.CanEditLocked));
 
     /// <summary>Mã công việc: {Tiền tố}-{Hậu tố}-{STT:D2}.</summary>
     public static string BuildCode(string prefix, string suffix, int seq) => $"{prefix}-{suffix}-{seq:D2}";
@@ -84,7 +79,7 @@ public static class WeeklyFormRules
         }
 
         return unlockedUntil is { } until && now <= until
-            ? new PhaseState(FormPhaseStatuses.Open, until)
+            ? new PhaseState(FormPhaseStatuses.Open, until, IsUnlocked: true)
             : new PhaseState(FormPhaseStatuses.Locked, deadline);
     }
 }

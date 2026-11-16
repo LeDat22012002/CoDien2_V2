@@ -13,8 +13,10 @@ namespace Server.Modules.WorkReports.Controllers;
 public class WorkReportSettingsController(IWorkReportSettingService settingService) : ControllerBase
 {
     [HasPermission(
-        PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage,
-        PermissionCodes.WorkReports.Configure)]
+        PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage, PermissionCodes.WorkReports.Configure,
+        PermissionCodes.WorkReports.PlanCreate, PermissionCodes.WorkReports.PlanUpdate, PermissionCodes.WorkReports.PlanDelete,
+        PermissionCodes.WorkReports.ReportCreate, PermissionCodes.WorkReports.ReportUpdate,
+        PermissionCodes.WorkReports.ReportDelete)]
     [HttpGet]
     public async Task<ActionResult<ApiResponse<WorkReportSettingDto>>> Get(CancellationToken cancellationToken)
     {

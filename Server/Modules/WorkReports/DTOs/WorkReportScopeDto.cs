@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Server.Modules.WorkReports.DTOs;
 
 // ===== Response =====
@@ -41,16 +43,27 @@ public class WorkReportUnitAccessDto
 
     public bool CanView { get; init; }
 
-    /// <summary>Nhập/sửa khi form đang mở.</summary>
-    public bool CanEdit { get; init; }
+    /// <summary>Thêm/sửa/xóa dòng kế hoạch (khi kế hoạch đang mở): kỹ sư phụ trách, hoặc quyền plan.* trong phạm vi.</summary>
+    public WorkReportRightsDto Plan { get; init; } = new();
 
-    /// <summary>Sửa cả khi form đã khóa (quản đốc/phó).</summary>
-    public bool CanEditLocked { get; init; }
+    /// <summary>Thêm/sửa/xóa dòng báo cáo (khi báo cáo đang mở): kỹ sư phụ trách, hoặc quyền report.* trong phạm vi.</summary>
+    public WorkReportRightsDto Report { get; init; } = new();
 
-    public bool CanRequestRevision { get; init; }
+    /// <summary>Mở khóa kế hoạch / báo cáo đã quá hạn (chỉ admin).</summary>
     public bool CanUnlock { get; init; }
+
     public bool CanManageEngineers { get; init; }
     public bool CanConfigure { get; init; }
+}
+
+public class WorkReportRightsDto
+{
+    public bool CanCreate { get; init; }
+    public bool CanUpdate { get; init; }
+    public bool CanDelete { get; init; }
+
+    [JsonIgnore]
+    public bool Any => CanCreate || CanUpdate || CanDelete;
 }
 
 // ===== Giá trị cố định =====

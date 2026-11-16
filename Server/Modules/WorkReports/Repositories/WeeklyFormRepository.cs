@@ -44,11 +44,39 @@ public class WeeklyFormRepository(AppDbContext dbContext) : IWeeklyFormRepositor
 
     public async Task<IReadOnlyList<int>> GetFormIdsWithItemsAsync(
         IReadOnlyCollection<int> formIds, CancellationToken cancellationToken) =>
-        await dbContext.Set<WorkItem>()
+        await dbContext.Set<WorkPlanItem>()
             .Where(x => formIds.Contains(x.WeeklyFormId))
             .Select(x => x.WeeklyFormId)
-            .Distinct()
+            .Union(dbContext.Set<WorkReportItem>()
+                .Where(x => formIds.Contains(x.WeeklyFormId))
+                .Select(x => x.WeeklyFormId))
             .ToListAsync(cancellationToken);
+
+    public async Task<int> NextCodeSeqAsync(int formId, int categoryId, CancellationToken cancellationToken)
+    {
+        var counters = dbContext.Set<WorkItemCodeCounter>();
+
+        // Bộ đếm vừa thêm trong cùng lô (chưa lưu) thì dùng tiếp, không đọc lại DB
+        var counter = counters.Local.FirstOrDefault(x => x.WeeklyFormId == formId && x.WorkCategoryId == categoryId)
+                      ?? await counters
+                          .FromSql($"""
+                                    SELECT * FROM dbo.WorkItemCodeCounter WITH (UPDLOCK, HOLDLOCK)
+                                    WHERE WeeklyFormId = {formId} AND WorkCategoryId = {categoryId}
+                                    """)
+                          .FirstOrDefaultAsync(cancellationToken);
+
+        if (counter is null)
+        {
+            counter = new WorkItemCodeCounter { WeeklyFormId = formId, WorkCategoryId = categoryId, LastSeq = 0 };
+            counters.Add(counter);
+        }
+
+        counter.LastSeq++;
+        return counter.LastSeq;
+    }
+
+    public Task<WeeklyForm?> FindByIdAsync(int id, CancellationToken cancellationToken) =>
+        Forms.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public void Add(WeeklyForm form) => Forms.Add(form);
 

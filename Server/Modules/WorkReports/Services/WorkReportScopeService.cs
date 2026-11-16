@@ -31,17 +31,24 @@ public class WorkReportScopeService(
         }
 
         var userId = currentUserService.UserId ?? throw new UnauthorizedException(InvalidSessionMessage);
-        var canConfigure = await permissionChecker.HasPermissionAsync(
-            userId, PermissionCodes.WorkReports.Configure, cancellationToken);
-        var canSubmit = await permissionChecker.HasPermissionAsync(
-            userId, PermissionCodes.WorkReports.Submit, cancellationToken);
-        var canManage = await permissionChecker.HasPermissionAsync(
-            userId, PermissionCodes.WorkReports.Manage, cancellationToken);
+        Task<bool> Has(string code) => permissionChecker.HasPermissionAsync(userId, code, cancellationToken);
+
+        var canConfigure = await Has(PermissionCodes.WorkReports.Configure);
+        var canSubmit = await Has(PermissionCodes.WorkReports.Submit);
+        var canManage = await Has(PermissionCodes.WorkReports.Manage);
+        var planRights = new PhaseRights(
+            await Has(PermissionCodes.WorkReports.PlanCreate),
+            await Has(PermissionCodes.WorkReports.PlanUpdate),
+            await Has(PermissionCodes.WorkReports.PlanDelete));
+        var reportRights = new PhaseRights(
+            await Has(PermissionCodes.WorkReports.ReportCreate),
+            await Has(PermissionCodes.WorkReports.ReportUpdate),
+            await Has(PermissionCodes.WorkReports.ReportDelete));
 
         var employeeId = await employeeService.GetCurrentEmployeeIdAsync(cancellationToken);
         var engineerUnitIds = new HashSet<int>();
-        var managedTeamIds = new HashSet<int>();
-        var managedWorkshopIds = new HashSet<int>();
+        var headTeamIds = new HashSet<int>();
+        var headWorkshopIds = new HashSet<int>();
 
         // Mã quyền quyết định vai trò; phân công / sơ đồ tổ chức quyết định tổ, đội, xưởng nào
         if (employeeId is { } id && canSubmit)
@@ -49,7 +56,7 @@ public class WorkReportScopeService(
             engineerUnitIds.UnionWith(await unitRepository.GetUnitIdsOfEngineerAsync(id, Today, cancellationToken));
         }
 
-        if (employeeId is { } managerId && canManage)
+        if (employeeId is { } managerId && (canManage || planRights.Any || reportRights.Any))
         {
             var tree = await orgTreeProvider.GetAsync(cancellationToken);
             var positions = await assignmentService.GetCurrentAssignmentsAsync([managerId], cancellationToken);
@@ -64,12 +71,12 @@ public class WorkReportScopeService(
 
                 if (tree.GetWorkshop(unit.Id)?.Id == unit.Id)
                 {
-                    // Trưởng/phó đơn vị cấp 1 (quản đốc/phó; đội trưởng của đội trực thuộc Nhà máy) quản lý cả đơn vị
-                    managedWorkshopIds.Add(unit.Id);
+                    // Trưởng/phó đơn vị cấp 1 (quản đốc/phó; đội trưởng của đội trực thuộc Nhà máy): cả đơn vị
+                    headWorkshopIds.Add(unit.Id);
                 }
                 else if (unit.TypeCode == OrgUnitTypeCodes.Team)
                 {
-                    managedTeamIds.Add(unit.Id);
+                    headTeamIds.Add(unit.Id);
                 }
             }
         }
@@ -78,9 +85,12 @@ public class WorkReportScopeService(
         {
             EmployeeId = employeeId,
             CanConfigure = canConfigure,
+            CanManage = canManage,
             EngineerUnitIds = engineerUnitIds,
-            ManagedTeamIds = managedTeamIds,
-            ManagedWorkshopIds = managedWorkshopIds,
+            HeadTeamIds = headTeamIds,
+            HeadWorkshopIds = headWorkshopIds,
+            PlanRights = planRights,
+            ReportRights = reportRights,
         };
     }
 
@@ -152,14 +162,21 @@ public class WorkReportScopeService(
         var workshopId = formWorkshopId ?? tree.GetWorkshop(unit.OrgUnitId)?.Id;
 
         var isAdmin = scope.CanConfigure;
-        var isWorkshopManager = workshopId is { } wsId && scope.ManagedWorkshopIds.Contains(wsId);
+        var isWorkshopHead = workshopId is { } wsId && scope.HeadWorkshopIds.Contains(wsId);
         // Đơn vị tự đặt gắn trực tiếp với đội: OrgUnitId chính là đội
-        var isTeamManager = scope.ManagedTeamIds.Contains(unit.OrgUnitId)
-                            || tree.GetAncestors(unit.OrgUnitId).Any(x => scope.ManagedTeamIds.Contains(x.Id));
+        var isTeamHead = scope.HeadTeamIds.Contains(unit.OrgUnitId)
+                         || tree.GetAncestors(unit.OrgUnitId).Any(x => scope.HeadTeamIds.Contains(x.Id));
         var isEngineer = scope.EngineerUnitIds.Contains(unit.Id);
+        var isWorkshopManager = scope.CanManage && isWorkshopHead;
+        var isTeamManager = scope.CanManage && isTeamHead;
 
-        var role = isWorkshopManager ? WorkReportRoles.WorkshopManager
-            : isTeamManager ? WorkReportRoles.TeamManager
+        // Kỹ sư phụ trách: mặc định đủ quyền; người khác: quyền admin cấp, trong đội/xưởng mình là trưởng/phó (admin: mọi xưởng)
+        var inHeadScope = isAdmin || isWorkshopHead || isTeamHead;
+        var plan = RightsOf(isEngineer, inHeadScope, scope.PlanRights);
+        var report = RightsOf(isEngineer, inHeadScope, scope.ReportRights);
+
+        var role = isWorkshopHead && (isWorkshopManager || plan.Any || report.Any) ? WorkReportRoles.WorkshopManager
+            : isTeamHead && (isTeamManager || plan.Any || report.Any) ? WorkReportRoles.TeamManager
             : isEngineer ? WorkReportRoles.Engineer
             : isAdmin ? WorkReportRoles.Admin
             : scope.CanViewFactory ? WorkReportRoles.Viewer
@@ -173,16 +190,22 @@ public class WorkReportScopeService(
             LaborType = unit.LaborType,
             SortOrder = unit.SortOrder,
             Role = role,
-            CanView = isAdmin || scope.CanViewFactory || isWorkshopManager || isTeamManager || isEngineer,
-            CanEdit = isWorkshopManager || isTeamManager || isEngineer,
-            CanEditLocked = isWorkshopManager,
-            CanRequestRevision = isWorkshopManager || isTeamManager,
-            CanUnlock = isAdmin || isWorkshopManager,
+            CanView = isAdmin || scope.CanViewFactory || isWorkshopManager || isTeamManager || isEngineer
+                      || plan.Any || report.Any,
+            Plan = plan,
+            Report = report,
+            CanUnlock = isAdmin,
 
             // Kíp: chỉ quản đốc/phó xác nhận kỹ sư; tổ HC: thêm đội trưởng/phó của đội chứa tổ
             CanManageEngineers = isAdmin || isWorkshopManager || (isTeamManager && !isShift),
             CanConfigure = isAdmin || isWorkshopManager,
         };
+    }
+
+    private static WorkReportRightsDto RightsOf(bool isEngineer, bool inHeadScope, PhaseRights granted)
+    {
+        var rights = isEngineer ? PhaseRights.All : inHeadScope ? granted : PhaseRights.None;
+        return new WorkReportRightsDto { CanCreate = rights.Create, CanUpdate = rights.Update, CanDelete = rights.Delete };
     }
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);

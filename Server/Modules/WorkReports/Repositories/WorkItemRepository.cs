@@ -5,66 +5,56 @@ using Server.Modules.WorkReports.Repositories.Interfaces;
 
 namespace Server.Modules.WorkReports.Repositories;
 
-public class WorkItemRepository(AppDbContext dbContext) : IWorkItemRepository
+/// <summary>Truy vấn chung cho dòng kế hoạch / báo cáo (mỗi loại 1 bảng).</summary>
+public abstract class WorkItemRepository<TItem, TWorker>(AppDbContext dbContext) : IWorkItemRepository<TItem>
+    where TItem : WorkItemBase<TWorker>
+    where TWorker : WorkItemWorkerBase
 {
-    private DbSet<WorkItem> Items => dbContext.Set<WorkItem>();
+    protected DbSet<TItem> Items => dbContext.Set<TItem>();
 
-    private DbSet<WorkItemCodeCounter> Counters => dbContext.Set<WorkItemCodeCounter>();
-
-    public async Task<IReadOnlyList<WorkItem>> GetByFormIdsAsync(
-        IReadOnlyCollection<int> formIds, bool includeUnplanned, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<TItem>> GetByFormIdsAsync(
+        IReadOnlyCollection<int> formIds, CancellationToken cancellationToken)
     {
         if (formIds.Count == 0)
         {
             return [];
         }
 
-        var query = Items.AsNoTracking()
+        return await Items.AsNoTracking()
             .Include(x => x.Workers)
-            .Where(x => formIds.Contains(x.WeeklyFormId));
-        if (!includeUnplanned)
-        {
-            query = query.Where(x => !x.IsUnplanned);
-        }
-
-        return await query.AsSplitQuery().ToListAsync(cancellationToken);
+            .Where(x => formIds.Contains(x.WeeklyFormId))
+            .AsSplitQuery()
+            .ToListAsync(cancellationToken);
     }
 
-    public Task<WorkItem?> GetByIdAsync(int id, CancellationToken cancellationToken) =>
+    public async Task<IReadOnlyList<TItem>> GetByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await Items.AsNoTracking()
+            .Include(x => x.Workers)
+            .Where(x => ids.Contains(x.Id))
+            .AsSplitQuery()
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<TItem?> GetByIdAsync(int id, CancellationToken cancellationToken) =>
         Items.AsNoTracking().Include(x => x.Workers).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public Task<WorkItem?> FindByIdAsync(int id, CancellationToken cancellationToken) =>
+    public Task<TItem?> FindByIdAsync(int id, CancellationToken cancellationToken) =>
         Items.Include(x => x.Workers).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public async Task<int> GetMaxSortOrderAsync(int formId, CancellationToken cancellationToken) =>
         await Items.Where(x => x.WeeklyFormId == formId).MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? 0;
 
-    public async Task<int> NextCodeSeqAsync(int formId, int categoryId, CancellationToken cancellationToken)
-    {
-        // Bộ đếm vừa thêm trong cùng lô (chưa lưu) thì dùng tiếp, không đọc lại DB
-        var counter = Counters.Local.FirstOrDefault(x => x.WeeklyFormId == formId && x.WorkCategoryId == categoryId)
-                      ?? await Counters
-                          .FromSql($"""
-                                    SELECT * FROM dbo.WorkItemCodeCounter WITH (UPDLOCK, HOLDLOCK)
-                                    WHERE WeeklyFormId = {formId} AND WorkCategoryId = {categoryId}
-                                    """)
-                          .FirstOrDefaultAsync(cancellationToken);
+    public void Add(TItem item) => Items.Add(item);
 
-        if (counter is null)
-        {
-            counter = new WorkItemCodeCounter { WeeklyFormId = formId, WorkCategoryId = categoryId, LastSeq = 0 };
-            Counters.Add(counter);
-        }
+    public void Remove(TItem item) => Items.Remove(item);
 
-        counter.LastSeq++;
-        return counter.LastSeq;
-    }
-
-    public void Add(WorkItem item) => Items.Add(item);
-
-    public void Remove(WorkItem item) => Items.Remove(item);
-
-    public void PrepareConcurrentUpdate(WorkItem item, byte[] clientRowVersion)
+    public void PrepareConcurrentUpdate(TItem item, byte[] clientRowVersion)
     {
         var entry = dbContext.Entry(item);
         entry.Property(x => x.RowVersion).OriginalValue = clientRowVersion;
@@ -72,4 +62,17 @@ public class WorkItemRepository(AppDbContext dbContext) : IWorkItemRepository
         // Luôn ghi dòng cha (UpdatedAt đổi theo) để rowversion tăng khi chỉ sửa bảng con
         entry.Property(x => x.UpdatedAt).IsModified = true;
     }
+}
+
+public class WorkPlanItemRepository(AppDbContext dbContext)
+    : WorkItemRepository<WorkPlanItem, WorkPlanItemWorker>(dbContext), IWorkPlanItemRepository;
+
+public class WorkReportItemRepository(AppDbContext dbContext)
+    : WorkItemRepository<WorkReportItem, WorkReportItemWorker>(dbContext), IWorkReportItemRepository
+{
+    public async Task<IReadOnlySet<int>> GetAcceptedPlanItemIdsAsync(int formId, CancellationToken cancellationToken) =>
+        (await Items.Where(x => x.WeeklyFormId == formId && x.PlanItemId != null)
+            .Select(x => x.PlanItemId!.Value)
+            .ToListAsync(cancellationToken))
+        .ToHashSet();
 }

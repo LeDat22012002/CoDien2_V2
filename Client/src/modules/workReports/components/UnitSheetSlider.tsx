@@ -1,5 +1,5 @@
 import SliderModule, { type Settings } from "react-slick";
-import type { WeeklyForm } from "@/modules/workReports/types/workReports";
+import type { WeeklyFormBase } from "@/modules/workReports/types/workReports";
 
 /** react-slick là gói CommonJS: qua Vite, default import có thể là object `{ default: Slider }` thay vì component. */
 const Slider =
@@ -23,7 +23,7 @@ const SLIDER_SETTINGS: Settings = {
 };
 
 interface UnitSheetSliderProps {
-  forms: WeeklyForm[];
+  forms: WeeklyFormBase[];
   activeFormId?: number;
   onChange: (formId: number) => void;
 }

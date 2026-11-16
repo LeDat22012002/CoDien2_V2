@@ -1,9 +1,4 @@
-import {
-  DeleteOutlined,
-  EditOutlined,
-  LockOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import {
   App,
   Button,
@@ -34,7 +29,7 @@ import { PHASE_LABELS } from "@/modules/workReports/constants/workReportOptions"
 import { useCollapsedKeys } from "@/modules/workReports/hooks/useCollapsedKeys";
 import {
   useDeleteWorkMaterial,
-  useWorkReportGrid,
+  useWorkGrid,
   useWorkshopMaterials,
 } from "@/modules/workReports/hooks/useWorkReportQueries";
 import type {
@@ -95,16 +90,10 @@ const wrapText = (value?: string | null, className = "") =>
 
 const unitKey = (formId: number) => `u-${formId}`;
 
-/** Quyền trên 1 vật tư (giống quy tắc Server): kế hoạch không sửa/xóa vật tư phát sinh; báo cáo chỉ xóa vật tư phát sinh. */
-const materialActions = (
-  form: WeeklyForm,
-  material: WorkMaterial,
-  isReport: boolean,
-) => ({
-  canModify: form.canEditNow && (isReport || !material.isUnplanned),
-  canDelete:
-    form.canEditNow &&
-    (isReport ? material.isUnplanned : !material.isUnplanned),
+/** Quyền trên vật tư = quyền sửa / xóa dòng của giai đoạn (Server kiểm tra lại). */
+const materialActions = (form: WeeklyForm) => ({
+  canModify: form.canUpdate,
+  canDelete: form.canDelete,
 });
 
 /**
@@ -118,7 +107,7 @@ export const WorkshopMaterialTable = ({
 }: WorkshopMaterialTableProps) => {
   const { modal } = App.useApp();
   // Tổ/kíp (canEditNow, dòng công việc cho ô chọn mã CV) lấy từ lưới: cùng cache với tab Bảng công việc
-  const gridQuery = useWorkReportGrid(filter);
+  const gridQuery = useWorkGrid(filter);
   const materialsQuery = useWorkshopMaterials(filter);
   const deleteMutation = useDeleteWorkMaterial();
   const {
@@ -134,7 +123,7 @@ export const WorkshopMaterialTable = ({
   const grid = gridQuery.data;
 
   const forms = useMemo(() => {
-    const all = grid?.forms ?? [];
+    const all: WeeklyForm[] = grid?.forms ?? [];
     return unitFilter.length === 0
       ? all
       : all.filter((form) => unitFilter.includes(form.unitId));
@@ -239,15 +228,7 @@ export const WorkshopMaterialTable = ({
           </Typography.Text>
         </CollapseToggle>
         <FormStatusTag status={form.status} />
-        {form.status === "LOCKED" && form.canEditLocked && (
-          <Tooltip title="Đã quá hạn nhưng quản đốc / phó quản đốc vẫn sửa được">
-            <LockOutlined
-              className="text-warning"
-              aria-label="Quản đốc sửa khi khóa"
-            />
-          </Tooltip>
-        )}
-        {form.canEditNow && (
+        {form.canCreate && (
           <Button
             size="small"
             type="link"
@@ -299,8 +280,8 @@ export const WorkshopMaterialTable = ({
             <Tooltip title={material.workItemDescription}>
               <span className="font-mono">{material.workItemCode}</span>
             </Tooltip>
-            {material.isUnplanned && (
-              <Tooltip title="Vật tư phát sinh (không có trong kế hoạch)">
+            {isReport && material.isUnplanned && (
+              <Tooltip title="Vật tư phát sinh (không chép từ kế hoạch)">
                 <span className="rounded bg-warning/15 px-1 text-xs text-warning">
                   PS
                 </span>
@@ -422,11 +403,7 @@ export const WorkshopMaterialTable = ({
             align: "center",
             render: (_, row) => {
               if (row.kind !== "material") return null;
-              const { canModify, canDelete } = materialActions(
-                row.form,
-                row.material,
-                isReport,
-              );
+              const { canModify, canDelete } = materialActions(row.form);
               return (
                 <div className="flex justify-center">
                   {canModify && (
@@ -496,7 +473,7 @@ export const WorkshopMaterialTable = ({
             ...collapsibleRowProps(row.collapsed),
             onDoubleClick: () => {
               if (row.kind !== "material") return;
-              if (materialActions(row.form, row.material, isReport).canModify) {
+              if (materialActions(row.form).canModify) {
                 setModalState({ form: row.form, material: row.material });
               }
             },

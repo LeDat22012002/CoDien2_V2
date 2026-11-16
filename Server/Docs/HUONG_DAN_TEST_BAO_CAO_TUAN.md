@@ -1,5 +1,7 @@
 # HƯỚNG DẪN TEST TỪNG BƯỚC — BÁO CÁO CÔNG VIỆC TUẦN (GĐ 1 → GĐ 2)
 
+> **Cập nhật 16/11/2026 — kế hoạch / báo cáo đã tách** (HUONG_DAN mục 16): các bước B6–B11 dưới đây dùng API cũ (`?phase=`, `items/batch`) **không còn**; thay bằng `/api/work-reports/plan/*` và `/api/work-reports/report/*`, test theo **phần C** ở cuối file. B8 (dán Excel) đã bỏ.
+
 > Dùng để test backend module `WorkReports` trên **Swagger**, đi theo đúng luồng làm việc thật: cấu hình → đơn vị → kỹ sư → tuần → lập kế hoạch → báo cáo → tổng hợp.
 > Phần A giải thích **luồng hoạt động** và **vai trò từng API**. Phần B là **các bước test**: mỗi bước có body mẫu, kết quả đúng và trường hợp lỗi.
 > Đánh ✅ / ❌ vào cột cuối của từng bước; lỗi gặp ghi vào bảng ở cuối file.
@@ -451,3 +453,49 @@ Kiểm tra nhanh phân quyền: **B** gọi `GET /api/work-reports/my-scope` →
 | Bước | Người | Mô tả lỗi (API, body, kết quả nhận được) | Đã sửa |
 |---|---|---|---|
 | | | | |
+
+---
+
+# PHẦN C — TÁCH KẾ HOẠCH / BÁO CÁO (16/11/2026)
+
+## C0. Chuẩn bị
+1. `cd Server` → `dotnet ef database update --configuration Release` (migration `SplitWorkPlanReport`: tạo 6 bảng mới, chép dữ liệu cũ, xóa `WorkItem`, `WorkItemWorker`, `WorkMaterial`).
+2. Kiểm tra: `SELECT COUNT(*) FROM WorkPlanItem`, `WorkReportItem`, `WorkPlanMaterial`, `WorkReportMaterial` (dòng phát sinh + dòng đã nhập thực hiện nằm ở `WorkReportItem`).
+3. Khởi động lại Server → seeder thêm 6 quyền `work-reports.plan.create|update|delete`, `work-reports.report.create|update|delete`.
+4. Tài khoản: **K** kỹ sư phụ trách (`submit` + phân công), **Q** quản đốc (`manage`, chưa có 6 quyền), **AD** admin (`configure`).
+
+## C1. Quyền
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | K mở `/member/work-reports`, tab Bảng công việc | Kế hoạch tuần sau (đang mở): có nút "+ Thêm dòng", sửa, xóa |
+| 2 | Q mở `/admin/work-reports` | Xem được cả xưởng, **không** có nút thêm/sửa/xóa; vẫn có tab Đơn vị & kỹ sư |
+| 3 | AD gán `work-reports.plan.update` cho role của Q → Q tải lại | Q sửa được dòng kế hoạch các tổ trong xưởng, chưa thêm / xóa được |
+| 4 | Gọi `DELETE /api/work-reports/plan/items/{id}` bằng Q (chưa có `plan.delete`) | 403 |
+| 5 | Đội trưởng có `report.create`: thêm dòng báo cáo tổ ngoài đội | 403 "Bạn không có quyền thêm báo cáo của …" |
+
+## C2. Kế hoạch
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | K thêm dòng, chọn **ngày bắt đầu – kết thúc** khác nhau | Cột (7) hiện "dd/MM – dd/MM/yyyy"; cùng ngày hiện 1 ngày |
+| 2 | Chọn ngày ngoài tuần / kết thúc trước bắt đầu (qua API) | 400 theo ô `startDate` / `endDate` |
+| 3 | Sửa, xóa dòng trong hạn | Được; xóa kéo theo vật tư kế hoạch |
+| 4 | Kế hoạch tuần đã quá hạn | Trạng thái "Đã khóa", không có nút; API ghi → 400 "…đã khóa… Liên hệ quản trị để mở khóa" |
+| 5 | AD bấm **Mở khóa** trên dòng tổ/kíp, chọn thời điểm | Tag "Đang mở khóa"; K sửa được tới thời điểm đó. "Khóa lại" → khóa ngay |
+
+## C3. Báo cáo
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | K mở Báo cáo tuần (đang mở) | Dòng kế hoạch chưa báo cáo hiện **chữ nhạt, nghiêng**, icon bóng đèn, tag "KH" ở mã; nhóm đầu mục ghi "n gợi ý từ kế hoạch" |
+| 2 | Q / trang công khai `/work-reports` cùng tuần | **Không** thấy dòng gợi ý |
+| 3 | K bấm "Đưa vào" 1 dòng | Thành dòng báo cáo: giữ mã, đầu mục, giờ KH, ngày, người; vật tư KH chép sang tab Vật tư xưởng (cột SL KH) |
+| 4 | "Đưa tất cả kế hoạch vào báo cáo (n)" trên dòng tổ/kíp | Mọi gợi ý thành dòng báo cáo |
+| 5 | Sửa dòng vừa đưa vào: nhập giờ thực tế, kết quả, GPLV… | Lưu được; chênh lệch = thực tế − KH. Trang xem thấy ngay |
+| 6 | "+ Thêm dòng" ở đầu mục (việc phát sinh) không nhập giờ thực tế | Lỗi ô giờ thực tế; nhập rồi lưu → mã mới, tag "PS" |
+| 7 | Xóa dòng báo cáo lấy từ kế hoạch | Dòng kế hoạch hiện lại thành gợi ý |
+| 8 | Báo cáo quá hạn | Khóa với mọi người, gợi ý biến mất; trang xem vẫn đủ dòng đã nhập. AD mở khóa như C2.5 |
+
+## C4. Tổng hợp & vật tư
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | Tab Tổng hợp ở Kế hoạch / Báo cáo | Kế hoạch cộng giờ KH; báo cáo cộng giờ thực tế (trống = KH), gồm việc phát sinh |
+| 2 | Tab Vật tư xưởng ở Báo cáo | Chọn mã công việc chỉ trong dòng báo cáo; vật tư thêm mới có tag "PS" |

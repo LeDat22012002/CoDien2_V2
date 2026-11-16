@@ -101,15 +101,27 @@ public static class PermissionCodes
     /// </summary>
     public static class WorkReports
     {
-        /// <summary>Kỹ sư: lập kế hoạch, báo cáo tuần cho tổ/kíp được phân công (trang /member/work-reports).</summary>
+        /// <summary>Kỹ sư: lập kế hoạch, báo cáo tuần cho tổ/kíp được phân công (trang /member/work-reports).
+        /// Kỹ sư được phân công mặc định thêm/sửa/xóa kế hoạch, báo cáo của tổ/kíp mình (không cần 6 quyền bên dưới).</summary>
         public const string Submit = "work-reports.submit";
 
-        /// <summary>Đội trưởng/phó, quản đốc/phó: quản lý báo cáo tuần của đội/xưởng mình, phân công kỹ sư,
-        /// yêu cầu chỉnh sửa, mở khóa (trang /admin/work-reports).</summary>
+        /// <summary>Đội trưởng/phó, quản đốc/phó: xem báo cáo tuần của đội/xưởng mình, cấu hình tổ/kíp, phân công kỹ sư
+        /// (trang /admin/work-reports). Không gồm thêm/sửa/xóa dòng (6 quyền bên dưới do admin cấp riêng).</summary>
         public const string Manage = "work-reports.manage";
 
-        /// <summary>Cấu hình: đầu mục công việc, mục đích vật tư, hằng số giờ công, hạn nộp, đơn vị báo cáo mọi xưởng.</summary>
+        /// <summary>Cấu hình: đầu mục công việc, mục đích vật tư, hằng số giờ công, hạn nộp, đơn vị báo cáo mọi xưởng;
+        /// mở khóa kế hoạch / báo cáo đã quá hạn.</summary>
         public const string Configure = "work-reports.configure";
+
+        // Thêm/sửa/xóa dòng (và vật tư) của người KHÔNG phải kỹ sư phụ trách, admin cấp cho role.
+        // Phạm vi theo sơ đồ: trưởng/phó đội → tổ thuộc đội; trưởng/phó xưởng → mọi tổ/kíp của xưởng; admin → mọi xưởng.
+
+        public const string PlanCreate = "work-reports.plan.create";
+        public const string PlanUpdate = "work-reports.plan.update";
+        public const string PlanDelete = "work-reports.plan.delete";
+        public const string ReportCreate = "work-reports.report.create";
+        public const string ReportUpdate = "work-reports.report.update";
+        public const string ReportDelete = "work-reports.report.delete";
 
         // Xem báo cáo mọi xưởng (Ban Giám đốc): trang công khai /work-reports, API GET /api/work-reports/public/*, không cần quyền
     }

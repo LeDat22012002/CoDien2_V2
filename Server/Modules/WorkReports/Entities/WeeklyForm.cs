@@ -5,7 +5,8 @@ namespace Server.Modules.WorkReports.Entities;
 // ===== Entity =====
 
 /// <summary>
-/// Form tuần của 1 đơn vị báo cáo trong 1 kỳ tuần, gồm 2 giai đoạn Kế hoạch (PLAN) và Báo cáo (REPORT) dùng chung các dòng.
+/// Form tuần của 1 đơn vị báo cáo trong 1 kỳ tuần, gồm 2 giai đoạn Kế hoạch (PLAN) và Báo cáo (REPORT),
+/// mỗi giai đoạn có bảng dòng riêng (WorkPlanItem / WorkReportItem).
 /// Thông tin chụp (xưởng, tên, tiền tố, loại giờ công, giờ công hiệu dụng, KTV) cập nhật theo hiện tại khi báo cáo còn mở,
 /// cố định khi đã khóa báo cáo; tiền tố chỉ cập nhật khi form chưa cấp mã công việc nào.
 /// </summary>
@@ -32,23 +33,26 @@ public class WeeklyForm : BaseEntity
     /// <summary>Tên KTV phụ trách, cách nhau dấu phẩy.</summary>
     public string? EngineerNames { get; set; }
 
-    // ===== GĐ 3 (khóa / mở khóa) =====
+    // ===== Khóa / mở khóa =====
 
     /// <summary>Thời điểm tác vụ nền ghi nhận kế hoạch đã khóa (chỉ để thống kê; trạng thái khóa tính theo hạn).</summary>
     public DateTime? PlanLockedAt { get; set; }
 
     public DateTime? ReportLockedAt { get; set; }
 
-    /// <summary>Quản đốc mở khóa kế hoạch tới thời điểm này.</summary>
+    /// <summary>Admin mở khóa kế hoạch (đã quá hạn) tới thời điểm này.</summary>
     public DateTime? PlanUnlockedUntil { get; set; }
 
+    /// <summary>Admin mở khóa báo cáo (đã quá hạn) tới thời điểm này.</summary>
     public DateTime? ReportUnlockedUntil { get; set; }
 
     public WorkReportUnit WorkReportUnit { get; set; } = null!;
 
     public WorkWeek WorkWeek { get; set; } = null!;
 
-    public ICollection<WorkItem> Items { get; set; } = [];
+    public ICollection<WorkPlanItem> PlanItems { get; set; } = [];
+
+    public ICollection<WorkReportItem> ReportItems { get; set; } = [];
 }
 
 // ===== Giá trị cố định =====
@@ -73,6 +77,6 @@ public static class FormPhaseStatuses
 
     public const string Open = "OPEN";
 
-    /// <summary>Quá hạn, chỉ quản đốc/phó sửa được.</summary>
+    /// <summary>Quá hạn: không ai sửa được cho tới khi admin mở khóa.</summary>
     public const string Locked = "LOCKED";
 }

@@ -10,14 +10,13 @@ using Server.Shared.Exceptions;
 namespace Server.Modules.WorkReports.Services;
 
 /// <summary>
-/// Form tuần: tạo / cập nhật thông tin chụp, quyền + trạng thái giai đoạn, lưới công việc và Tổng hợp của xưởng.
+/// Form tuần: tạo / cập nhật thông tin chụp, quyền + trạng thái giai đoạn, mở khóa, khung lưới và Tổng hợp của xưởng
+/// (dòng của từng giai đoạn do WorkPlanService / WorkReportService nạp).
 /// Thông tin chụp cập nhật theo hiện tại khi báo cáo còn mở, cố định khi đã khóa báo cáo;
 /// tiền tố chỉ đổi khi form chưa cấp mã nào (mã trong 1 form luôn cùng tiền tố).
 /// </summary>
 public class WeeklyFormService(
     IWeeklyFormRepository formRepository,
-    IWorkItemRepository itemRepository,
-    IWorkMaterialRepository materialRepository,
     IWorkReportUnitRepository unitRepository,
     IWorkWeekRepository weekRepository,
     IWorkReportSettingRepository settingRepository,
@@ -25,6 +24,7 @@ public class WeeklyFormService(
     IWorkWeekService weekService,
     IWorkReportScopeService scopeService,
     IWorkReportUnitSyncService unitSyncService,
+    IWorkReportNotifier notifier,
     IOrgTreeProvider orgTreeProvider,
     IEmployeeService employeeService,
     IUnitOfWork unitOfWork,
@@ -32,6 +32,7 @@ public class WeeklyFormService(
 {
     private const string FormNotFoundMessage = "Không tìm thấy form báo cáo.";
     private const int EngineerNamesMaxLength = 500;
+    private const int MaxUnlockDays = 30;
 
     public async Task SyncFormsAsync(IReadOnlyCollection<int>? unitIds, CancellationToken cancellationToken)
     {
@@ -125,9 +126,8 @@ public class WeeklyFormService(
     }
 
     public async Task<WeeklyFormContext> GetContextAsync(
-        int formId, string phase, bool forEdit, CancellationToken cancellationToken)
+        int formId, string phase, WorkItemAction action, CancellationToken cancellationToken)
     {
-        phase = NormalizePhase(phase);
         var form = await formRepository.GetByIdAsync(formId, cancellationToken)
             ?? throw new NotFoundException(FormNotFoundMessage);
 
@@ -138,9 +138,9 @@ public class WeeklyFormService(
         }
 
         var context = BuildContext(form, form.WorkWeek, access, phase, DateTime.Now, 0);
-        if (forEdit)
+        if (action != WorkItemAction.View)
         {
-            EnsureCanEdit(context);
+            EnsureCan(context, action);
         }
 
         return context;
@@ -149,7 +149,6 @@ public class WeeklyFormService(
     public async Task<IReadOnlyList<WeeklyFormContext>> GetVisibleFormsAsync(
         int workshopId, int weekId, string phase, int? unitId, CancellationToken cancellationToken)
     {
-        phase = NormalizePhase(phase);
         var week = await weekRepository.GetByIdAsync(weekId, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy kỳ tuần.");
 
@@ -200,51 +199,29 @@ public class WeeklyFormService(
         return unitId is { } id ? visible.Where(x => x.Form.WorkReportUnitId == id).ToList() : visible;
     }
 
-    public async Task<WorkReportGridDto> GetGridAsync(WorkReportGridRequest request, CancellationToken cancellationToken)
+    public async Task<WorkGridDto<TForm>> BuildGridAsync<TForm>(
+        WorkReportGridRequest request,
+        string phase,
+        Func<IReadOnlyList<WeeklyFormContext>, Task<(IReadOnlyList<TForm> Forms, IReadOnlySet<int> UsedCategoryIds)>> buildForms,
+        CancellationToken cancellationToken)
+        where TForm : WeeklyFormDto
     {
-        var phase = NormalizePhase(request.Phase);
         var contexts = await GetVisibleFormsAsync(request.WorkshopId, request.WeekId, phase, request.UnitId, cancellationToken);
-        var formIds = contexts.Select(x => x.Form.Id).ToList();
+        var (forms, usedCategoryIds) = await buildForms(contexts);
 
-        var items = await itemRepository.GetByFormIdsAsync(
-            formIds, includeUnplanned: phase == WorkReportPhases.Report, cancellationToken);
-        var categories = (await categoryRepository.GetListAsync(includeInactive: true, cancellationToken))
-            .ToDictionary(x => x.Id);
-        var employees = (await employeeService.GetBriefsAsync(WorkItemMapper.CollectEmployeeIds(items), cancellationToken))
-            .ToDictionary(x => x.Id);
-
-        var itemsByForm = items.ToLookup(x => x.WeeklyFormId);
-        var forms = contexts.Select(context =>
-        {
-            var tt = new Dictionary<int, int>();
-            var formItems = itemsByForm[context.Form.Id]
-                .OrderBy(x => categories.GetValueOrDefault(x.WorkCategoryId)?.SortOrder ?? int.MaxValue)
-                .ThenBy(x => x.WorkCategoryId)
-                .ThenBy(x => x.SortOrder).ThenBy(x => x.Id)
-                .Select(x =>
-                {
-                    // TT đánh lại trong từng nhóm đầu mục
-                    tt[x.WorkCategoryId] = tt.GetValueOrDefault(x.WorkCategoryId) + 1;
-                    return WorkItemMapper.ToDto(x, categories, employees, tt[x.WorkCategoryId]);
-                })
-                .ToList();
-
-            return ToFormDto(context, formItems);
-        }).ToList();
-
+        var categories = await categoryRepository.GetListAsync(includeInactive: true, cancellationToken);
         var week = await weekService.GetByIdAsync(request.WeekId, request.WorkshopId, cancellationToken);
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
         var workshopName = tree.GetName(request.WorkshopId);
-        var usedCategoryIds = items.Select(x => x.WorkCategoryId).ToHashSet();
 
-        return new WorkReportGridDto
+        return new WorkGridDto<TForm>
         {
             WorkshopId = request.WorkshopId,
             WorkshopName = workshopName,
             Phase = phase,
             Title = WeeklyFormRules.BuildTitle(phase, workshopName, ToWeek(week)),
             Week = week,
-            Categories = categories.Values
+            Categories = categories
                 .Where(x => usedCategoryIds.Contains(x.Id) || IsCategoryUsable(x, request.WorkshopId))
                 .OrderBy(x => x.SortOrder).ThenBy(x => x.Id)
                 .Select(WorkCategoryService.ToDto)
@@ -253,35 +230,33 @@ public class WeeklyFormService(
         };
     }
 
-    public async Task<WorkReportSummaryDto> GetSummaryAsync(
-        WorkReportGridRequest request, CancellationToken cancellationToken)
+    public async Task<WorkReportSummaryDto> BuildSummaryAsync(
+        WorkReportGridRequest request,
+        string phase,
+        Func<IReadOnlyList<int>, Task<IReadOnlyList<SummaryEntry>>> loadEntries,
+        Func<IReadOnlyList<int>, Task<IReadOnlyList<SummaryMaterial>>> loadMaterials,
+        CancellationToken cancellationToken)
     {
-        var phase = NormalizePhase(request.Phase);
-        var isPlan = phase == WorkReportPhases.Plan;
         var contexts = await GetVisibleFormsAsync(request.WorkshopId, request.WeekId, phase, request.UnitId, cancellationToken);
         var formIds = contexts.Select(x => x.Form.Id).ToList();
 
-        var items = await itemRepository.GetByFormIdsAsync(formIds, includeUnplanned: !isPlan, cancellationToken);
-        var materials = await materialRepository.GetByFormIdsAsync(formIds, includeUnplanned: !isPlan, cancellationToken);
+        var entries = await loadEntries(formIds);
+        var materials = await loadMaterials(formIds);
         var categories = await categoryRepository.GetListAsync(includeInactive: true, cancellationToken);
 
-        var usedCategoryIds = items.Select(x => x.WorkCategoryId).ToHashSet();
+        var usedCategoryIds = entries.Select(x => x.CategoryId).ToHashSet();
         var columns = categories
             .Where(x => x.ShowInSummary && (usedCategoryIds.Contains(x.Id) || IsCategoryUsable(x, request.WorkshopId)))
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Id)
             .ToList();
 
-        decimal MinutesOf(WorkItem item) => isPlan
-            ? item.PlannedMinutes ?? 0
-            : item.ActualMinutes ?? item.PlannedMinutes ?? 0;
-
-        var itemsByForm = items.ToLookup(x => x.WeeklyFormId);
-        var materialsByForm = materials.ToLookup(x => x.WeeklyFormId);
+        var entriesByForm = entries.ToLookup(x => x.FormId);
+        var materialsByForm = materials.ToLookup(x => x.FormId);
 
         var rows = contexts.Select(context =>
         {
-            var formItems = itemsByForm[context.Form.Id].ToList();
-            var total = formItems.Sum(MinutesOf);
+            var formEntries = entriesByForm[context.Form.Id].ToList();
+            var total = formEntries.Sum(x => x.Minutes);
             return new WorkReportSummaryRowDto
             {
                 FormId = context.Form.Id,
@@ -293,11 +268,11 @@ public class WeeklyFormService(
                 MaterialCodeCount = CountMaterialCodes(materialsByForm[context.Form.Id]),
                 MinutesByCategory = columns.ToDictionary(
                     c => c.Id,
-                    c => formItems.Where(x => x.WorkCategoryId == c.Id).Sum(MinutesOf)),
+                    c => formEntries.Where(x => x.CategoryId == c.Id).Sum(x => x.Minutes)),
                 TotalMinutes = total,
                 CapacityMinutes = context.Form.CapacityMinutes,
                 Manpower = context.Form.CapacityMinutes > 0 ? Math.Round(total / context.Form.CapacityMinutes, 2) : 0,
-                ItemCount = formItems.Count,
+                ItemCount = formEntries.Count,
                 Status = context.State.Status,
             };
         }).ToList();
@@ -328,6 +303,51 @@ public class WeeklyFormService(
         };
     }
 
+    public async Task UnlockAsync(int formId, string phase, UnlockFormRequest request, CancellationToken cancellationToken)
+    {
+        var context = await GetContextAsync(formId, phase, WorkItemAction.View, cancellationToken);
+        if (!context.Access.CanUnlock)
+        {
+            throw new ForbiddenException("Chỉ quản trị (quyền cấu hình báo cáo tuần) được mở khóa.");
+        }
+
+        var now = DateTime.Now;
+        if (request.Until is { } until)
+        {
+            if (until <= now)
+            {
+                throw new ValidationException("Dữ liệu không hợp lệ.", new Dictionary<string, string[]>
+                {
+                    ["until"] = ["Thời điểm mở khóa tới phải sau hiện tại."],
+                });
+            }
+
+            if (until > now.AddDays(MaxUnlockDays))
+            {
+                throw new ValidationException("Dữ liệu không hợp lệ.", new Dictionary<string, string[]>
+                {
+                    ["until"] = [$"Chỉ mở khóa tối đa {MaxUnlockDays} ngày."],
+                });
+            }
+        }
+
+        var form = await formRepository.FindByIdAsync(formId, cancellationToken)
+            ?? throw new NotFoundException(FormNotFoundMessage);
+        if (context.IsPlan)
+        {
+            form.PlanUnlockedUntil = request.Until;
+        }
+        else
+        {
+            form.ReportUnlockedUntil = request.Until;
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await notifier.FormChangedAsync(context.Form, context.Phase);
+        logger.LogInformation(
+            "Form {FormId} ({Phase}) mở khóa tới {Until}", formId, context.Phase, request.Until?.ToString("O") ?? "(khóa lại)");
+    }
+
     // ===== Hỗ trợ =====
 
     public static string NormalizePhase(string? phase)
@@ -344,38 +364,10 @@ public class WeeklyFormService(
         return value;
     }
 
-    private static void EnsureCanEdit(WeeklyFormContext context)
-    {
-        if (!context.Access.CanEdit)
-        {
-            throw new ForbiddenException("Bạn không có quyền nhập/sửa form của đơn vị này.");
-        }
-
-        if (context.CanEditNow)
-        {
-            return;
-        }
-
-        var phaseName = context.IsPlan ? "Kế hoạch" : "Báo cáo";
-        throw new BusinessException(context.State.Status == FormPhaseStatuses.NotStarted
-            ? $"Chưa tới tuần {context.Week.IsoWeek:D2}, chưa nhập báo cáo được (mở từ {context.Week.StartDate:dd/MM/yyyy})."
-            : $"{phaseName} tuần {context.Week.IsoWeek:D2} của {context.Form.UnitName} đã khóa lúc "
-              + $"{context.State.DeadlineAt:HH:mm dd/MM/yyyy}. Liên hệ quản đốc / phó quản đốc để điều chỉnh.");
-    }
-
-    private static WeeklyFormContext BuildContext(
-        WeeklyForm form, WorkWeek week, WorkReportUnitAccessDto access, string phase, DateTime now, int orderNo) => new()
-    {
-        Form = form,
-        Week = week,
-        Access = access,
-        Phase = phase,
-        PlanState = WeeklyFormRules.GetPlanState(form, week, now),
-        ReportState = WeeklyFormRules.GetReportState(form, week, now),
-        OrderNo = orderNo,
-    };
-
-    private static WeeklyFormDto ToFormDto(WeeklyFormContext context, IReadOnlyList<WorkItemDto> items) => new()
+    /// <summary>Phần đầu form (trạng thái, quyền, tổng) cho DTO lưới của từng giai đoạn.</summary>
+    public static TForm ToFormDto<TForm>(
+        WeeklyFormContext context, int itemCount, decimal totalPlanned, decimal totalActual)
+        where TForm : WeeklyFormDto, new() => new()
     {
         FormId = context.Form.Id,
         UnitId = context.Form.WorkReportUnitId,
@@ -395,14 +387,58 @@ public class WeeklyFormService(
         ReportStatus = context.ReportState.Status,
         ReportDeadlineAt = context.ReportState.DeadlineAt,
         Role = context.Access.Role,
-        CanEditNow = context.CanEditNow,
-        CanEditLocked = context.Access.CanEditLocked,
-        CanRequestRevision = context.Access.CanRequestRevision,
+        CanCreate = context.CanCreateNow,
+        CanUpdate = context.CanUpdateNow,
+        CanDelete = context.CanDeleteNow,
         CanUnlock = context.Access.CanUnlock,
-        ItemCount = items.Count,
-        TotalPlannedMinutes = items.Sum(x => x.PlannedMinutes ?? 0),
-        TotalActualMinutes = items.Sum(x => x.EffectiveActualMinutes),
-        Items = items,
+        IsUnlocked = context.State.IsUnlocked,
+        ItemCount = itemCount,
+        TotalPlannedMinutes = totalPlanned,
+        TotalActualMinutes = totalActual,
+    };
+
+    private static void EnsureCan(WeeklyFormContext context, WorkItemAction action)
+    {
+        var phaseName = context.IsPlan ? "kế hoạch" : "báo cáo";
+        var allowed = action switch
+        {
+            WorkItemAction.Create => context.Rights.CanCreate,
+            WorkItemAction.Update => context.Rights.CanUpdate,
+            WorkItemAction.Delete => context.Rights.CanDelete,
+            _ => true,
+        };
+        if (!allowed)
+        {
+            var verb = action switch
+            {
+                WorkItemAction.Create => "thêm",
+                WorkItemAction.Update => "sửa",
+                _ => "xóa",
+            };
+            throw new ForbiddenException($"Bạn không có quyền {verb} {phaseName} của {context.Form.UnitName}.");
+        }
+
+        if (context.State.IsOpen)
+        {
+            return;
+        }
+
+        throw new BusinessException(context.State.Status == FormPhaseStatuses.NotStarted
+            ? $"Chưa tới tuần {context.Week.IsoWeek:D2}, chưa nhập báo cáo được (mở từ {context.Week.StartDate:dd/MM/yyyy})."
+            : $"{(context.IsPlan ? "Kế hoạch" : "Báo cáo")} tuần {context.Week.IsoWeek:D2} của {context.Form.UnitName} đã khóa lúc "
+              + $"{context.State.DeadlineAt:HH:mm dd/MM/yyyy}. Liên hệ quản trị để mở khóa.");
+    }
+
+    private static WeeklyFormContext BuildContext(
+        WeeklyForm form, WorkWeek week, WorkReportUnitAccessDto access, string phase, DateTime now, int orderNo) => new()
+    {
+        Form = form,
+        Week = week,
+        Access = access,
+        Phase = NormalizePhase(phase),
+        PlanState = WeeklyFormRules.GetPlanState(form, week, now),
+        ReportState = WeeklyFormRules.GetReportState(form, week, now),
+        OrderNo = orderNo,
     };
 
     /// <summary>Đầu mục đang dùng và áp dụng cho xưởng (không có danh sách xưởng = mọi xưởng).</summary>
@@ -410,7 +446,7 @@ public class WeeklyFormService(
         category.IsActive && (category.Workshops.Count == 0 || category.Workshops.Any(x => x.WorkshopId == workshopId));
 
     /// <summary>Số đầu mã vật tư: đếm mã khác nhau (vật tư chưa có mã thì đếm theo tên).</summary>
-    private static int CountMaterialCodes(IEnumerable<WorkMaterial> materials) =>
+    private static int CountMaterialCodes(IEnumerable<SummaryMaterial> materials) =>
         materials
             .Select(x => TextNormalizer.ToKey(string.IsNullOrWhiteSpace(x.MaterialCode) ? x.MaterialName : x.MaterialCode))
             .Where(x => x.Length > 0)

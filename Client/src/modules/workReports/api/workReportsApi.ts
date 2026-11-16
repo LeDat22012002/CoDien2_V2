@@ -1,14 +1,15 @@
 import { httpDelete, httpGet, httpPatch, httpPost, httpPut } from '@/shared/api/axiosClient';
 import type {
-  BatchCreateWorkItemsResult,
   CreateWorkReportUnitRequest,
   EngineerSuggestion,
   EquipmentOption,
   MaterialPurpose,
   MaterialPurposeRequest,
   MyWorkReportScope,
-  PastedWorkItemRow,
-  UpdateWorkItemRequest,
+  PlanItemRequest,
+  ReportItemRequest,
+  UpdatePlanItemRequest,
+  UpdateReportItemRequest,
   UpdateWorkReportSettingRequest,
   UpdateWorkReportUnitRequest,
   UpdateWorkWeekDeadlineRequest,
@@ -17,12 +18,12 @@ import type {
   WorkerOption,
   WorkerOptionScope,
   WorkingWeeks,
-  WorkItem,
-  WorkItemRequest,
+  WorkGrid,
   WorkMaterial,
   WorkMaterialRequest,
+  WorkPlanItem,
   WorkReportFilter,
-  WorkReportGrid,
+  WorkReportItem,
   WorkReportPhase,
   WorkReportSetting,
   WorkReportSummary,
@@ -37,6 +38,17 @@ import type {
 /** Xưởng / tổ-kíp người đăng nhập xem được, kèm quyền từng đơn vị. */
 export const getMyWorkReportScope = () => httpGet<MyWorkReportScope>('/work-reports/my-scope');
 
+// ===== Giai đoạn: API kế hoạch /work-reports/plan/*, báo cáo /work-reports/report/* =====
+
+const PHASE_PATH: Record<WorkReportPhase, string> = { PLAN: 'plan', REPORT: 'report' };
+
+/** Tham số lọc gửi Server (phase nằm trong đường dẫn, không gửi). */
+const toGridParams = (filter: WorkReportFilter) => ({
+  workshopId: filter.workshopId,
+  weekId: filter.weekId,
+  unitId: filter.unitId,
+});
+
 // ===== Trang công khai /work-reports (không cần đăng nhập, chỉ xem mọi xưởng) =====
 
 const PUBLIC_BASE = '/work-reports/public';
@@ -45,11 +57,14 @@ export const publicWorkReportsApi = {
   getScope: () => httpGet<MyWorkReportScope>(`${PUBLIC_BASE}/scope`),
   getWeeks: (params: { year?: number; workshopId?: number }) => httpGet<WorkWeek[]>(`${PUBLIC_BASE}/weeks`, params),
   getWorkingWeeks: (workshopId?: number) => httpGet<WorkingWeeks>(`${PUBLIC_BASE}/weeks/current`, { workshopId }),
-  getGrid: (filter: WorkReportFilter) => httpGet<WorkReportGrid>(`${PUBLIC_BASE}/grid`, filter),
-  getSummary: (filter: WorkReportFilter) => httpGet<WorkReportSummary>(`${PUBLIC_BASE}/summary`, filter),
-  getWorkshopMaterials: (filter: WorkReportFilter) => httpGet<WorkMaterial[]>(`${PUBLIC_BASE}/materials`, filter),
+  getGrid: (filter: WorkReportFilter) =>
+    httpGet<WorkGrid>(`${PUBLIC_BASE}/${PHASE_PATH[filter.phase]}/grid`, toGridParams(filter)),
+  getSummary: (filter: WorkReportFilter) =>
+    httpGet<WorkReportSummary>(`${PUBLIC_BASE}/${PHASE_PATH[filter.phase]}/summary`, toGridParams(filter)),
+  getWorkshopMaterials: (filter: WorkReportFilter) =>
+    httpGet<WorkMaterial[]>(`${PUBLIC_BASE}/${PHASE_PATH[filter.phase]}/materials`, toGridParams(filter)),
   getFormMaterials: (formId: number, phase: WorkReportPhase) =>
-    httpGet<WorkMaterial[]>(`${PUBLIC_BASE}/forms/${formId}/materials`, { phase }),
+    httpGet<WorkMaterial[]>(`${PUBLIC_BASE}/${PHASE_PATH[phase]}/forms/${formId}/materials`),
 };
 
 // ===== Cấu hình chung =====
@@ -129,25 +144,44 @@ export const getEngineerSuggestions = (unitId: number) =>
 export const setUnitEngineers = (unitId: number, employeeIds: number[]) =>
   httpPut<WorkReportUnitEngineer[]>(`/work-report-units/${unitId}/engineers`, { employeeIds });
 
-// ===== Lưới, dòng công việc =====
+// ===== Lưới, tổng hợp (theo giai đoạn) =====
 
-export const getWorkReportGrid = (filter: WorkReportFilter) => httpGet<WorkReportGrid>('/work-reports/grid', filter);
+/** Lưới kế hoạch (WorkPlanGrid) hoặc báo cáo (WorkReportGrid, kèm gợi ý từ kế hoạch cho người nhập). */
+export const getWorkGrid = (filter: WorkReportFilter) =>
+  httpGet<WorkGrid>(`/work-reports/${PHASE_PATH[filter.phase]}/grid`, toGridParams(filter));
 
 export const getWorkReportSummary = (filter: WorkReportFilter) =>
-  httpGet<WorkReportSummary>('/work-reports/summary', filter);
+  httpGet<WorkReportSummary>(`/work-reports/${PHASE_PATH[filter.phase]}/summary`, toGridParams(filter));
 
-export const createWorkItem = (formId: number, phase: WorkReportPhase, request: WorkItemRequest) =>
-  httpPost<WorkItem>(`/work-reports/forms/${formId}/items`, request, { params: { phase } });
+/** Admin mở khóa giai đoạn đã quá hạn tới until (ISO); until null = khóa lại. */
+export const unlockWeeklyForm = (phase: WorkReportPhase, formId: number, until: string | null) =>
+  httpPost<null>(`/work-reports/${PHASE_PATH[phase]}/forms/${formId}/unlock`, { until });
+
+// ===== Dòng kế hoạch =====
+
+export const createPlanItem = (formId: number, request: PlanItemRequest) =>
+  httpPost<WorkPlanItem>(`/work-reports/plan/forms/${formId}/items`, request);
 
 /** RowVersion lệch → 409, ApiError.data = dòng mới nhất. */
-export const updateWorkItem = (id: number, phase: WorkReportPhase, request: UpdateWorkItemRequest) =>
-  httpPut<WorkItem>(`/work-reports/items/${id}`, request, { params: { phase } });
+export const updatePlanItem = (id: number, request: UpdatePlanItemRequest) =>
+  httpPut<WorkPlanItem>(`/work-reports/plan/items/${id}`, request);
 
-export const deleteWorkItem = (id: number, phase: WorkReportPhase) =>
-  httpDelete<null>(`/work-reports/items/${id}`, { params: { phase } });
+export const deletePlanItem = (id: number) => httpDelete<null>(`/work-reports/plan/items/${id}`);
 
-export const batchCreateWorkItems = (formId: number, phase: WorkReportPhase, rows: PastedWorkItemRow[]) =>
-  httpPost<BatchCreateWorkItemsResult>(`/work-reports/forms/${formId}/items/batch`, { rows }, { params: { phase } });
+// ===== Dòng báo cáo =====
+
+/** Thêm việc phát sinh. */
+export const createReportItem = (formId: number, request: ReportItemRequest) =>
+  httpPost<WorkReportItem>(`/work-reports/report/forms/${formId}/items`, request);
+
+/** Đưa dòng kế hoạch (gợi ý) vào báo cáo, giữ mã công việc. */
+export const acceptPlanItems = (formId: number, planItemIds: number[]) =>
+  httpPost<WorkReportItem[]>(`/work-reports/report/forms/${formId}/items/from-plan`, { planItemIds });
+
+export const updateReportItem = (id: number, request: UpdateReportItemRequest) =>
+  httpPut<WorkReportItem>(`/work-reports/report/items/${id}`, request);
+
+export const deleteReportItem = (id: number) => httpDelete<null>(`/work-reports/report/items/${id}`);
 
 export const getWorkerOptions = (params: { unitId: number; scope?: WorkerOptionScope; keyword?: string }) =>
   httpGet<WorkerOption[]>('/work-reports/worker-options', params);
@@ -155,19 +189,19 @@ export const getWorkerOptions = (params: { unitId: number; scope?: WorkerOptionS
 export const getEquipmentOptions = (keyword: string) =>
   httpGet<EquipmentOption[]>('/equipments/options', { keyword: keyword || undefined });
 
-// ===== Vật tư =====
+// ===== Vật tư (theo giai đoạn) =====
 
 export const getFormMaterials = (formId: number, phase: WorkReportPhase) =>
-  httpGet<WorkMaterial[]>(`/work-reports/forms/${formId}/materials`, { phase });
+  httpGet<WorkMaterial[]>(`/work-reports/${PHASE_PATH[phase]}/forms/${formId}/materials`);
 
 export const getWorkshopMaterials = (filter: WorkReportFilter) =>
-  httpGet<WorkMaterial[]>('/work-reports/materials', filter);
+  httpGet<WorkMaterial[]>(`/work-reports/${PHASE_PATH[filter.phase]}/materials`, toGridParams(filter));
 
 export const createWorkMaterial = (formId: number, phase: WorkReportPhase, request: WorkMaterialRequest) =>
-  httpPost<WorkMaterial>(`/work-reports/forms/${formId}/materials`, request, { params: { phase } });
+  httpPost<WorkMaterial>(`/work-reports/${PHASE_PATH[phase]}/forms/${formId}/materials`, request);
 
 export const updateWorkMaterial = (id: number, phase: WorkReportPhase, request: WorkMaterialRequest) =>
-  httpPut<WorkMaterial>(`/work-reports/materials/${id}`, request, { params: { phase } });
+  httpPut<WorkMaterial>(`/work-reports/${PHASE_PATH[phase]}/materials/${id}`, request);
 
 export const deleteWorkMaterial = (id: number, phase: WorkReportPhase) =>
-  httpDelete<null>(`/work-reports/materials/${id}`, { params: { phase } });
+  httpDelete<null>(`/work-reports/${PHASE_PATH[phase]}/materials/${id}`);

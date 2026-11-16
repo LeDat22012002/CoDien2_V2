@@ -26,10 +26,11 @@ import { WorkGridView } from "@/modules/workReports/components/WorkGridView";
 import { WorkshopMaterialTable } from "@/modules/workReports/components/WorkshopMaterialTable";
 import { WorkSummaryTable } from "@/modules/workReports/components/WorkSummaryTable";
 import { PHASE_OPTIONS } from "@/modules/workReports/constants/workReportOptions";
+import { useWorkReportLiveUpdates } from "@/modules/workReports/hooks/useWorkReportLiveUpdates";
 import {
   useMyWorkReportScope,
+  useWorkGrid,
   useWorkingWeeks,
-  useWorkReportGrid,
   useWorkWeeks,
 } from "@/modules/workReports/hooks/useWorkReportQueries";
 import type {
@@ -55,8 +56,8 @@ const TAB_KEYS: TabKey[] = ["grid", "summary", "materials", "units"];
 
 /**
  * - submit: trang kỹ sư /member/work-reports (quyền work-reports.submit), nhập tổ/kíp được phân công.
- * - manage: trang quản trị /admin/work-reports (work-reports.manage) cho đội trưởng, quản đốc: xem/sửa đội/xưởng mình,
- *   thêm tab Đơn vị & kỹ sư.
+ * - manage: trang quản trị /admin/work-reports (work-reports.manage) cho đội trưởng, quản đốc: xem đội/xưởng mình,
+ *   tab Đơn vị & kỹ sư; thêm/sửa/xóa dòng chỉ khi admin cấp quyền work-reports.plan.* / report.*.
  * - factory: trang công khai /work-reports cho Ban Giám đốc (ai cũng xem được, không cần đăng nhập), chỉ xem mọi xưởng;
  *   bọc trong WorkReportPublicContext để gọi API /work-reports/public/*.
  */
@@ -76,7 +77,7 @@ const MODE_TEXT: Record<
   manage: {
     title: "Quản lý báo cáo tuần",
     description:
-      "Kế hoạch, báo cáo công việc tuần của đội/xưởng; phân công kỹ sư phụ trách tổ/kíp.",
+      "Kế hoạch, báo cáo công việc tuần của đội/xưởng; cấu hình tổ/kíp, phân công kỹ sư phụ trách.",
     empty:
       "Bạn chưa là trưởng/phó đội hoặc xưởng nào trên sơ đồ tổ chức. Liên hệ quản trị để cập nhật chức vụ trên sơ đồ.",
   },
@@ -174,6 +175,9 @@ export const WorkReportWorkspace = ({ mode }: WorkReportWorkspaceProps) => {
   const selectedWeek =
     weeks[weekIndex] ?? (workingWeek?.id === weekId ? workingWeek : undefined);
 
+  // Cập nhật tức thì: tổ/kíp khác lưu / xóa / mở khóa → bảng, Tổng hợp, Vật tư tự làm mới
+  useWorkReportLiveUpdates(workshopId, weekId);
+
   const canManageUnits =
     mode === "manage" &&
     (Boolean(workshop?.isManager) ||
@@ -187,7 +191,7 @@ export const WorkReportWorkspace = ({ mode }: WorkReportWorkspaceProps) => {
 
   const filter: WorkReportFilter | undefined =
     workshopId && weekId ? { workshopId, weekId, phase } : undefined;
-  const gridQuery = useWorkReportGrid(tab === "grid" ? filter : undefined);
+  const gridQuery = useWorkGrid(tab === "grid" ? filter : undefined);
 
   const updateParams = (
     patch: Partial<Record<ParamKey, string | number | undefined>>,

@@ -3,6 +3,7 @@ using Server.Api.Extensions;
 using Server.Api.Middlewares;
 using Server.Data.Seeders;
 using Server.Gateway;
+using Server.Modules.WorkReports.Hubs;
 using Server.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,5 +42,8 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseGateway();
 
 app.MapControllers();
+
+// Cập nhật tức thì báo cáo tuần (chỉ báo "có thay đổi", không chứa dữ liệu → không cần đăng nhập)
+app.MapHub<WorkReportHub>(WorkReportHub.Path).AllowAnonymous();
 
 app.Run();
