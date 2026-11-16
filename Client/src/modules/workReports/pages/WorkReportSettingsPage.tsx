@@ -1,14 +1,14 @@
-import { Tabs } from 'antd';
-import { useSearchParams } from 'react-router';
-import { PageHeader } from '@/shared/components/PageHeader';
-import { CategoryPanel } from '@/modules/workReports/components/settings/CategoryPanel';
-import { GeneralSettingForm } from '@/modules/workReports/components/settings/GeneralSettingForm';
-import { MaterialPurposePanel } from '@/modules/workReports/components/settings/MaterialPurposePanel';
-import { WeekDeadlinePanel } from '@/modules/workReports/components/settings/WeekDeadlinePanel';
-import { useMyWorkReportScope } from '@/modules/workReports/hooks/useWorkReportQueries';
+import { Tabs } from "antd";
+import { useSearchParams } from "react-router";
+import { PageHeader } from "@/shared/components/PageHeader";
+import { CategoryPanel } from "@/modules/workReports/components/settings/CategoryPanel";
+import { GeneralSettingForm } from "@/modules/workReports/components/settings/GeneralSettingForm";
+import { MaterialPurposePanel } from "@/modules/workReports/components/settings/MaterialPurposePanel";
+import { WeekDeadlinePanel } from "@/modules/workReports/components/settings/WeekDeadlinePanel";
+import { useMyWorkReportScope } from "@/modules/workReports/hooks/useWorkReportQueries";
 
-const TAB_PARAM = 'tab';
-const TAB_KEYS = ['general', 'categories', 'purposes', 'deadlines'] as const;
+const TAB_PARAM = "tab";
+const TAB_KEYS = ["general", "categories", "purposes", "deadlines"] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 /**
@@ -19,7 +19,8 @@ type TabKey = (typeof TAB_KEYS)[number];
 const WorkReportSettingsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get(TAB_PARAM) as TabKey | null;
-  const tab: TabKey = tabParam && TAB_KEYS.includes(tabParam) ? tabParam : 'general';
+  const tab: TabKey =
+    tabParam && TAB_KEYS.includes(tabParam) ? tabParam : "general";
   // Admin (configure) thấy mọi xưởng trong phạm vi
   const scopeQuery = useMyWorkReportScope();
   const workshops = (scopeQuery.data?.workshops ?? []).map((workshop) => ({
@@ -40,7 +41,7 @@ const WorkReportSettingsPage = () => {
             setSearchParams(
               (previous) => {
                 const next = new URLSearchParams(previous);
-                if (key === 'general') next.delete(TAB_PARAM);
+                if (key === "general") next.delete(TAB_PARAM);
                 else next.set(TAB_PARAM, key);
                 return next;
               },
@@ -49,10 +50,26 @@ const WorkReportSettingsPage = () => {
           }
           destroyOnHidden
           items={[
-            { key: 'general', label: 'Cấu hình chung', children: <GeneralSettingForm /> },
-            { key: 'categories', label: 'Đầu mục công việc', children: <CategoryPanel workshops={workshops} /> },
-            { key: 'purposes', label: 'Mục đích vật tư', children: <MaterialPurposePanel /> },
-            { key: 'deadlines', label: 'Hạn nộp theo tuần', children: <WeekDeadlinePanel workshops={workshops} /> },
+            {
+              key: "general",
+              label: "Cấu hình chung",
+              children: <GeneralSettingForm />,
+            },
+            {
+              key: "categories",
+              label: "Đầu mục công việc",
+              children: <CategoryPanel workshops={workshops} />,
+            },
+            {
+              key: "purposes",
+              label: "Mục đích vật tư",
+              children: <MaterialPurposePanel />,
+            },
+            {
+              key: "deadlines",
+              label: "Hạn nộp theo tuần",
+              children: <WeekDeadlinePanel workshops={workshops} />,
+            },
           ]}
         />
       </div>

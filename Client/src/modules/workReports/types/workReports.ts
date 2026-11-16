@@ -1,15 +1,24 @@
 /** Kiểu dữ liệu module Báo cáo công việc tuần, khớp DTO ở Server/Modules/WorkReports/DTOs. */
 
-export type WorkReportPhase = 'PLAN' | 'REPORT';
+export type WorkReportPhase = "PLAN" | "REPORT";
+
+/** Kiểu xem Bảng công việc (chỉ ở FE): ALL = mọi tổ/kíp trong 1 bảng; SHEET = mỗi tổ/kíp 1 sheet. */
+export type WorkGridLayout = "ALL" | "SHEET";
 
 /** NOT_STARTED: báo cáo chưa tới tuần; OPEN: đang nhập; LOCKED: quá hạn (chỉ quản đốc/phó sửa). */
-export type FormPhaseStatus = 'NOT_STARTED' | 'OPEN' | 'LOCKED';
+export type FormPhaseStatus = "NOT_STARTED" | "OPEN" | "LOCKED";
 
-export type LaborType = 'HC' | 'KIP';
+export type LaborType = "HC" | "KIP";
 
-export type WorkReportRole = 'ADMIN' | 'WORKSHOP_MANAGER' | 'TEAM_MANAGER' | 'ENGINEER' | 'VIEWER' | 'NONE';
+export type WorkReportRole =
+  | "ADMIN"
+  | "WORKSHOP_MANAGER"
+  | "TEAM_MANAGER"
+  | "ENGINEER"
+  | "VIEWER"
+  | "NONE";
 
-export type WorkerOptionScope = 'UNIT' | 'TEAM' | 'WORKSHOP';
+export type WorkerOptionScope = "UNIT" | "TEAM" | "WORKSHOP";
 
 // ===== Phạm vi =====
 
@@ -56,7 +65,10 @@ export interface WorkReportSetting {
   deadlineDescription: string;
 }
 
-export type UpdateWorkReportSettingRequest = Omit<WorkReportSetting, 'deadlineDescription'>;
+export type UpdateWorkReportSettingRequest = Omit<
+  WorkReportSetting,
+  "deadlineDescription"
+>;
 
 export interface WorkCategory {
   id: number;

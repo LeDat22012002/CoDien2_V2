@@ -6,7 +6,7 @@ import {
   PlusOutlined,
   RollbackOutlined,
   TeamOutlined,
-} from '@ant-design/icons';
+} from "@ant-design/icons";
 import {
   Button,
   Collapse,
@@ -17,22 +17,23 @@ import {
   Tooltip,
   Typography,
   type TableColumnsType,
-} from 'antd';
-import { useState } from 'react';
-import { ErrorState } from '@/shared/components/ErrorState';
-import { COLUMN_WIDTH } from '@/shared/constants/tableColumns';
-import { EMPTY_TEXT } from '@/shared/utils/format';
-import { notify } from '@/shared/utils/notify';
-import { UnitEngineersModal } from '@/modules/workReports/components/UnitEngineersModal';
-import { UnitFormModal } from '@/modules/workReports/components/UnitFormModal';
+} from "antd";
+import { useState } from "react";
+import { ErrorState } from "@/shared/components/ErrorState";
+import { COLUMN_WIDTH } from "@/shared/constants/tableColumns";
+import { useTableScrollY } from "@/shared/hooks/useTableScrollY";
+import { EMPTY_TEXT } from "@/shared/utils/format";
+import { notify } from "@/shared/utils/notify";
+import { UnitEngineersModal } from "@/modules/workReports/components/UnitEngineersModal";
+import { UnitFormModal } from "@/modules/workReports/components/UnitFormModal";
 import {
   useDeletedWorkReportUnits,
   useDeleteWorkReportUnit,
   useReorderWorkReportUnits,
   useRestoreWorkReportUnit,
   useWorkReportUnits,
-} from '@/modules/workReports/hooks/useWorkReportQueries';
-import type { WorkReportUnit } from '@/modules/workReports/types/workReports';
+} from "@/modules/workReports/hooks/useWorkReportQueries";
+import type { WorkReportUnit } from "@/modules/workReports/types/workReports";
 
 interface UnitManagementPanelProps {
   workshopId: number;
@@ -41,14 +42,16 @@ interface UnitManagementPanelProps {
 }
 
 type DialogState =
-  | { type: 'create' }
-  | { type: 'edit'; unit: WorkReportUnit }
-  | { type: 'engineers'; unit: WorkReportUnit };
+  | { type: "create" }
+  | { type: "edit"; unit: WorkReportUnit }
+  | { type: "engineers"; unit: WorkReportUnit };
 
 /** Dòng phụ dưới tên: tổ / kíp theo sơ đồ hoặc đơn vị tự đặt, kèm đội. */
 const describeUnit = (unit: WorkReportUnit) => {
-  if (unit.isCustom) return `Tự đặt · ${unit.teamName ?? unit.workshopName ?? ''}`;
-  const kind = unit.orgUnitTypeCode === 'SHIFT' ? `Kíp ${unit.shift ?? ''}` : 'Tổ';
+  if (unit.isCustom)
+    return `Tự đặt · ${unit.teamName ?? unit.workshopName ?? ""}`;
+  const kind =
+    unit.orgUnitTypeCode === "SHIFT" ? `Kíp ${unit.shift ?? ""}` : "Tổ";
   return unit.teamName ? `${kind} · ${unit.teamName}` : kind;
 };
 
@@ -65,8 +68,13 @@ const text = (value?: string | null) =>
  * Đơn vị báo cáo của xưởng (có form tuần) và kỹ sư phụ trách. Mặc định = tổ/kíp trên sơ đồ (Server tự tạo).
  * Quản đốc/phó: thêm đơn vị tự đặt, sửa tên / tiền tố / loại giờ công / ngừng dùng, xóa (chưa có dữ liệu),
  * khôi phục, sắp thứ tự I, II…, phân công kỹ sư. Đội trưởng/phó: phân công kỹ sư cho tổ trong đội.
+ * Cao hết nội dung tab: thân bảng tự cuộn (useTableScrollY), mục "Đã xóa" luôn ở đáy.
  */
-export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPanelProps) => {
+export const UnitManagementPanel = ({
+  workshopId,
+  isManager,
+}: UnitManagementPanelProps) => {
+  const { containerRef, scrollY } = useTableScrollY();
   const [dialog, setDialog] = useState<DialogState>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const unitsQuery = useWorkReportUnits(workshopId, true);
@@ -80,7 +88,9 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
   const handleDelete = async (unit: WorkReportUnit) => {
     try {
       await deleteMutation.mutateAsync(unit.id);
-      notify.success(`Đã xóa "${unit.displayName}". Khôi phục được ở mục "Đã xóa".`);
+      notify.success(
+        `Đã xóa "${unit.displayName}". Khôi phục được ở mục "Đã xóa".`,
+      );
     } catch (error) {
       notify.apiError(error);
     }
@@ -89,7 +99,9 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
   const handleRestore = async (unit: WorkReportUnit) => {
     try {
       const restored = await restoreMutation.mutateAsync(unit.id);
-      notify.success(`Đã khôi phục "${restored.displayName}" (tiền tố ${restored.codePrefix}).`);
+      notify.success(
+        `Đã khôi phục "${restored.displayName}" (tiền tố ${restored.codePrefix}).`,
+      );
     } catch (error) {
       notify.apiError(error);
     }
@@ -103,7 +115,10 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
   const move = async (index: number, offset: -1 | 1) => {
     const orderedIds = units.map((unit) => unit.id);
     const target = index + offset;
-    [orderedIds[index], orderedIds[target]] = [orderedIds[target], orderedIds[index]];
+    [orderedIds[index], orderedIds[target]] = [
+      orderedIds[target],
+      orderedIds[index],
+    ];
     try {
       await reorderMutation.mutateAsync({ workshopId, orderedIds });
     } catch (error) {
@@ -112,15 +127,20 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
   };
 
   if (unitsQuery.isError && !unitsQuery.data) {
-    return <ErrorState error={unitsQuery.error} onRetry={() => unitsQuery.refetch()} />;
+    return (
+      <ErrorState
+        error={unitsQuery.error}
+        onRetry={() => unitsQuery.refetch()}
+      />
+    );
   }
 
   const columns: TableColumnsType<WorkReportUnit> = [
     {
-      title: 'Thứ tự',
-      key: 'order',
+      title: "Thứ tự",
+      key: "order",
       width: 110,
-      align: 'center',
+      align: "center",
       render: (_, unit, index) => (
         <div className="flex items-center justify-center gap-1">
           <span className="w-6 text-right">{index + 1}</span>
@@ -139,7 +159,9 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
                 size="small"
                 aria-label={`Đưa ${unit.displayName} xuống`}
                 icon={<ArrowDownOutlined />}
-                disabled={index === units.length - 1 || reorderMutation.isPending}
+                disabled={
+                  index === units.length - 1 || reorderMutation.isPending
+                }
                 onClick={() => move(index, 1)}
               />
             </>
@@ -148,50 +170,59 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
       ),
     },
     {
-      title: 'Đơn vị báo cáo',
-      key: 'name',
+      title: "Đơn vị báo cáo",
+      key: "name",
       width: COLUMN_WIDTH.longText,
       render: (_, unit) => (
         <div className="min-w-0">
           {text(unit.displayName)}
-          <Typography.Text type="secondary" className="block truncate text-sm">
+          {/* <Typography.Text type="secondary" className="block truncate text-sm">
             {describeUnit(unit)}
-          </Typography.Text>
+          </Typography.Text> */}
         </div>
       ),
     },
     {
-      title: 'Tiền tố',
-      dataIndex: 'codePrefix',
-      key: 'codePrefix',
+      title: "Tiền tố",
+      dataIndex: "codePrefix",
+      key: "codePrefix",
       width: COLUMN_WIDTH.code,
       render: (value: string) => <span className="font-mono">{value}</span>,
     },
-    { title: 'Giờ công', dataIndex: 'laborType', key: 'laborType', width: COLUMN_WIDTH.short },
     {
-      title: 'Kỹ sư phụ trách',
-      key: 'engineers',
+      title: "Giờ công",
+      dataIndex: "laborType",
+      key: "laborType",
+      width: COLUMN_WIDTH.short,
+    },
+    {
+      title: "Kỹ sư phụ trách",
+      key: "engineers",
       width: COLUMN_WIDTH.longText,
       render: (_, unit) =>
         unit.engineers.length > 0 ? (
-          text(unit.engineers.map((engineer) => engineer.fullName).join(', '))
+          text(unit.engineers.map((engineer) => engineer.fullName).join(", "))
         ) : (
           <Tag color="warning">Chưa phân công</Tag>
         ),
     },
     {
-      title: 'Trạng thái',
-      key: 'status',
+      title: "Trạng thái",
+      key: "status",
       width: COLUMN_WIDTH.tag,
       render: (_, unit) =>
-        unit.isActive ? <Tag color="success">Đang dùng</Tag> : <Tag>Ngừng dùng</Tag>,
+        unit.isActive ? (
+          <Tag color="success">Đang dùng</Tag>
+        ) : (
+          <Tag>Ngừng dùng</Tag>
+        ),
     },
     {
-      title: 'Thao tác',
-      key: 'actions',
+      title: "Thao tác",
+      key: "actions",
       width: COLUMN_WIDTH.actions,
-      align: 'center',
-      fixed: 'right',
+      align: "center",
+      fixed: "right",
       render: (_, unit) => (
         <div className="flex justify-center gap-1">
           {unit.canManageEngineers && (
@@ -200,7 +231,7 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
                 type="text"
                 aria-label={`Phân công kỹ sư cho ${unit.displayName}`}
                 icon={<TeamOutlined className="text-primary" />}
-                onClick={() => openDialog({ type: 'engineers', unit })}
+                onClick={() => openDialog({ type: "engineers", unit })}
               />
             </Tooltip>
           )}
@@ -210,7 +241,7 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
                 type="text"
                 aria-label={`Sửa ${unit.displayName}`}
                 icon={<EditOutlined className="text-primary" />}
-                onClick={() => openDialog({ type: 'edit', unit })}
+                onClick={() => openDialog({ type: "edit", unit })}
               />
             </Tooltip>
           )}
@@ -219,8 +250,9 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
               title={`Xóa "${unit.displayName}"?`}
               description={
                 <span className="block max-w-72">
-                  Chỉ xóa được đơn vị chưa có kế hoạch/báo cáo (đã có thì dùng “Ngừng dùng”). Tổ/kíp trên sơ đồ sẽ không
-                  tự thêm lại; khôi phục ở mục “Đã xóa”.
+                  Chỉ xóa được đơn vị chưa có kế hoạch/báo cáo (đã có thì dùng
+                  “Ngừng dùng”). Tổ/kíp trên sơ đồ sẽ không tự thêm lại; khôi
+                  phục ở mục “Đã xóa”.
                 </span>
               }
               okText="Xóa"
@@ -234,7 +266,10 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
                   danger
                   aria-label={`Xóa ${unit.displayName}`}
                   icon={<DeleteOutlined />}
-                  loading={deleteMutation.isPending && deleteMutation.variables === unit.id}
+                  loading={
+                    deleteMutation.isPending &&
+                    deleteMutation.variables === unit.id
+                  }
                 />
               </Tooltip>
             </Popconfirm>
@@ -245,66 +280,85 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
   ];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
       {isManager && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <Typography.Text type="secondary">
-            Tổ/kíp trên sơ đồ tổ chức tự có trong danh sách. Xóa đơn vị không báo cáo, thêm đơn vị không có trên sơ đồ.
-          </Typography.Text>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => openDialog({ type: 'create' })}>
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {/* <Typography.Text type="secondary">
+            Tổ/kíp trên sơ đồ tổ chức tự có trong danh sách. Xóa đơn vị không
+            báo cáo, thêm đơn vị không có trên sơ đồ.
+          </Typography.Text> */}
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => openDialog({ type: "create" })}
+          >
             Thêm đơn vị
           </Button>
         </div>
       )}
 
-      <Table<WorkReportUnit>
-        rowKey="id"
-        size="middle"
-        bordered
-        loading={unitsQuery.isFetching}
-        columns={columns}
-        dataSource={units}
-        pagination={false}
-        tableLayout="fixed"
-        scroll={{ x: 'max-content' }}
-        className="[&_.ant-table-cell]:whitespace-nowrap"
-        rowClassName={(unit) => (unit.isActive ? '' : 'opacity-60')}
-        locale={{
-          emptyText: (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                isManager
-                  ? 'Xưởng chưa có tổ/kíp trên sơ đồ tổ chức. Bấm “Thêm đơn vị” để tạo đơn vị báo cáo.'
-                  : 'Xưởng chưa có đơn vị báo cáo.'
-              }
-            />
-          ),
-        }}
-      />
+      <div ref={containerRef} className="min-h-72 flex-1 overflow-hidden">
+        <Table<WorkReportUnit>
+          rowKey="id"
+          size="middle"
+          bordered
+          loading={unitsQuery.isFetching}
+          columns={columns}
+          dataSource={units}
+          pagination={false}
+          tableLayout="fixed"
+          scroll={{ x: "max-content", y: scrollY }}
+          className="[&_.ant-table-cell]:whitespace-nowrap"
+          rowClassName={(unit) => (unit.isActive ? "" : "opacity-60")}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  isManager
+                    ? "Xưởng chưa có tổ/kíp trên sơ đồ tổ chức. Bấm “Thêm đơn vị” để tạo đơn vị báo cáo."
+                    : "Xưởng chưa có đơn vị báo cáo."
+                }
+              />
+            ),
+          }}
+        />
+      </div>
 
       {isManager && deletedUnits.length > 0 && (
         <Collapse
           size="small"
+          className="shrink-0"
           items={[
             {
-              key: 'deleted',
+              key: "deleted",
               label: `Đã xóa (${deletedUnits.length})`,
               children: (
-                <ul className="m-0 list-none divide-y divide-border p-0">
+                // Danh sách dài thì cuộn trong mục, không đẩy bảng mất chỗ
+                <ul className="m-0 max-h-48 list-none divide-y divide-border overflow-auto p-0">
                   {deletedUnits.map((unit) => (
-                    <li key={unit.id} className="flex items-center justify-between gap-3 py-2">
+                    <li
+                      key={unit.id}
+                      className="flex items-center justify-between gap-3 py-2"
+                    >
                       <div className="min-w-0">
                         {text(unit.displayName)}
-                        <Typography.Text type="secondary" className="block truncate text-sm">
-                          {describeUnit(unit)} · <span className="font-mono">{unit.codePrefix}</span>
-                          {unit.isOrgUnitActive ? '' : ' · đã ngừng trên sơ đồ'}
+                        <Typography.Text
+                          type="secondary"
+                          className="block truncate text-sm"
+                        >
+                          {describeUnit(unit)} ·{" "}
+                          <span className="font-mono">{unit.codePrefix}</span>
+                          {unit.isOrgUnitActive ? "" : " · đã ngừng trên sơ đồ"}
                         </Typography.Text>
                       </div>
                       <Button
                         size="small"
                         icon={<RollbackOutlined />}
-                        loading={restoreMutation.isPending && restoreMutation.variables === unit.id}
+                        loading={
+                          restoreMutation.isPending &&
+                          restoreMutation.variables === unit.id
+                        }
                         disabled={!unit.isOrgUnitActive}
                         onClick={() => handleRestore(unit)}
                       >
@@ -320,14 +374,16 @@ export const UnitManagementPanel = ({ workshopId, isManager }: UnitManagementPan
       )}
 
       <UnitFormModal
-        open={isDialogOpen && (dialog?.type === 'create' || dialog?.type === 'edit')}
-        unit={dialog?.type === 'edit' ? dialog.unit : undefined}
+        open={
+          isDialogOpen && (dialog?.type === "create" || dialog?.type === "edit")
+        }
+        unit={dialog?.type === "edit" ? dialog.unit : undefined}
         workshopId={workshopId}
         onClose={() => setIsDialogOpen(false)}
       />
       <UnitEngineersModal
-        open={isDialogOpen && dialog?.type === 'engineers'}
-        unit={dialog?.type === 'engineers' ? dialog.unit : undefined}
+        open={isDialogOpen && dialog?.type === "engineers"}
+        unit={dialog?.type === "engineers" ? dialog.unit : undefined}
         onClose={() => setIsDialogOpen(false)}
       />
     </div>

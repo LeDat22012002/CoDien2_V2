@@ -1,5 +1,5 @@
-import { Typography } from 'antd';
-import type { ReactNode } from 'react';
+import { Typography } from "antd";
+import type { ReactNode } from "react";
 
 interface PageHeaderProps {
   title: ReactNode;
@@ -14,7 +14,9 @@ export const PageHeader = ({ title, description, extra }: PageHeaderProps) => (
       <Typography.Title level={4} className="mb-0">
         {title}
       </Typography.Title>
-      {description && <Typography.Text type="secondary">{description}</Typography.Text>}
+      {description && (
+        <Typography.Text type="secondary">{description}</Typography.Text>
+      )}
     </div>
     {extra && <div className="flex flex-wrap gap-2">{extra}</div>}
   </div>
