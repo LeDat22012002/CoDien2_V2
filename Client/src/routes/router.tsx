@@ -65,9 +65,7 @@ export const router = createBrowserRouter([
             // Sơ đồ chiếm toàn màn hình dưới header
             handle: { isFullScreen: true } satisfies PublicRouteHandle,
             lazy: () =>
-              import("@/modules/organization/pages/OrgChartPage").then(
-                toRoute,
-              ),
+              import("@/modules/organization/pages/OrgChartPage").then(toRoute),
           },
           {
             path: "incidents",
@@ -130,9 +128,9 @@ export const router = createBrowserRouter([
                   {
                     path: "admin/org-units",
                     lazy: () =>
-                      import(
-                        "@/modules/organization/pages/OrgUnitManagementPage"
-                      ).then(toRoute),
+                      import("@/modules/organization/pages/OrgUnitManagementPage").then(
+                        toRoute,
+                      ),
                   },
                 ],
               },
@@ -142,9 +140,9 @@ export const router = createBrowserRouter([
                   {
                     path: "admin/position-levels",
                     lazy: () =>
-                      import(
-                        "@/modules/organization/pages/PositionLevelPage"
-                      ).then(toRoute),
+                      import("@/modules/organization/pages/PositionLevelPage").then(
+                        toRoute,
+                      ),
                   },
                 ],
               },
@@ -178,9 +176,9 @@ export const router = createBrowserRouter([
                   {
                     path: "admin/permissions",
                     lazy: () =>
-                      import(
-                        "@/modules/identity/pages/PermissionAssignmentPage"
-                      ).then(toRoute),
+                      import("@/modules/identity/pages/PermissionAssignmentPage").then(
+                        toRoute,
+                      ),
                   },
                 ],
               },
@@ -202,9 +200,9 @@ export const router = createBrowserRouter([
                   {
                     path: "admin/issued-documents",
                     lazy: () =>
-                      import(
-                        "@/modules/documents/pages/IssuedDocumentManagementPage"
-                      ).then(toRoute),
+                      import("@/modules/documents/pages/IssuedDocumentManagementPage").then(
+                        toRoute,
+                      ),
                   },
                 ],
               },
@@ -214,9 +212,9 @@ export const router = createBrowserRouter([
                   {
                     path: "admin/document-templates",
                     lazy: () =>
-                      import(
-                        "@/modules/documents/pages/DocumentTemplateManagementPage"
-                      ).then(toRoute),
+                      import("@/modules/documents/pages/DocumentTemplateManagementPage").then(
+                        toRoute,
+                      ),
                   },
                 ],
               },
@@ -226,9 +224,21 @@ export const router = createBrowserRouter([
                   {
                     path: "admin/equipments",
                     lazy: () =>
-                      import(
-                        "@/modules/equipments/pages/EquipmentManagementPage"
-                      ).then(toRoute),
+                      import("@/modules/equipments/pages/EquipmentManagementPage").then(
+                        toRoute,
+                      ),
+                  },
+                ],
+              },
+              {
+                element: <PageGuard pagePath="/admin/materials" />,
+                children: [
+                  {
+                    path: "admin/materials",
+                    lazy: () =>
+                      import("@/modules/materials/pages/MaterialManagementPage").then(
+                        toRoute,
+                      ),
                   },
                 ],
               },
@@ -250,9 +260,9 @@ export const router = createBrowserRouter([
                   {
                     path: "admin/work-reports",
                     lazy: () =>
-                      import(
-                        "@/modules/workReports/pages/WorkReportManagementPage"
-                      ).then(toRoute),
+                      import("@/modules/workReports/pages/WorkReportManagementPage").then(
+                        toRoute,
+                      ),
                   },
                 ],
               },
@@ -262,9 +272,9 @@ export const router = createBrowserRouter([
                   {
                     path: "admin/work-report-settings",
                     lazy: () =>
-                      import(
-                        "@/modules/workReports/pages/WorkReportSettingsPage"
-                      ).then(toRoute),
+                      import("@/modules/workReports/pages/WorkReportSettingsPage").then(
+                        toRoute,
+                      ),
                   },
                 ],
               },

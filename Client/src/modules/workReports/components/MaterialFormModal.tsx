@@ -1,18 +1,37 @@
-import { Col, DatePicker, Form, Input, InputNumber, Modal, Row, Select, Typography } from 'antd';
-import type { Dayjs } from 'dayjs';
-import dayjs from '@/shared/utils/dayjs';
-import { applyServerErrors } from '@/shared/utils/formErrors';
-import { formatNumber, toIsoDate } from '@/shared/utils/format';
-import { notify } from '@/shared/utils/notify';
-import { useMaterialPurposes, useSaveWorkMaterial } from '@/modules/workReports/hooks/useWorkReportQueries';
+import {
+  Col,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Select,
+  Typography,
+} from "antd";
+import type { Dayjs } from "dayjs";
+import { useState } from "react";
+import dayjs from "@/shared/utils/dayjs";
+import { applyServerErrors } from "@/shared/utils/formErrors";
+import { formatNumber, toIsoDate } from "@/shared/utils/format";
+import { notify } from "@/shared/utils/notify";
+import {
+  MaterialCodeInput,
+  type MaterialMatchSource,
+} from "@/modules/workReports/components/MaterialCodeInput";
+import {
+  useMaterialPurposes,
+  useSaveWorkMaterial,
+} from "@/modules/workReports/hooks/useWorkReportQueries";
 import type {
+  MaterialOption,
   WeeklyForm,
   WorkItemBase,
   WorkMaterial,
   WorkMaterialRequest,
   WorkReportPhase,
   WorkWeek,
-} from '@/modules/workReports/types/workReports';
+} from "@/modules/workReports/types/workReports";
 
 interface MaterialFormValues {
   workItemId: number;
@@ -25,6 +44,10 @@ interface MaterialFormValues {
   materialPurposeId?: number | null;
   note?: string;
 }
+
+/** Giới hạn cột của vật tư báo cáo tuần (WorkMaterial); tên/ĐVT trong danh mục có thể dài hơn. */
+const MATERIAL_NAME_MAX_LENGTH = 255;
+const UOM_MAX_LENGTH = 20;
 
 interface MaterialFormModalProps {
   open: boolean;
@@ -39,13 +62,52 @@ interface MaterialFormModalProps {
 /**
  * Thêm / sửa vật tư gắn 1 dòng của giai đoạn đang xem (kế hoạch: dòng kế hoạch; báo cáo: dòng báo cáo).
  * Kế hoạch nhập số lượng KH; báo cáo nhập số lượng thực tế (vật tư chép từ kế hoạch: trống = bằng KH).
+ * Ô Mã VT gợi ý từ Danh mục vật tư: chọn gợi ý → điền tên + ĐVT theo danh mục; gõ đúng mã rồi rời ô →
+ * chỉ điền vào ô còn trống. Mã không có trong danh mục vẫn nhập tự do.
  */
-export const MaterialFormModal = ({ open, form, phase, week, material, onClose }: MaterialFormModalProps) => {
+export const MaterialFormModal = ({
+  open,
+  form,
+  phase,
+  week,
+  material,
+  onClose,
+}: MaterialFormModalProps) => {
   const [formInstance] = Form.useForm<MaterialFormValues>();
   const purposesQuery = useMaterialPurposes();
   const saveMutation = useSaveWorkMaterial();
-  const isPlan = phase === 'PLAN';
+  const isPlan = phase === "PLAN";
   const workItems: WorkItemBase[] = form.items;
+  /** Dòng nhắc dưới ô Mã VT sau khi tra danh mục; undefined = chưa tra. */
+  const [catalogHint, setCatalogHint] = useState<string>();
+
+  const handleMaterialMatch = (
+    match: MaterialOption | null,
+    source: MaterialMatchSource,
+  ) => {
+    if (!match) {
+      setCatalogHint(
+        "Mã chưa có trong danh mục vật tư – nhập tên, ĐVT bình thường.",
+      );
+      return;
+    }
+
+    setCatalogHint("Đã lấy tên, ĐVT theo danh mục vật tư.");
+    const name = match.description?.slice(0, MATERIAL_NAME_MAX_LENGTH);
+    const uom = match.uom?.slice(0, UOM_MAX_LENGTH);
+    const current = formInstance.getFieldsValue(["materialName", "uom"]);
+    // Chọn gợi ý = chủ động lấy theo danh mục (ghi đè); gõ tay = chỉ điền ô còn trống
+    const shouldFill = (currentValue?: string) =>
+      source === "select" || !currentValue?.trim();
+    formInstance.setFieldsValue({
+      ...(name && shouldFill(current.materialName)
+        ? { materialName: name }
+        : {}),
+      ...(uom && shouldFill(current.uom) ? { uom } : {}),
+    });
+    if (name)
+      void formInstance.validateFields(["materialName"]).catch(() => undefined);
+  };
 
   const handleSubmit = async () => {
     let values: MaterialFormValues;
@@ -69,11 +131,21 @@ export const MaterialFormModal = ({ open, form, phase, week, material, onClose }
 
     try {
       if (material) {
-        await saveMutation.mutateAsync({ mode: 'update', id: material.id, phase, request });
-        notify.success('Đã lưu vật tư.');
+        await saveMutation.mutateAsync({
+          mode: "update",
+          id: material.id,
+          phase,
+          request,
+        });
+        notify.success("Đã lưu vật tư.");
       } else {
-        await saveMutation.mutateAsync({ mode: 'create', formId: form.formId, phase, request });
-        notify.success('Đã thêm vật tư.');
+        await saveMutation.mutateAsync({
+          mode: "create",
+          formId: form.formId,
+          phase,
+          request,
+        });
+        notify.success("Đã thêm vật tư.");
       }
       onClose();
     } catch (error) {
@@ -84,14 +156,14 @@ export const MaterialFormModal = ({ open, form, phase, week, material, onClose }
   return (
     <Modal
       open={open}
-      title={material ? 'Sửa vật tư' : 'Thêm vật tư'}
-      okText={material ? 'Lưu thay đổi' : 'Thêm vật tư'}
+      title={material ? "Sửa vật tư" : "Thêm vật tư"}
+      okText={material ? "Lưu thay đổi" : "Thêm vật tư"}
       cancelText="Hủy"
       onOk={handleSubmit}
       onCancel={onClose}
       confirmLoading={saveMutation.isPending}
       mask={{ closable: false }}
-      width={{ xs: '94%', md: 720 }}
+      width={{ xs: "94%", md: 720 }}
       centered
       destroyOnHidden
     >
@@ -109,7 +181,9 @@ export const MaterialFormModal = ({ open, form, phase, week, material, onClose }
                 uom: material.uom ?? undefined,
                 plannedQuantity: material.plannedQuantity ?? null,
                 actualQuantity: material.actualQuantity ?? null,
-                usageDate: material.usageDate ? dayjs(material.usageDate) : null,
+                usageDate: material.usageDate
+                  ? dayjs(material.usageDate)
+                  : null,
                 materialPurposeId: material.materialPurposeId ?? null,
                 note: material.note ?? undefined,
               }
@@ -121,7 +195,9 @@ export const MaterialFormModal = ({ open, form, phase, week, material, onClose }
             <Form.Item
               name="workItemId"
               label="Mã công việc"
-              rules={[{ required: true, message: 'Chọn dòng công việc dùng vật tư' }]}
+              rules={[
+                { required: true, message: "Chọn dòng công việc dùng vật tư" },
+              ]}
             >
               <Select
                 showSearch
@@ -131,13 +207,31 @@ export const MaterialFormModal = ({ open, form, phase, week, material, onClose }
                   value: item.id,
                   label: `${item.code} – ${item.description}`,
                 }))}
-                notFoundContent={isPlan ? 'Tổ/kíp chưa có dòng kế hoạch' : 'Tổ/kíp chưa có dòng báo cáo'}
+                notFoundContent={
+                  isPlan
+                    ? "Tổ/kíp chưa có dòng kế hoạch"
+                    : "Tổ/kíp chưa có dòng báo cáo"
+                }
               />
             </Form.Item>
           </Col>
           <Col xs={24} md={8}>
-            <Form.Item name="materialCode" label="Mã vật tư" rules={[{ max: 50, message: 'Tối đa 50 ký tự' }]}>
-              <Input className="font-mono" />
+            <Form.Item
+              name="materialCode"
+              label="Mã vật tư"
+              rules={[{ max: 50, message: "Tối đa 50 ký tự" }]}
+              extra={
+                catalogHint ? (
+                  <Typography.Text type="secondary" className="text-xs">
+                    {catalogHint}
+                  </Typography.Text>
+                ) : undefined
+              }
+            >
+              <MaterialCodeInput
+                onMaterialMatch={handleMaterialMatch}
+                onChange={() => setCatalogHint(undefined)}
+              />
             </Form.Item>
           </Col>
           <Col xs={24} md={16}>
@@ -145,15 +239,23 @@ export const MaterialFormModal = ({ open, form, phase, week, material, onClose }
               name="materialName"
               label="Tên vật tư"
               rules={[
-                { required: true, whitespace: true, message: 'Nhập tên vật tư' },
-                { max: 255, message: 'Tối đa 255 ký tự' },
+                {
+                  required: true,
+                  whitespace: true,
+                  message: "Nhập tên vật tư",
+                },
+                { max: 255, message: "Tối đa 255 ký tự" },
               ]}
             >
               <Input />
             </Form.Item>
           </Col>
           <Col xs={12} md={6}>
-            <Form.Item name="uom" label="ĐVT" rules={[{ max: 20, message: 'Tối đa 20 ký tự' }]}>
+            <Form.Item
+              name="uom"
+              label="ĐVT"
+              rules={[{ max: 20, message: "Tối đa 20 ký tự" }]}
+            >
               <Input />
             </Form.Item>
           </Col>
@@ -166,10 +268,17 @@ export const MaterialFormModal = ({ open, form, phase, week, material, onClose }
               <Form.Item
                 name="actualQuantity"
                 label="Số lượng thực tế"
-                tooltip={material?.isUnplanned === false ? 'Để trống = bằng số lượng kế hoạch' : undefined}
+                tooltip={
+                  material?.isUnplanned === false
+                    ? "Để trống = bằng số lượng kế hoạch"
+                    : undefined
+                }
                 extra={
-                  material?.plannedQuantity !== null && material?.plannedQuantity !== undefined ? (
-                    <Typography.Text type="secondary">KH: {formatNumber(material.plannedQuantity, 3)}</Typography.Text>
+                  material?.plannedQuantity !== null &&
+                  material?.plannedQuantity !== undefined ? (
+                    <Typography.Text type="secondary">
+                      KH: {formatNumber(material.plannedQuantity, 3)}
+                    </Typography.Text>
                   ) : undefined
                 }
               >
@@ -193,12 +302,20 @@ export const MaterialFormModal = ({ open, form, phase, week, material, onClose }
               <Select
                 allowClear
                 loading={purposesQuery.isLoading}
-                options={(purposesQuery.data ?? []).map((purpose) => ({ value: purpose.id, label: purpose.code }))}
+                options={(purposesQuery.data ?? []).map((purpose) => ({
+                  value: purpose.id,
+                  label: purpose.code,
+                }))}
               />
             </Form.Item>
           </Col>
           <Col xs={24} md={12}>
-            <Form.Item name="note" label="Ghi chú" rules={[{ max: 500, message: 'Tối đa 500 ký tự' }]} className="mb-0">
+            <Form.Item
+              name="note"
+              label="Ghi chú"
+              rules={[{ max: 500, message: "Tối đa 500 ký tự" }]}
+              className="mb-0"
+            >
               <Input />
             </Form.Item>
           </Col>

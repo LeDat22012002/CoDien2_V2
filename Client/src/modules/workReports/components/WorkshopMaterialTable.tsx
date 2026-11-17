@@ -281,10 +281,10 @@ export const WorkshopMaterialTable = ({
               <span className="font-mono">{material.workItemCode}</span>
             </Tooltip>
             {isReport && material.isUnplanned && (
-              <Tooltip title="Vật tư phát sinh (không chép từ kế hoạch)">
-                <span className="rounded bg-warning/15 px-1 text-xs text-warning">
+              <Tooltip title="Vật tư phát sinh ">
+                {/* <span className="rounded bg-warning/15 px-1 text-xs text-warning">
                   PS
-                </span>
+                </span> */}
               </Tooltip>
             )}
           </span>
@@ -305,6 +305,7 @@ export const WorkshopMaterialTable = ({
     leaf({
       title: "Tên vật tư",
       key: "materialName",
+      fixed: "left",
       width: COLUMN_WIDTH.longText,
       align: "center",
       render: (_, row) =>

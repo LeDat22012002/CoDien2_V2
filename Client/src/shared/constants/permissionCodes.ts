@@ -4,57 +4,62 @@
  */
 export const PERMISSION_CODES = {
   employees: {
-    view: 'employees.view',
-    create: 'employees.create',
-    update: 'employees.update',
-    delete: 'employees.delete',
+    view: "employees.view",
+    create: "employees.create",
+    update: "employees.update",
+    delete: "employees.delete",
   },
   users: {
-    view: 'users.view',
-    create: 'users.create',
-    update: 'users.update',
-    resetPassword: 'users.reset-password',
-    delete: 'users.delete',
+    view: "users.view",
+    create: "users.create",
+    update: "users.update",
+    resetPassword: "users.reset-password",
+    delete: "users.delete",
   },
   roles: {
-    view: 'roles.view',
-    manage: 'roles.manage',
+    view: "roles.view",
+    manage: "roles.manage",
   },
   pages: {
-    manage: 'pages.manage',
+    manage: "pages.manage",
   },
   orgChart: {
-    view: 'org-chart.view',
+    view: "org-chart.view",
   },
   orgUnits: {
-    manage: 'org-units.manage',
+    manage: "org-units.manage",
   },
   assignments: {
-    view: 'assignments.view',
-    manage: 'assignments.manage',
+    view: "assignments.view",
+    manage: "assignments.manage",
   },
   documents: {
-    view: 'documents.view',
-    issue: 'documents.issue',
-    manage: 'documents.manage',
+    view: "documents.view",
+    issue: "documents.issue",
+    manage: "documents.manage",
   },
   documentTemplates: {
-    manage: 'document-templates.manage',
+    manage: "document-templates.manage",
   },
   equipments: {
-    manage: 'equipments.manage',
+    manage: "equipments.manage",
+  },
+  materials: {
+    view: "materials.view",
+    manage: "materials.manage",
   },
   incidents: {
-    create: 'incidents.create',
-    updateProgress: 'incidents.update-progress',
-    analyze: 'incidents.analyze',
-    manage: 'incidents.manage',
+    create: "incidents.create",
+    updateProgress: "incidents.update-progress",
+    analyze: "incidents.analyze",
+    manage: "incidents.manage",
   },
   auditLogs: {
-    view: 'audit-logs.view',
+    view: "audit-logs.view",
   },
   workReports: {
-    submit: 'work-reports.submit',
-    manage: 'work-reports.manage',
-    configure: 'work-reports.configure',  },
+    submit: "work-reports.submit",
+    manage: "work-reports.manage",
+    configure: "work-reports.configure",
+  },
 } as const;

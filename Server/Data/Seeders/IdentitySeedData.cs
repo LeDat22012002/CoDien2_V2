@@ -67,6 +67,8 @@ public static class IdentitySeedData
         new(PermissionCodes.WorkReports.ReportCreate, "Thêm dòng báo cáo tuần (tổ/kíp trong đội/xưởng mình)", "work-reports", 91),
         new(PermissionCodes.WorkReports.ReportUpdate, "Sửa dòng báo cáo tuần (tổ/kíp trong đội/xưởng mình)", "work-reports", 92),
         new(PermissionCodes.WorkReports.ReportDelete, "Xóa dòng báo cáo tuần (tổ/kíp trong đội/xưởng mình)", "work-reports", 93),
+        new(PermissionCodes.Materials.View, "Xem danh mục vật tư", "materials", 71),
+        new(PermissionCodes.Materials.Manage, "Quản lý danh mục vật tư", "materials", 72),
 
         new(PermissionCodes.AuditLogs.View, "Xem nhật ký hệ thống", "audit-logs", 90),
     ];
@@ -83,6 +85,7 @@ public static class IdentitySeedData
         new("issued-documents", "Sổ văn bản đã cấp", "/admin/issued-documents", "BookOutlined", "documents", PermissionCodes.Documents.View, 42),
         new("document-templates", "Danh sách văn bản", "/admin/document-templates", "ProfileOutlined", "documents", PermissionCodes.DocumentTemplates.Manage, 43),
         new("equipments", "Danh mục thiết bị", "/admin/equipments", "ToolOutlined", null, PermissionCodes.Equipments.Manage, 50),
+        new("materials", "Danh mục vật tư", "/admin/materials", "AppstoreOutlined", null, PermissionCodes.Materials.View, 51),
         new("work-reports", "Báo cáo tuần", null, "CalendarOutlined", null, null, 60),
         new("admin-work-reports", "Quản lý báo cáo tuần", "/admin/work-reports", "CalendarOutlined", "work-reports",
             PermissionCodes.WorkReports.Manage, 61),

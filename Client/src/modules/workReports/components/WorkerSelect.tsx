@@ -18,7 +18,7 @@ const SEARCH_DEBOUNCE_MS = 300;
  * TẠM TẮT gợi ý nhân viên (danh sách nhân viên chưa đủ): chỉ gõ tên rồi Enter. Không gọi API gợi ý,
  * popup chỉ hiện đúng tên đang gõ để Enter thêm vào. Bật lại: đổi thành true.
  */
-const IS_SUGGESTION_ENABLED = false;
+const IS_SUGGESTION_ENABLED = true;
 
 interface WorkerSelectProps {
   unitId: number;

@@ -79,6 +79,14 @@ public static class PermissionCodes
         /// <summary>Thêm/sửa/xóa/import danh mục thiết bị (xem chỉ cần đăng nhập).</summary>
         public const string Manage = "equipments.manage";
     }
+        public static class Materials
+    {
+        /// <summary>Xem danh mục vật tư ở trang quản trị (gợi ý mã khi nhập báo cáo chỉ cần đăng nhập).</summary>
+        public const string View = "materials.view";
+
+        /// <summary>Thêm / sửa / xóa vật tư trong danh mục.</summary>
+        public const string Manage = "materials.manage";
+    }
 
     /// <summary>Báo cáo sự cố: xem công khai, tạo chỉ cần đăng nhập (không cần mã quyền).</summary>
     public static class Incidents

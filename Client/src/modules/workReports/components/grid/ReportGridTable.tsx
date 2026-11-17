@@ -332,9 +332,9 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
           {row.kind === "suggestion" && (
             <Tag title="Dòng kế hoạch chưa đưa vào báo cáo">KH</Tag>
           )}
-          {row.kind === "item" && row.item.isUnplanned && (
+          {/* {row.kind === "item" && row.item.isUnplanned && (
             <Tag title="Việc phát sinh (không có trong kế hoạch)">PS</Tag>
-          )}
+          )} */}
         </span>
       );
     },
@@ -396,7 +396,8 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
               );
             }
             const item = itemOf(row) as
-              (WorkPlanItem | WorkReportItem) | undefined;
+              | (WorkPlanItem | WorkReportItem)
+              | undefined;
             return item ? formatNumber(item.plannedMinutes, 2) : null;
           },
         }),

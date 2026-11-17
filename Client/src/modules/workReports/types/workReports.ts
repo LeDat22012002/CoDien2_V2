@@ -394,6 +394,16 @@ export interface EquipmentOption {
   code: string;
   name?: string | null;
 }
+/** Gợi ý mã vật tư từ danh mục vật tư (GET /materials/options, /materials/by-code). */
+export interface MaterialOption {
+  id: number;
+  code: string;
+  /** Tên vật tư. */
+  description?: string | null;
+  /** Đơn vị tính. */
+  uom?: string | null;
+  plant?: string | null;
+}
 
 // ===== Vật tư =====
 

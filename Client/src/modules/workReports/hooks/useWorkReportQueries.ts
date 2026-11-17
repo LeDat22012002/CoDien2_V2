@@ -1,4 +1,9 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   acceptPlanItems,
   createMaterialPurpose,
@@ -42,8 +47,10 @@ import {
   updateWorkReportUnit,
   updateWorkWeekDeadline,
   publicWorkReportsApi,
-} from '@/modules/workReports/api/workReportsApi';
-import { useIsPublicWorkReport } from '@/modules/workReports/hooks/workReportViewContext';
+  getMaterialOptions,
+  getMaterialByCode,
+} from "@/modules/workReports/api/workReportsApi";
+import { useIsPublicWorkReport } from "@/modules/workReports/hooks/workReportViewContext";
 import type {
   CreateWorkReportUnitRequest,
   MaterialPurposeRequest,
@@ -58,7 +65,7 @@ import type {
   WorkMaterialRequest,
   WorkReportFilter,
   WorkReportPhase,
-} from '@/modules/workReports/types/workReports';
+} from "@/modules/workReports/types/workReports";
 
 /**
  * Mọi key bắt đầu bằng 'workReports'. Nhóm:
@@ -68,30 +75,54 @@ import type {
  * Hook đọc dùng được ở trang công khai (WorkReportPublicContext): thêm `isPublic` cuối key để không lẫn cache.
  */
 export const WORK_REPORT_QUERY_KEYS = {
-  all: ['workReports'] as const,
-  scope: ['workReports', 'structure', 'scope'] as const,
-  structure: ['workReports', 'structure'] as const,
+  all: ["workReports"] as const,
+  scope: ["workReports", "structure", "scope"] as const,
+  structure: ["workReports", "structure"] as const,
   units: (workshopId?: number, includeInactive?: boolean) =>
-    ['workReports', 'structure', 'units', workshopId, includeInactive] as const,
-  deletedUnits: (workshopId?: number) => ['workReports', 'structure', 'deletedUnits', workshopId] as const,
-  unitParentOptions: (workshopId?: number) => ['workReports', 'structure', 'unitParentOptions', workshopId] as const,
-  engineerSuggestions: (unitId?: number) => ['workReports', 'structure', 'engineerSuggestions', unitId] as const,
-  config: ['workReports', 'config'] as const,
-  setting: ['workReports', 'config', 'setting'] as const,
+    ["workReports", "structure", "units", workshopId, includeInactive] as const,
+  deletedUnits: (workshopId?: number) =>
+    ["workReports", "structure", "deletedUnits", workshopId] as const,
+  unitParentOptions: (workshopId?: number) =>
+    ["workReports", "structure", "unitParentOptions", workshopId] as const,
+  engineerSuggestions: (unitId?: number) =>
+    ["workReports", "structure", "engineerSuggestions", unitId] as const,
+  config: ["workReports", "config"] as const,
+  setting: ["workReports", "config", "setting"] as const,
   categories: (includeInactive: boolean, workshopId?: number) =>
-    ['workReports', 'config', 'categories', includeInactive, workshopId] as const,
-  purposes: (includeInactive: boolean) => ['workReports', 'config', 'purposes', includeInactive] as const,
-  weeks: (year?: number, workshopId?: number) => ['workReports', 'weeks', year, workshopId] as const,
-  workingWeeks: (workshopId?: number) => ['workReports', 'weeks', 'current', workshopId] as const,
-  data: ['workReports', 'data'] as const,
-  grid: (filter?: WorkReportFilter) => ['workReports', 'data', 'grid', filter] as const,
-  summary: (filter?: WorkReportFilter) => ['workReports', 'data', 'summary', filter] as const,
-  workshopMaterials: (filter?: WorkReportFilter) => ['workReports', 'data', 'materials', filter] as const,
+    [
+      "workReports",
+      "config",
+      "categories",
+      includeInactive,
+      workshopId,
+    ] as const,
+  purposes: (includeInactive: boolean) =>
+    ["workReports", "config", "purposes", includeInactive] as const,
+  weeks: (year?: number, workshopId?: number) =>
+    ["workReports", "weeks", year, workshopId] as const,
+  workingWeeks: (workshopId?: number) =>
+    ["workReports", "weeks", "current", workshopId] as const,
+  data: ["workReports", "data"] as const,
+  grid: (filter?: WorkReportFilter) =>
+    ["workReports", "data", "grid", filter] as const,
+  summary: (filter?: WorkReportFilter) =>
+    ["workReports", "data", "summary", filter] as const,
+  workshopMaterials: (filter?: WorkReportFilter) =>
+    ["workReports", "data", "materials", filter] as const,
   formMaterials: (formId?: number, phase?: WorkReportPhase) =>
-    ['workReports', 'data', 'formMaterials', formId, phase] as const,
-  workerOptions: (unitId?: number, scope?: WorkerOptionScope, keyword?: string) =>
-    ['workReports', 'workerOptions', unitId, scope, keyword] as const,
-  equipmentOptions: (keyword: string) => ['workReports', 'equipmentOptions', keyword] as const,
+    ["workReports", "data", "formMaterials", formId, phase] as const,
+  workerOptions: (
+    unitId?: number,
+    scope?: WorkerOptionScope,
+    keyword?: string,
+  ) => ["workReports", "workerOptions", unitId, scope, keyword] as const,
+  equipmentOptions: (keyword: string) =>
+    ["workReports", "equipmentOptions", keyword] as const,
+  /** Gốc ['workReports', 'materialOptions'] được trang Danh mục vật tư làm mới sau khi thêm/sửa/xóa. */
+  materialOptions: (keyword: string) =>
+    ["workReports", "materialOptions", "search", keyword] as const,
+  materialByCode: (code: string) =>
+    ["workReports", "materialOptions", "byCode", code] as const,
 };
 
 const useInvalidate = (queryKey: readonly unknown[]) => {
@@ -111,14 +142,23 @@ export const useMyWorkReportScope = () => {
 };
 
 export const useWorkReportSetting = () =>
-  useQuery({ queryKey: WORK_REPORT_QUERY_KEYS.setting, queryFn: getWorkReportSetting });
+  useQuery({
+    queryKey: WORK_REPORT_QUERY_KEYS.setting,
+    queryFn: getWorkReportSetting,
+  });
 
 export const useUpdateWorkReportSetting = () => {
   const invalidate = useInvalidate(WORK_REPORT_QUERY_KEYS.all);
-  return useMutation({ mutationFn: updateWorkReportSetting, onSuccess: invalidate });
+  return useMutation({
+    mutationFn: updateWorkReportSetting,
+    onSuccess: invalidate,
+  });
 };
 
-export const useWorkCategories = (includeInactive = false, workshopId?: number) =>
+export const useWorkCategories = (
+  includeInactive = false,
+  workshopId?: number,
+) =>
   useQuery({
     queryKey: WORK_REPORT_QUERY_KEYS.categories(includeInactive, workshopId),
     queryFn: () => getWorkCategories({ includeInactive, workshopId }),
@@ -127,8 +167,13 @@ export const useWorkCategories = (includeInactive = false, workshopId?: number) 
 export const useSaveWorkCategory = () => {
   const invalidate = useInvalidate(WORK_REPORT_QUERY_KEYS.all);
   return useMutation({
-    mutationFn: ({ id, request }: { id?: number; request: WorkCategoryRequest }) =>
-      id ? updateWorkCategory(id, request) : createWorkCategory(request),
+    mutationFn: ({
+      id,
+      request,
+    }: {
+      id?: number;
+      request: WorkCategoryRequest;
+    }) => (id ? updateWorkCategory(id, request) : createWorkCategory(request)),
     onSuccess: invalidate,
   });
 };
@@ -136,7 +181,8 @@ export const useSaveWorkCategory = () => {
 export const useSetWorkCategoryActive = () => {
   const invalidate = useInvalidate(WORK_REPORT_QUERY_KEYS.all);
   return useMutation({
-    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) => setWorkCategoryActive(id, isActive),
+    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
+      setWorkCategoryActive(id, isActive),
     onSuccess: invalidate,
   });
 };
@@ -150,7 +196,13 @@ export const useMaterialPurposes = (includeInactive = false) =>
 export const useSaveMaterialPurpose = () => {
   const invalidate = useInvalidate(WORK_REPORT_QUERY_KEYS.config);
   return useMutation({
-    mutationFn: ({ id, request }: { id?: number; request: MaterialPurposeRequest }) =>
+    mutationFn: ({
+      id,
+      request,
+    }: {
+      id?: number;
+      request: MaterialPurposeRequest;
+    }) =>
       id ? updateMaterialPurpose(id, request) : createMaterialPurpose(request),
     onSuccess: invalidate,
   });
@@ -159,7 +211,8 @@ export const useSaveMaterialPurpose = () => {
 export const useSetMaterialPurposeActive = () => {
   const invalidate = useInvalidate(WORK_REPORT_QUERY_KEYS.config);
   return useMutation({
-    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) => setMaterialPurposeActive(id, isActive),
+    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
+      setMaterialPurposeActive(id, isActive),
     onSuccess: invalidate,
   });
 };
@@ -170,7 +223,11 @@ export const useWorkWeeks = (year?: number, workshopId?: number) => {
   const isPublic = useIsPublicWorkReport();
   return useQuery({
     queryKey: [...WORK_REPORT_QUERY_KEYS.weeks(year, workshopId), isPublic],
-    queryFn: () => (isPublic ? publicWorkReportsApi.getWeeks : getWorkWeeks)({ year, workshopId }),
+    queryFn: () =>
+      (isPublic ? publicWorkReportsApi.getWeeks : getWorkWeeks)({
+        year,
+        workshopId,
+      }),
     placeholderData: keepPreviousData,
   });
 };
@@ -179,36 +236,53 @@ export const useWorkingWeeks = (workshopId?: number) => {
   const isPublic = useIsPublicWorkReport();
   return useQuery({
     queryKey: [...WORK_REPORT_QUERY_KEYS.workingWeeks(workshopId), isPublic],
-    queryFn: () => (isPublic ? publicWorkReportsApi.getWorkingWeeks : getWorkingWeeks)(workshopId),
+    queryFn: () =>
+      (isPublic ? publicWorkReportsApi.getWorkingWeeks : getWorkingWeeks)(
+        workshopId,
+      ),
   });
 };
 
 export const useUpdateWorkWeekDeadline = () => {
   const invalidate = useInvalidate(WORK_REPORT_QUERY_KEYS.all);
   return useMutation({
-    mutationFn: ({ id, request }: { id: number; request: UpdateWorkWeekDeadlineRequest }) =>
-      updateWorkWeekDeadline(id, request),
+    mutationFn: ({
+      id,
+      request,
+    }: {
+      id: number;
+      request: UpdateWorkWeekDeadlineRequest;
+    }) => updateWorkWeekDeadline(id, request),
     onSuccess: invalidate,
   });
 };
 
 // ===== Đơn vị báo cáo & kỹ sư =====
 
-export const useWorkReportUnits = (workshopId?: number, includeInactive = true) =>
+export const useWorkReportUnits = (
+  workshopId?: number,
+  includeInactive = true,
+) =>
   useQuery({
     queryKey: WORK_REPORT_QUERY_KEYS.units(workshopId, includeInactive),
     queryFn: () => getWorkReportUnits({ workshopId, includeInactive }),
     enabled: workshopId !== undefined,
   });
 
-export const useDeletedWorkReportUnits = (workshopId: number | undefined, isEnabled: boolean) =>
+export const useDeletedWorkReportUnits = (
+  workshopId: number | undefined,
+  isEnabled: boolean,
+) =>
   useQuery({
     queryKey: WORK_REPORT_QUERY_KEYS.deletedUnits(workshopId),
     queryFn: () => getDeletedWorkReportUnits(workshopId as number),
     enabled: isEnabled && workshopId !== undefined,
   });
 
-export const useUnitParentOptions = (workshopId: number | undefined, isEnabled: boolean) =>
+export const useUnitParentOptions = (
+  workshopId: number | undefined,
+  isEnabled: boolean,
+) =>
   useQuery({
     queryKey: WORK_REPORT_QUERY_KEYS.unitParentOptions(workshopId),
     queryFn: () => getUnitParentOptions(workshopId as number),
@@ -222,7 +296,8 @@ const useInvalidateAll = () => useInvalidate(WORK_REPORT_QUERY_KEYS.all);
 export const useCreateWorkReportUnit = () => {
   const invalidate = useInvalidateAll();
   return useMutation({
-    mutationFn: (request: CreateWorkReportUnitRequest) => createWorkReportUnit(request),
+    mutationFn: (request: CreateWorkReportUnitRequest) =>
+      createWorkReportUnit(request),
     onSuccess: invalidate,
   });
 };
@@ -230,32 +305,51 @@ export const useCreateWorkReportUnit = () => {
 export const useUpdateWorkReportUnit = () => {
   const invalidate = useInvalidateAll();
   return useMutation({
-    mutationFn: ({ id, request }: { id: number; request: UpdateWorkReportUnitRequest }) =>
-      updateWorkReportUnit(id, request),
+    mutationFn: ({
+      id,
+      request,
+    }: {
+      id: number;
+      request: UpdateWorkReportUnitRequest;
+    }) => updateWorkReportUnit(id, request),
     onSuccess: invalidate,
   });
 };
 
 export const useDeleteWorkReportUnit = () => {
   const invalidate = useInvalidateAll();
-  return useMutation({ mutationFn: (id: number) => deleteWorkReportUnit(id), onSuccess: invalidate });
+  return useMutation({
+    mutationFn: (id: number) => deleteWorkReportUnit(id),
+    onSuccess: invalidate,
+  });
 };
 
 export const useRestoreWorkReportUnit = () => {
   const invalidate = useInvalidateAll();
-  return useMutation({ mutationFn: (id: number) => restoreWorkReportUnit(id), onSuccess: invalidate });
+  return useMutation({
+    mutationFn: (id: number) => restoreWorkReportUnit(id),
+    onSuccess: invalidate,
+  });
 };
 
 export const useReorderWorkReportUnits = () => {
   const invalidate = useInvalidateAll();
   return useMutation({
-    mutationFn: ({ workshopId, orderedIds }: { workshopId: number; orderedIds: number[] }) =>
-      reorderWorkReportUnits(workshopId, orderedIds),
+    mutationFn: ({
+      workshopId,
+      orderedIds,
+    }: {
+      workshopId: number;
+      orderedIds: number[];
+    }) => reorderWorkReportUnits(workshopId, orderedIds),
     onSuccess: invalidate,
   });
 };
 
-export const useEngineerSuggestions = (unitId: number | undefined, isEnabled: boolean) =>
+export const useEngineerSuggestions = (
+  unitId: number | undefined,
+  isEnabled: boolean,
+) =>
   useQuery({
     queryKey: WORK_REPORT_QUERY_KEYS.engineerSuggestions(unitId),
     queryFn: () => getEngineerSuggestions(unitId as number),
@@ -265,8 +359,13 @@ export const useEngineerSuggestions = (unitId: number | undefined, isEnabled: bo
 export const useSetUnitEngineers = () => {
   const invalidate = useInvalidateAll();
   return useMutation({
-    mutationFn: ({ unitId, employeeIds }: { unitId: number; employeeIds: number[] }) =>
-      setUnitEngineers(unitId, employeeIds),
+    mutationFn: ({
+      unitId,
+      employeeIds,
+    }: {
+      unitId: number;
+      employeeIds: number[];
+    }) => setUnitEngineers(unitId, employeeIds),
     onSuccess: invalidate,
   });
 };
@@ -278,7 +377,10 @@ export const useWorkGrid = (filter: WorkReportFilter | undefined) => {
   const isPublic = useIsPublicWorkReport();
   return useQuery({
     queryKey: [...WORK_REPORT_QUERY_KEYS.grid(filter), isPublic],
-    queryFn: () => (isPublic ? publicWorkReportsApi.getGrid : getWorkGrid)(filter as WorkReportFilter),
+    queryFn: () =>
+      (isPublic ? publicWorkReportsApi.getGrid : getWorkGrid)(
+        filter as WorkReportFilter,
+      ),
     enabled: filter !== undefined,
     placeholderData: keepPreviousData,
   });
@@ -288,7 +390,10 @@ export const useWorkReportSummary = (filter: WorkReportFilter | undefined) => {
   const isPublic = useIsPublicWorkReport();
   return useQuery({
     queryKey: [...WORK_REPORT_QUERY_KEYS.summary(filter), isPublic],
-    queryFn: () => (isPublic ? publicWorkReportsApi.getSummary : getWorkReportSummary)(filter as WorkReportFilter),
+    queryFn: () =>
+      (isPublic ? publicWorkReportsApi.getSummary : getWorkReportSummary)(
+        filter as WorkReportFilter,
+      ),
     enabled: filter !== undefined,
     placeholderData: keepPreviousData,
   });
@@ -299,25 +404,46 @@ export const useWorkshopMaterials = (filter: WorkReportFilter | undefined) => {
   return useQuery({
     queryKey: [...WORK_REPORT_QUERY_KEYS.workshopMaterials(filter), isPublic],
     queryFn: () =>
-      (isPublic ? publicWorkReportsApi.getWorkshopMaterials : getWorkshopMaterials)(filter as WorkReportFilter),
+      (isPublic
+        ? publicWorkReportsApi.getWorkshopMaterials
+        : getWorkshopMaterials)(filter as WorkReportFilter),
     enabled: filter !== undefined,
     placeholderData: keepPreviousData,
   });
 };
 
-export const useFormMaterials = (formId: number | undefined, phase: WorkReportPhase) => {
+export const useFormMaterials = (
+  formId: number | undefined,
+  phase: WorkReportPhase,
+) => {
   const isPublic = useIsPublicWorkReport();
   return useQuery({
-    queryKey: [...WORK_REPORT_QUERY_KEYS.formMaterials(formId, phase), isPublic],
-    queryFn: () => (isPublic ? publicWorkReportsApi.getFormMaterials : getFormMaterials)(formId as number, phase),
+    queryKey: [
+      ...WORK_REPORT_QUERY_KEYS.formMaterials(formId, phase),
+      isPublic,
+    ],
+    queryFn: () =>
+      (isPublic ? publicWorkReportsApi.getFormMaterials : getFormMaterials)(
+        formId as number,
+        phase,
+      ),
     enabled: formId !== undefined,
   });
 };
 
-export const useWorkerOptions = (unitId: number | undefined, scope: WorkerOptionScope, keyword: string) =>
+export const useWorkerOptions = (
+  unitId: number | undefined,
+  scope: WorkerOptionScope,
+  keyword: string,
+) =>
   useQuery({
     queryKey: WORK_REPORT_QUERY_KEYS.workerOptions(unitId, scope, keyword),
-    queryFn: () => getWorkerOptions({ unitId: unitId as number, scope, keyword: keyword || undefined }),
+    queryFn: () =>
+      getWorkerOptions({
+        unitId: unitId as number,
+        scope,
+        keyword: keyword || undefined,
+      }),
     enabled: unitId !== undefined,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
@@ -332,6 +458,26 @@ export const useEquipmentOptions = (keyword: string, isEnabled: boolean) =>
     placeholderData: keepPreviousData,
   });
 
+export const useMaterialOptions = (keyword: string, isEnabled: boolean) =>
+  useQuery({
+    queryKey: WORK_REPORT_QUERY_KEYS.materialOptions(keyword),
+    queryFn: () => getMaterialOptions(keyword),
+    enabled: isEnabled,
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+
+/** Tra 1 mã vật tư (dùng khi rời ô Mã VT mà không chọn gợi ý); có cache 5 phút theo mã. */
+export const useLookupMaterialByCode = () => {
+  const queryClient = useQueryClient();
+  return (code: string) =>
+    queryClient.fetchQuery({
+      queryKey: WORK_REPORT_QUERY_KEYS.materialByCode(code),
+      queryFn: () => getMaterialByCode(code),
+      staleTime: 5 * 60_000,
+    });
+};
+
 const useInvalidateData = () => useInvalidate(WORK_REPORT_QUERY_KEYS.data);
 
 // ===== Dòng kế hoạch =====
@@ -341,16 +487,22 @@ export const useSavePlanItem = () => {
   return useMutation({
     mutationFn: (
       args:
-        | { mode: 'create'; formId: number; request: PlanItemRequest }
-        | { mode: 'update'; id: number; request: UpdatePlanItemRequest },
-    ) => (args.mode === 'create' ? createPlanItem(args.formId, args.request) : updatePlanItem(args.id, args.request)),
+        | { mode: "create"; formId: number; request: PlanItemRequest }
+        | { mode: "update"; id: number; request: UpdatePlanItemRequest },
+    ) =>
+      args.mode === "create"
+        ? createPlanItem(args.formId, args.request)
+        : updatePlanItem(args.id, args.request),
     onSettled: invalidate,
   });
 };
 
 export const useDeletePlanItem = () => {
   const invalidate = useInvalidateData();
-  return useMutation({ mutationFn: (id: number) => deletePlanItem(id), onSuccess: invalidate });
+  return useMutation({
+    mutationFn: (id: number) => deletePlanItem(id),
+    onSuccess: invalidate,
+  });
 };
 
 // ===== Dòng báo cáo =====
@@ -360,25 +512,35 @@ export const useSaveReportItem = () => {
   return useMutation({
     mutationFn: (
       args:
-        | { mode: 'create'; formId: number; request: ReportItemRequest }
-        | { mode: 'update'; id: number; request: UpdateReportItemRequest },
+        | { mode: "create"; formId: number; request: ReportItemRequest }
+        | { mode: "update"; id: number; request: UpdateReportItemRequest },
     ) =>
-      args.mode === 'create' ? createReportItem(args.formId, args.request) : updateReportItem(args.id, args.request),
+      args.mode === "create"
+        ? createReportItem(args.formId, args.request)
+        : updateReportItem(args.id, args.request),
     onSettled: invalidate,
   });
 };
 
 export const useDeleteReportItem = () => {
   const invalidate = useInvalidateData();
-  return useMutation({ mutationFn: (id: number) => deleteReportItem(id), onSuccess: invalidate });
+  return useMutation({
+    mutationFn: (id: number) => deleteReportItem(id),
+    onSuccess: invalidate,
+  });
 };
 
 /** Đưa dòng kế hoạch (gợi ý) vào báo cáo. */
 export const useAcceptPlanItems = () => {
   const invalidate = useInvalidateData();
   return useMutation({
-    mutationFn: ({ formId, planItemIds }: { formId: number; planItemIds: number[] }) =>
-      acceptPlanItems(formId, planItemIds),
+    mutationFn: ({
+      formId,
+      planItemIds,
+    }: {
+      formId: number;
+      planItemIds: number[];
+    }) => acceptPlanItems(formId, planItemIds),
     onSettled: invalidate,
   });
 };
@@ -387,8 +549,15 @@ export const useAcceptPlanItems = () => {
 export const useUnlockWeeklyForm = () => {
   const invalidate = useInvalidateData();
   return useMutation({
-    mutationFn: ({ phase, formId, until }: { phase: WorkReportPhase; formId: number; until: string | null }) =>
-      unlockWeeklyForm(phase, formId, until),
+    mutationFn: ({
+      phase,
+      formId,
+      until,
+    }: {
+      phase: WorkReportPhase;
+      formId: number;
+      until: string | null;
+    }) => unlockWeeklyForm(phase, formId, until),
     onSuccess: invalidate,
   });
 };
@@ -400,10 +569,20 @@ export const useSaveWorkMaterial = () => {
   return useMutation({
     mutationFn: (
       args:
-        | { mode: 'create'; formId: number; phase: WorkReportPhase; request: WorkMaterialRequest }
-        | { mode: 'update'; id: number; phase: WorkReportPhase; request: WorkMaterialRequest },
+        | {
+            mode: "create";
+            formId: number;
+            phase: WorkReportPhase;
+            request: WorkMaterialRequest;
+          }
+        | {
+            mode: "update";
+            id: number;
+            phase: WorkReportPhase;
+            request: WorkMaterialRequest;
+          },
     ) =>
-      args.mode === 'create'
+      args.mode === "create"
         ? createWorkMaterial(args.formId, args.phase, args.request)
         : updateWorkMaterial(args.id, args.phase, args.request),
     onSuccess: invalidate,
@@ -413,7 +592,8 @@ export const useSaveWorkMaterial = () => {
 export const useDeleteWorkMaterial = () => {
   const invalidate = useInvalidateData();
   return useMutation({
-    mutationFn: ({ id, phase }: { id: number; phase: WorkReportPhase }) => deleteWorkMaterial(id, phase),
+    mutationFn: ({ id, phase }: { id: number; phase: WorkReportPhase }) =>
+      deleteWorkMaterial(id, phase),
     onSuccess: invalidate,
   });
 };

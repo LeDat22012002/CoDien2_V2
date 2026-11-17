@@ -9,6 +9,7 @@ using Server.Modules.Employees;
 using Server.Modules.Equipments;
 using Server.Modules.Identity;
 using Server.Modules.Incidents;
+using Server.Modules.Materials;
 using Server.Modules.Organization;
 using Server.Modules.WorkReports;
 using Server.Shared.Models;
@@ -45,6 +46,7 @@ public static class ServiceCollectionExtensions
         services.AddOrganizationModule();
         services.AddDocumentsModule();
         services.AddEquipmentsModule();
+        services.AddMaterialsModule();
         services.AddIncidentsModule();
         services.AddAuditLogsModule();
         services.AddWorkReportsModule();
