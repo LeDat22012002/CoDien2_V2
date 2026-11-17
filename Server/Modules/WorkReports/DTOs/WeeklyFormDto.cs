@@ -20,6 +20,9 @@ public abstract class WeeklyFormDto
     public decimal CapacityMinutes { get; set; }
     public string? EngineerNames { get; set; }
 
+    /// <summary>Kỹ sư đang được phân công tổ/kíp: lựa chọn cho cột (10) KTV phụ trách khi nhập.</summary>
+    public IReadOnlyList<EngineerOptionDto> Engineers { get; set; } = [];
+
     /// <summary>NOT_STARTED | OPEN | LOCKED của giai đoạn đang xem.</summary>
     public string Status { get; set; } = string.Empty;
 

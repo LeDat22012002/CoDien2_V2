@@ -51,6 +51,9 @@ public abstract class WorkMaterialRepository<TMaterial>(AppDbContext dbContext, 
     public void Add(TMaterial material) => Materials.Add(material);
 
     public void Remove(TMaterial material) => Materials.Remove(material);
+
+    public void PrepareConcurrentUpdate(TMaterial material, byte[] clientRowVersion) =>
+        dbContext.Entry(material).Property(x => x.RowVersion).OriginalValue = clientRowVersion;
 }
 
 public class WorkPlanMaterialRepository(AppDbContext dbContext)

@@ -41,6 +41,12 @@ public abstract class WorkItemDtoBase
     /// <summary>(9) Người thực hiện.</summary>
     public IReadOnlyList<WorkItemWorkerDto> Workers { get; set; } = [];
 
+    /// <summary>(9) Cả tổ/kíp: hiển thị "Cả tổ"; Workers là danh sách nhân viên tổ/kíp chụp lúc lưu.</summary>
+    public bool IsWholeUnit { get; set; }
+
+    /// <summary>(10) KTV phụ trách dòng; rỗng = dòng cũ (trước 17/11/2026), Client hiện KTV của form.</summary>
+    public IReadOnlyList<EngineerOptionDto> Engineers { get; set; } = [];
+
     public string? Note { get; set; }
     public int SortOrder { get; set; }
 
@@ -48,7 +54,12 @@ public abstract class WorkItemDtoBase
     public string RowVersion { get; set; } = string.Empty;
 
     public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>Mã NV người sửa cuối (hoặc người tạo).</summary>
     public string? UpdatedBy { get; set; }
+
+    /// <summary>Họ tên người sửa cuối (null nếu mã không còn trong danh sách nhân viên).</summary>
+    public string? UpdatedByName { get; set; }
 }
 
 /// <summary>Dòng kế hoạch.</summary>
@@ -96,6 +107,13 @@ public class WorkItemWorkerDto
     public string DisplayName { get; set; } = string.Empty;
 }
 
+/// <summary>1 KTV (kỹ sư) để hiển thị / chọn ở cột (10).</summary>
+public class EngineerOptionDto
+{
+    public int EmployeeId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+}
+
 /// <summary>Gợi ý người thực hiện.</summary>
 public class WorkerOptionDto
 {
@@ -126,7 +144,15 @@ public abstract class WorkItemRequestBase
     /// <summary>Trống = bằng ngày bắt đầu.</summary>
     public DateOnly? EndDate { get; set; }
 
+    /// <summary>Bỏ qua khi IsWholeUnit = true.</summary>
     public List<WorkItemWorkerRequest> Workers { get; set; } = [];
+
+    /// <summary>Cả tổ/kíp: Server tự lấy toàn bộ nhân viên của tổ/kíp trên sơ đồ làm người thực hiện.</summary>
+    public bool IsWholeUnit { get; set; }
+
+    /// <summary>(10) KTV phụ trách (Id nhân viên): kỹ sư được phân công tổ/kíp hoặc người nhập. Trống = người nhập.</summary>
+    public List<int>? EngineerIds { get; set; }
+
     public string? Note { get; set; }
 
     /// <summary>Null khi thêm = xếp cuối.</summary>

@@ -26,7 +26,10 @@ import { WorkGridView } from "@/modules/workReports/components/WorkGridView";
 import { WorkshopMaterialTable } from "@/modules/workReports/components/WorkshopMaterialTable";
 import { WorkSummaryTable } from "@/modules/workReports/components/WorkSummaryTable";
 import { PHASE_OPTIONS } from "@/modules/workReports/constants/workReportOptions";
-import { useWorkReportLiveUpdates } from "@/modules/workReports/hooks/useWorkReportLiveUpdates";
+import {
+  useWorkReportLiveUpdates,
+  WorkReportPresenceContext,
+} from "@/modules/workReports/hooks/useWorkReportLiveUpdates";
 import {
   useMyWorkReportScope,
   useWorkGrid,
@@ -175,8 +178,8 @@ export const WorkReportWorkspace = ({ mode }: WorkReportWorkspaceProps) => {
   const selectedWeek =
     weeks[weekIndex] ?? (workingWeek?.id === weekId ? workingWeek : undefined);
 
-  // Cập nhật tức thì: tổ/kíp khác lưu / xóa / mở khóa → bảng, Tổng hợp, Vật tư tự làm mới
-  useWorkReportLiveUpdates(workshopId, weekId);
+  // Cập nhật tức thì: tổ/kíp khác lưu / xóa / mở khóa → bảng, Tổng hợp, Vật tư tự làm mới; ai đang sửa dòng nào
+  const presence = useWorkReportLiveUpdates(workshopId, weekId);
 
   const canManageUnits =
     mode === "manage" &&
@@ -428,57 +431,62 @@ export const WorkReportWorkspace = ({ mode }: WorkReportWorkspaceProps) => {
   };
 
   return (
-    <div className={`flex flex-col gap-2 md:gap-3 ${MODE_HEIGHT_CLASS[mode]}`}>
-      {toolbar}
-      <div className="flex min-h-0 flex-1 flex-col rounded-md bg-bg-container px-3 pb-2 md:px-4 md:pb-3">
-        <Tabs
-          activeKey={tab}
-          onChange={(key) =>
-            updateParams({ tab: key === "grid" ? undefined : key })
-          }
-          destroyOnHidden
-          tabBarExtraContent={tabBarExtra}
-          className={TABS_FILL_CLASS}
-          items={[
-            { key: "grid", label: "Bảng công việc", children: renderGrid() },
-            {
-              key: "summary",
-              label: "Tổng hợp",
-              children: filter ? (
-                <WorkSummaryTable filter={filter} />
-              ) : (
-                <Skeleton active />
-              ),
-            },
-            {
-              key: "materials",
-              label: "Vật tư xưởng",
-              children: filter ? (
-                <WorkshopMaterialTable
-                  filter={filter}
-                  unitFilter={unitFilter}
-                />
-              ) : (
-                <Skeleton active />
-              ),
-            },
-            ...(canManageUnits
-              ? [
-                  {
-                    key: "units",
-                    label: "Đơn vị & kỹ sư",
-                    children: (
-                      <UnitManagementPanel
-                        workshopId={workshop.workshopId}
-                        isManager={workshop.isManager}
-                      />
-                    ),
-                  },
-                ]
-              : []),
-          ]}
-        />
+    // Bảng dùng để hiện "ai đang sửa" và báo dòng mình đang sửa
+    <WorkReportPresenceContext value={presence}>
+      <div
+        className={`flex flex-col gap-2 md:gap-3 ${MODE_HEIGHT_CLASS[mode]}`}
+      >
+        {toolbar}
+        <div className="flex min-h-0 flex-1 flex-col rounded-md bg-bg-container px-3 pb-2 md:px-4 md:pb-3">
+          <Tabs
+            activeKey={tab}
+            onChange={(key) =>
+              updateParams({ tab: key === "grid" ? undefined : key })
+            }
+            destroyOnHidden
+            tabBarExtraContent={tabBarExtra}
+            className={TABS_FILL_CLASS}
+            items={[
+              { key: "grid", label: "Bảng công việc", children: renderGrid() },
+              {
+                key: "summary",
+                label: "Tổng hợp",
+                children: filter ? (
+                  <WorkSummaryTable filter={filter} />
+                ) : (
+                  <Skeleton active />
+                ),
+              },
+              {
+                key: "materials",
+                label: "Vật tư xưởng",
+                children: filter ? (
+                  <WorkshopMaterialTable
+                    filter={filter}
+                    unitFilter={unitFilter}
+                  />
+                ) : (
+                  <Skeleton active />
+                ),
+              },
+              ...(canManageUnits
+                ? [
+                    {
+                      key: "units",
+                      label: "Đơn vị & kỹ sư",
+                      children: (
+                        <UnitManagementPanel
+                          workshopId={workshop.workshopId}
+                          isManager={workshop.isManager}
+                        />
+                      ),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        </div>
       </div>
-    </div>
+    </WorkReportPresenceContext>
   );
 };

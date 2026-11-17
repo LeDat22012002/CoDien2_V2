@@ -209,6 +209,14 @@ public class WeeklyFormService(
         var contexts = await GetVisibleFormsAsync(request.WorkshopId, request.WeekId, phase, request.UnitId, cancellationToken);
         var (forms, usedCategoryIds) = await buildForms(contexts);
 
+        // Lựa chọn cột (10) KTV phụ trách: kỹ sư đang được phân công từng tổ/kíp
+        var engineerOptions = await GetEngineerOptionsAsync(
+            forms.Select(x => x.UnitId).Distinct().ToList(), cancellationToken);
+        foreach (var form in forms)
+        {
+            form.Engineers = engineerOptions.GetValueOrDefault(form.UnitId, []);
+        }
+
         var categories = await categoryRepository.GetListAsync(includeInactive: true, cancellationToken);
         var week = await weekService.GetByIdAsync(request.WeekId, request.WorkshopId, cancellationToken);
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
@@ -308,7 +316,8 @@ public class WeeklyFormService(
         var context = await GetContextAsync(formId, phase, WorkItemAction.View, cancellationToken);
         if (!context.Access.CanUnlock)
         {
-            throw new ForbiddenException("Chỉ quản trị (quyền cấu hình báo cáo tuần) được mở khóa.");
+            throw new ForbiddenException(
+                "Bạn không có quyền mở khóa tổ/kíp này (cần quyền work-reports.unlock và là trưởng/phó đội/xưởng chứa tổ/kíp).");
         }
 
         var now = DateTime.Now;
@@ -470,6 +479,33 @@ public class WeeklyFormService(
         {
             form.CodePrefix = unit.CodePrefix;
         }
+    }
+
+    private async Task<IReadOnlyDictionary<int, IReadOnlyList<EngineerOptionDto>>> GetEngineerOptionsAsync(
+        IReadOnlyCollection<int> unitIds, CancellationToken cancellationToken)
+    {
+        if (unitIds.Count == 0)
+        {
+            return new Dictionary<int, IReadOnlyList<EngineerOptionDto>>();
+        }
+
+        var engineers = await unitRepository.GetActiveEngineersAsync(
+            unitIds, DateOnly.FromDateTime(DateTime.Now), cancellationToken);
+        var employees = (await employeeService.GetBriefsAsync(
+                engineers.Select(x => x.EmployeeId).Distinct().ToList(), cancellationToken))
+            .ToDictionary(x => x.Id, x => x.FullName);
+
+        return engineers
+            .GroupBy(x => x.WorkReportUnitId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<EngineerOptionDto>)g
+                    .Select(x => new EngineerOptionDto
+                    {
+                        EmployeeId = x.EmployeeId,
+                        FullName = employees.GetValueOrDefault(x.EmployeeId) ?? $"#{x.EmployeeId}",
+                    })
+                    .ToList());
     }
 
     private async Task<IReadOnlyDictionary<int, string>> GetEngineerNamesAsync(

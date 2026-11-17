@@ -8,13 +8,14 @@ using Server.Shared.Models;
 namespace Server.Modules.WorkReports.Controllers;
 
 /// <summary>
-/// Đơn vị báo cáo (tổ/kíp) và kỹ sư phụ trách (trang Quản lý báo cáo tuần): work-reports.manage hoặc configure;
-/// phạm vi kiểm tra trong Service: cấu hình đơn vị = admin / quản đốc-phó của xưởng;
-/// phân công kỹ sư = tổ HC: + đội trưởng/phó; kíp: chỉ quản đốc/phó.
+/// Đơn vị báo cáo (tổ/kíp) và kỹ sư phụ trách (trang Quản lý báo cáo tuần): work-reports.manage, assign-engineers hoặc configure;
+/// phạm vi kiểm tra trong Service: cấu hình đơn vị = configure / manage + quản đốc-phó của xưởng;
+/// phân công kỹ sư = assign-engineers + (quản đốc/phó; tổ HC: thêm đội trưởng/phó; configure: mọi xưởng).
 /// </summary>
 [ApiController]
 [Route("api/work-report-units")]
-[HasPermission(PermissionCodes.WorkReports.Manage, PermissionCodes.WorkReports.Configure)]
+[HasPermission(
+    PermissionCodes.WorkReports.Manage, PermissionCodes.WorkReports.AssignEngineers, PermissionCodes.WorkReports.Configure)]
 public class WorkReportUnitsController(
     IWorkReportUnitService unitService,
     IWorkReportUnitEngineerService engineerService) : ControllerBase

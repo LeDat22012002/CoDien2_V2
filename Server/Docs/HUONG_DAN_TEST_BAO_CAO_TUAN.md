@@ -473,6 +473,60 @@ Kiểm tra nhanh phân quyền: **B** gọi `GET /api/work-reports/my-scope` →
 | 4 | Gọi `DELETE /api/work-reports/plan/items/{id}` bằng Q (chưa có `plan.delete`) | 403 |
 | 5 | Đội trưởng có `report.create`: thêm dòng báo cáo tổ ngoài đội | 403 "Bạn không có quyền thêm báo cáo của …" |
 
+## C1b. Tách quyền phân công kỹ sư / mở khóa (17/11)
+Chuẩn bị: khởi động Server bản mới (seeder thêm `work-reports.assign-engineers`, `work-reports.unlock`) → chạy 1 lần `Data/Scripts/SplitWorkReportManagePermissions.sql`.
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | Sau script, xem role của Q (`manage`) và AD (`configure`) trên trang Phân quyền | Q có thêm `assign-engineers`; AD có thêm `assign-engineers` + `unlock`. Tên `manage` / `configure` đã đổi |
+| 2 | Bỏ `assign-engineers` khỏi role của Q → Q mở tab Đơn vị & kỹ sư | Không còn nút phân công kỹ sư; vẫn sửa tên / tiền tố tổ được. `PUT /api/work-report-units/{id}/engineers` → 403 "Bạn chưa được cấp quyền phân công kỹ sư…" |
+| 3 | Bỏ `unlock` khỏi role của AD → AD xem form đã khóa | Không có nút Mở khóa; `POST …/forms/{id}/unlock` → 403 |
+| 4 | Cấp `unlock` cho role của Q → Q xem form đã khóa trong xưởng mình | Có nút Mở khóa, mở được; form xưởng khác (nếu gọi API) → 403 |
+| 5 | Đội trưởng D có `unlock` | Mở khóa được tổ trong đội; tổ ngoài đội → 403 |
+| 6 | D có `assign-engineers` | Phân công được tổ HC trong đội; kíp → 403 "Chỉ quản đốc / phó quản đốc…" |
+
+## C1c. Người thực hiện "Cả tổ" (17/11)
+Chuẩn bị: `dotnet ef database update --configuration Release` (migration `AddWorkItemIsWholeUnit`).
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | K sửa 1 dòng, mở ô người thực hiện | Không còn nút Tổ/kíp · Đội · Xưởng; dòng đầu "Cả tổ" kèm "n người"; nhân viên hiện tên + mã mờ bên phải |
+| 2 | Chọn 3 người | Ô hiện đủ 3 tên (chỉ tên, không "+2"); Số người = 3 |
+| 3 | Chọn "Cả tổ" | 3 người bị bỏ, ô chỉ còn "Cả tổ"; Số người = n; giờ "8h" = 8×60×n phút |
+| 4 | Lưu | Ô (9) ghi "Cả tổ", rê chuột thấy danh sách; Số người = n |
+| 5 | Sửa lại, gõ thêm 1 tên rồi Enter | "Cả tổ" bị bỏ, còn 1 tên |
+| 6 | Dòng kế hoạch "Cả tổ" → Đưa vào báo cáo | Dòng báo cáo cũng "Cả tổ" |
+| 7 | Tổ/kíp không có nhân viên trên sơ đồ | Không có dòng "Cả tổ"; gọi API `isWholeUnit: true` → 400 |
+
+## C1d. Nhiều kỹ sư cùng nhập (17/11)
+Chuẩn bị: `dotnet ef database update --configuration Release` (migration `AddWorkMaterialRowVersion`), khởi động lại Server. 2 trình duyệt (hoặc 1 thường + 1 ẩn danh): **K1**, **K2** cùng phân công 1 tổ, cùng mở tuần đó.
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | K1 bấm sửa dòng X | Trang K2: cột TT dòng X có 🔒, nút sửa/xóa thành 🔒 (rê: "K1 đang sửa dòng này"); tiêu đề tổ "✎ Đang nhập: K1". Double-click dòng X → báo "K1 đang sửa dòng này" |
+| 2 | K1 bấm Hủy (hoặc Lưu) | Trên K2 khóa mất ngay |
+| 3 | K1 bấm "Thêm dòng" | K2 thấy "Đang nhập: K1" ở tiêu đề tổ, không khóa dòng nào |
+| 4 | K1 đang sửa dòng X rồi đóng tab | Khóa mất ngay (ngắt kết nối); mất mạng thì mất sau ≤ 2 phút |
+| 5 | Xung đột: K1, K2 cùng mở sửa dòng Y trước khi thấy khóa (vd K2 mở trước khi K1 kết nối), K1 lưu trước, K2 lưu sau | K2 thấy hộp thoại "Dòng … vừa được người khác sửa": tên K1, giờ, bảng ô khác nhau. Dữ liệu K2 đang gõ còn nguyên |
+| 6 | K2 chọn "Ghi đè bằng bản của tôi" | Lưu thành công, bản của K2 thắng; K1 thấy bảng tự cập nhật |
+| 7 | Lặp lại 5, K2 chọn "Dùng bản mới nhất" | Thoát sửa, dòng hiện bản của K1 |
+| 8 | Vật tư: K1, K2 cùng mở "Sửa vật tư" 1 vật tư; K1 lưu, K2 lưu | K2 thấy hộp thoại xung đột vật tư, 3 lựa chọn như trên |
+| 9 | Rê chuột ô Mã công việc / Mã vật tư | "Sửa lần cuối: <họ tên> · dd/MM/yyyy HH:mm" |
+| 10 | Trang công khai `/work-reports` | Không lỗi; thấy 🔒 / "Đang nhập" nếu có người đang sửa (chỉ xem) |
+
+## C1e. KTV phụ trách theo dòng (17/11)
+Chuẩn bị: `dotnet ef database update --configuration Release` (migration `AddWorkItemEngineers`). Tổ T có 2 kỹ sư phân công K1, K2.
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | Dòng cũ (nhập trước khi cập nhật) | Cột (10) vẫn hiện "K1, K2" như trước |
+| 2 | K1 thêm dòng mới | Ô KTV điền sẵn K1; lưu → cột (10) chỉ "K1" |
+| 3 | K1 sửa dòng, chọn thêm K2 | Lưu → "K1 / K2" (mỗi người 1 dòng) |
+| 4 | Xóa hết KTV rồi lưu | Lưu → KTV = người lưu |
+| 5 | Gọi API với `engineerIds` = nhân viên không phân công tổ T | 400 "Chỉ chọn được kỹ sư đang được phân công…" |
+| 6 | Dòng kế hoạch KTV "K2" → Đưa vào báo cáo | Dòng báo cáo KTV "K2" |
+| 7 | Tab Vật tư xưởng | Cột KTV theo dòng công việc gắn vật tư |
+
 ## C2. Kế hoạch
 | # | Bước | Kỳ vọng |
 |---|---|---|

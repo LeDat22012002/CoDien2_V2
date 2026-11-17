@@ -36,6 +36,8 @@ public class WorkReportScopeService(
         var canConfigure = await Has(PermissionCodes.WorkReports.Configure);
         var canSubmit = await Has(PermissionCodes.WorkReports.Submit);
         var canManage = await Has(PermissionCodes.WorkReports.Manage);
+        var canAssignEngineers = await Has(PermissionCodes.WorkReports.AssignEngineers);
+        var canUnlock = await Has(PermissionCodes.WorkReports.Unlock);
         var planRights = new PhaseRights(
             await Has(PermissionCodes.WorkReports.PlanCreate),
             await Has(PermissionCodes.WorkReports.PlanUpdate),
@@ -56,7 +58,9 @@ public class WorkReportScopeService(
             engineerUnitIds.UnionWith(await unitRepository.GetUnitIdsOfEngineerAsync(id, Today, cancellationToken));
         }
 
-        if (employeeId is { } managerId && (canManage || planRights.Any || reportRights.Any))
+        // Chức vụ trên sơ đồ chỉ có tác dụng khi có ít nhất 1 quyền dùng theo chức vụ
+        var usesHeadPositions = canManage || canAssignEngineers || canUnlock || planRights.Any || reportRights.Any;
+        if (employeeId is { } managerId && usesHeadPositions)
         {
             var tree = await orgTreeProvider.GetAsync(cancellationToken);
             var positions = await assignmentService.GetCurrentAssignmentsAsync([managerId], cancellationToken);
@@ -86,6 +90,8 @@ public class WorkReportScopeService(
             EmployeeId = employeeId,
             CanConfigure = canConfigure,
             CanManage = canManage,
+            CanAssignEngineers = canAssignEngineers,
+            CanUnlock = canUnlock,
             EngineerUnitIds = engineerUnitIds,
             HeadTeamIds = headTeamIds,
             HeadWorkshopIds = headWorkshopIds,
@@ -174,9 +180,13 @@ public class WorkReportScopeService(
         var inHeadScope = isAdmin || isWorkshopHead || isTeamHead;
         var plan = RightsOf(isEngineer, inHeadScope, scope.PlanRights);
         var report = RightsOf(isEngineer, inHeadScope, scope.ReportRights);
+        var canUnlock = scope.CanUnlock && inHeadScope;
+        // Kíp: chỉ quản đốc/phó phân công kỹ sư; tổ HC: thêm đội trưởng/phó của đội chứa tổ
+        var canAssignEngineers = scope.CanAssignEngineers && (isAdmin || isWorkshopHead || (isTeamHead && !isShift));
+        var hasGrantedRight = plan.Any || report.Any || canUnlock || canAssignEngineers;
 
-        var role = isWorkshopHead && (isWorkshopManager || plan.Any || report.Any) ? WorkReportRoles.WorkshopManager
-            : isTeamHead && (isTeamManager || plan.Any || report.Any) ? WorkReportRoles.TeamManager
+        var role = isWorkshopHead && (isWorkshopManager || hasGrantedRight) ? WorkReportRoles.WorkshopManager
+            : isTeamHead && (isTeamManager || hasGrantedRight) ? WorkReportRoles.TeamManager
             : isEngineer ? WorkReportRoles.Engineer
             : isAdmin ? WorkReportRoles.Admin
             : scope.CanViewFactory ? WorkReportRoles.Viewer
@@ -191,13 +201,11 @@ public class WorkReportScopeService(
             SortOrder = unit.SortOrder,
             Role = role,
             CanView = isAdmin || scope.CanViewFactory || isWorkshopManager || isTeamManager || isEngineer
-                      || plan.Any || report.Any,
+                      || hasGrantedRight,
             Plan = plan,
             Report = report,
-            CanUnlock = isAdmin,
-
-            // Kíp: chỉ quản đốc/phó xác nhận kỹ sư; tổ HC: thêm đội trưởng/phó của đội chứa tổ
-            CanManageEngineers = isAdmin || isWorkshopManager || (isTeamManager && !isShift),
+            CanUnlock = canUnlock,
+            CanManageEngineers = canAssignEngineers,
             CanConfigure = isAdmin || isWorkshopManager,
         };
     }

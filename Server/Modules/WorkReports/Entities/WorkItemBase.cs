@@ -35,6 +35,18 @@ public abstract class WorkItemBase<TWorker> : BaseEntity
     /// <summary>(7) Ngày kết thúc (≥ ngày bắt đầu, trong tuần); bằng ngày bắt đầu = làm trong 1 ngày.</summary>
     public DateOnly EndDate { get; set; }
 
+    /// <summary>
+    /// (9) "Cả tổ": người thực hiện là cả tổ/kíp. Workers là bản chụp nhân viên của tổ/kíp trên sơ đồ lúc lưu
+    /// (số người = số nhân viên); hiển thị chữ "Cả tổ" thay cho danh sách tên.
+    /// </summary>
+    public bool IsWholeUnit { get; set; }
+
+    /// <summary>
+    /// (10) KTV phụ trách dòng: mặc định người nhập, chọn thêm kỹ sư được phân công tổ/kíp cùng làm.
+    /// Lưu JSON trên dòng (bản chụp họ tên lúc lưu). Rỗng = dòng nhập trước 17/11/2026, hiển thị KTV của form.
+    /// </summary>
+    public List<WorkItemEngineer> Engineers { get; set; } = [];
+
     /// <summary>(18) Ghi chú.</summary>
     public string? Note { get; set; }
 
@@ -48,6 +60,15 @@ public abstract class WorkItemBase<TWorker> : BaseEntity
     public WorkCategory WorkCategory { get; set; } = null!;
 
     public ICollection<TWorker> Workers { get; set; } = [];
+}
+
+/// <summary>1 KTV phụ trách của dòng (phần tử JSON trong cột Engineers).</summary>
+public class WorkItemEngineer
+{
+    public int EmployeeId { get; set; }
+
+    /// <summary>Họ tên lúc lưu.</summary>
+    public string FullName { get; set; } = string.Empty;
 }
 
 /// <summary>

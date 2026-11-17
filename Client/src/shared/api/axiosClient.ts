@@ -60,6 +60,9 @@ export const setAccessToken = (token: string | null) => {
   accessToken = token;
 };
 
+/** Token hiện tại (vd SignalR gửi qua query khi kết nối WebSocket). */
+export const getAccessToken = () => accessToken;
+
 export const configureAuthHandlers = (handlers: AuthHandlers) => {
   authHandlers = handlers;
 };

@@ -2,7 +2,7 @@ using Server.Modules.WorkReports.Entities;
 
 namespace Server.Modules.WorkReports.Services;
 
-/// <summary>Trạng thái 1 giai đoạn của form tại thời điểm tính; IsUnlocked = đã quá hạn nhưng admin đang mở khóa.</summary>
+/// <summary>Trạng thái 1 giai đoạn của form tại thời điểm tính; IsUnlocked = đã quá hạn nhưng đang được mở khóa (quyền work-reports.unlock).</summary>
 public readonly record struct PhaseState(string Status, DateTime DeadlineAt, bool IsUnlocked = false)
 {
     public bool IsOpen => Status == FormPhaseStatuses.Open;
@@ -12,7 +12,7 @@ public readonly record struct PhaseState(string Status, DateTime DeadlineAt, boo
 /// Quy tắc mở/khóa form (tính tại thời điểm gọi, không phụ thuộc tác vụ nền):
 /// - Kế hoạch tuần W: mở từ khi tạo form tới hạn kế hoạch hiệu lực (hạn riêng xưởng → hạn chung).
 /// - Báo cáo tuần W: mở từ 00:00 thứ 2 của tuần W tới hạn báo cáo hiệu lực.
-/// - Đã quá hạn: khóa với mọi người; admin mở khóa (UnlockedUntil) thì mở lại tới thời điểm đó.
+/// - Đã quá hạn: khóa với mọi người; người có quyền unlock mở khóa (UnlockedUntil) thì mở lại tới thời điểm đó.
 /// </summary>
 public static class WeeklyFormRules
 {

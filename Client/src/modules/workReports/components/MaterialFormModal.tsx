@@ -11,10 +11,16 @@ import {
 } from "antd";
 import type { Dayjs } from "dayjs";
 import { useState } from "react";
+import { toApiError } from "@/shared/api/axiosClient";
 import dayjs from "@/shared/utils/dayjs";
 import { applyServerErrors } from "@/shared/utils/formErrors";
-import { formatNumber, toIsoDate } from "@/shared/utils/format";
+import { formatDate, formatNumber, toIsoDate } from "@/shared/utils/format";
 import { notify } from "@/shared/utils/notify";
+import { ConflictResolveModal } from "@/modules/workReports/components/ConflictResolveModal";
+import {
+  diffConflictFields,
+  type ConflictField,
+} from "@/modules/workReports/utils/conflictFields";
 import {
   MaterialCodeInput,
   type MaterialMatchSource,
@@ -80,6 +86,65 @@ export const MaterialFormModal = ({
   const workItems: WorkItemBase[] = form.items;
   /** Dòng nhắc dưới ô Mã VT sau khi tra danh mục; undefined = chưa tra. */
   const [catalogHint, setCatalogHint] = useState<string>();
+  /** Lưu bị 409: bản mới nhất + ô khác nhau. */
+  const [conflict, setConflict] = useState<{
+    latest: WorkMaterial;
+    fields: ConflictField[];
+  }>();
+
+  const purposeCodeOf = (id?: number | null) =>
+    (purposesQuery.data ?? []).find((purpose) => purpose.id === id)?.code ?? "";
+  const workItemCodeOf = (id?: number) =>
+    workItems.find((item) => item.id === id)?.code ?? "";
+
+  /** Ô để so khi xung đột. */
+  const conflictFields = (
+    values: MaterialFormValues,
+    latest: WorkMaterial,
+  ): ConflictField[] => [
+    {
+      label: "Mã công việc",
+      mine: workItemCodeOf(values.workItemId),
+      latest: latest.workItemCode,
+    },
+    {
+      label: "Mã vật tư",
+      mine: values.materialCode?.trim() ?? "",
+      latest: latest.materialCode ?? "",
+    },
+    {
+      label: "Tên vật tư",
+      mine: values.materialName?.trim() ?? "",
+      latest: latest.materialName,
+    },
+    { label: "ĐVT", mine: values.uom?.trim() ?? "", latest: latest.uom ?? "" },
+    isPlan
+      ? {
+          label: "Số lượng KH",
+          mine: formatNumber(values.plannedQuantity ?? null, 3),
+          latest: formatNumber(latest.plannedQuantity, 3),
+        }
+      : {
+          label: "Số lượng thực tế",
+          mine: formatNumber(values.actualQuantity ?? null, 3),
+          latest: formatNumber(latest.actualQuantity, 3),
+        },
+    {
+      label: "Ngày sử dụng",
+      mine: values.usageDate ? formatDate(toIsoDate(values.usageDate)) : "",
+      latest: latest.usageDate ? formatDate(latest.usageDate) : "",
+    },
+    {
+      label: "Mục đích",
+      mine: purposeCodeOf(values.materialPurposeId),
+      latest: latest.materialPurposeCode ?? "",
+    },
+    {
+      label: "Ghi chú",
+      mine: values.note?.trim() ?? "",
+      latest: latest.note ?? "",
+    },
+  ];
 
   const handleMaterialMatch = (
     match: MaterialOption | null,
@@ -109,7 +174,8 @@ export const MaterialFormModal = ({
       void formInstance.validateFields(["materialName"]).catch(() => undefined);
   };
 
-  const handleSubmit = async () => {
+  /** rowVersionOverride: ghi đè sau xung đột (lưu với rowVersion của bản mới nhất). */
+  const handleSubmit = async (rowVersionOverride?: string) => {
     let values: MaterialFormValues;
     try {
       values = await formInstance.validateFields();
@@ -135,7 +201,10 @@ export const MaterialFormModal = ({
           mode: "update",
           id: material.id,
           phase,
-          request,
+          request: {
+            ...request,
+            rowVersion: rowVersionOverride ?? material.rowVersion,
+          },
         });
         notify.success("Đã lưu vật tư.");
       } else {
@@ -147,8 +216,19 @@ export const MaterialFormModal = ({
         });
         notify.success("Đã thêm vật tư.");
       }
+      setConflict(undefined);
       onClose();
     } catch (error) {
+      const apiError = toApiError(error);
+      const latest = apiError.data as WorkMaterial | undefined;
+      if (apiError.status === 409 && latest && material) {
+        // Người khác vừa sửa: giữ bản đang nhập, cho xem khác nhau ở ô nào rồi chọn
+        setConflict({
+          latest,
+          fields: diffConflictFields(conflictFields(values, latest)),
+        });
+        return;
+      }
       if (!applyServerErrors(formInstance, error)) notify.apiError(error);
     }
   };
@@ -159,7 +239,7 @@ export const MaterialFormModal = ({
       title={material ? "Sửa vật tư" : "Thêm vật tư"}
       okText={material ? "Lưu thay đổi" : "Thêm vật tư"}
       cancelText="Hủy"
-      onOk={handleSubmit}
+      onOk={() => void handleSubmit()}
       onCancel={onClose}
       confirmLoading={saveMutation.isPending}
       mask={{ closable: false }}
@@ -321,6 +401,24 @@ export const MaterialFormModal = ({
           </Col>
         </Row>
       </Form>
+      {conflict && (
+        <ConflictResolveModal
+          open
+          subject={`Vật tư ${conflict.latest.materialCode ?? conflict.latest.materialName}`}
+          updatedByName={
+            conflict.latest.updatedByName ?? conflict.latest.updatedBy
+          }
+          updatedAt={conflict.latest.updatedAt}
+          fields={conflict.fields}
+          saving={saveMutation.isPending}
+          onUseLatest={() => {
+            setConflict(undefined);
+            onClose();
+          }}
+          onOverwrite={() => void handleSubmit(conflict.latest.rowVersion)}
+          onClose={() => setConflict(undefined)}
+        />
+      )}
     </Modal>
   );
 };

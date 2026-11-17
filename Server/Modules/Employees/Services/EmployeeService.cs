@@ -67,6 +67,12 @@ public class EmployeeService(
         .Select(x => new EmployeeBriefDto { Id = x.Id, EmpCode = x.EmpCode, FullName = x.FullName, Status = x.Status })
         .ToList();
 
+    public async Task<IReadOnlyList<EmployeeBriefDto>> GetBriefsByEmpCodesAsync(
+        IReadOnlyCollection<string> empCodes, CancellationToken cancellationToken) =>
+        (await employeeRepository.GetByEmpCodesAsync(empCodes, cancellationToken))
+        .Select(x => new EmployeeBriefDto { Id = x.Id, EmpCode = x.EmpCode, FullName = x.FullName, Status = x.Status })
+        .ToList();
+
     public async Task<int?> GetCurrentEmployeeIdAsync(CancellationToken cancellationToken)
     {
         if (currentUserService.UserName is not { Length: > 0 } empCode)

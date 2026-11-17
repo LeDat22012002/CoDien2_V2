@@ -34,8 +34,12 @@
 | GĐ 2 – Xuất Excel | ⬜ Làm bước cuối của GĐ 2, chờ file mẫu chính thức |
 | FE GĐ 1–2 | 🔵 Code xong (Client `modules/workReports`, 4 trang: member kỹ sư, admin Quản lý báo cáo tuần, admin cấu hình, public BGĐ (không cần quyền, không cần đăng nhập); tsc + oxlint + build sạch), chưa chạy thử trên trình duyệt với dữ liệu thật. Phân quyền theo role: 3 mã `work-reports.submit/manage/configure` (HUONG_DAN mục 5). Bật: chạy Server bản mới 1 lần → `Data/Scripts/AddWorkReportPages.sql` → gán quyền cho role `KY_SU`, `QUAN_DOC` (+ role quản trị). HUONG_DAN mục 15 |
 | Tách kế hoạch / báo cáo (16/11) | 🔵 Code xong BE + FE (HUONG_DAN mục 16): 2 bộ bảng + API `/plan/*`, `/report/*`, ngày bắt đầu/kết thúc, gợi ý từ kế hoạch, 6 quyền `work-reports.plan.*` / `.report.*`, admin mở khóa. Migration `SplitWorkPlanReport` **chưa chạy lên DB** (đã test trong transaction + rollback). Bật: `dotnet ef database update --configuration Release` → khởi động lại Server (seeder thêm 6 quyền) → gán quyền cho role nếu cần |
+| KTV phụ trách theo dòng (17/11) | 🔵 Code BE + FE xong, build sạch (HUONG_DAN mục 21). Migration `AddWorkItemEngineers` **chưa chạy lên DB** |
+| Nhiều kỹ sư cùng nhập (17/11) | 🔵 Code BE + FE xong, build sạch (HUONG_DAN mục 20): khóa mềm "đang sửa", hộp thoại xung đột, rowVersion vật tư, người sửa cuối. Migration `AddWorkMaterialRowVersion` **chưa chạy lên DB**. Đã thử hub (JoinWeek nhận danh sách, StartEditing không đăng nhập bị từ chối); chưa thử 2 tài khoản thật |
+| Người thực hiện "Cả tổ" (17/11) | 🔵 Code BE + FE xong, build sạch (HUONG_DAN mục 19). Migration `AddWorkItemIsWholeUnit` **chưa chạy lên DB**: `dotnet ef database update --configuration Release` |
+| Tách quyền phân công / mở khóa (17/11) | 🔵 Code BE xong, build sạch (HUONG_DAN mục 18): `work-reports.assign-engineers`, `work-reports.unlock`, phạm vi theo chức vụ; `manage` chỉ còn xem + cấu hình tổ/kíp. Bật: khởi động Server 1 lần → chạy 1 lần `Data/Scripts/SplitWorkReportManagePermissions.sql`. Client không cần đổi (dùng cờ `canManageEngineers` / `canUnlock`) |
 | GĐ 4 – Cập nhật tức thì (16/11) | 🔵 Code xong: SignalR hub `/api/hubs/work-reports`, Client `useWorkReportLiveUpdates` (HUONG_DAN mục 17). IIS cần bật WebSocket Protocol |
-| GĐ 3, 4 (presence), 5 | ⬜ Chưa làm |
+| GĐ 3, 5 | ⬜ Chưa làm |
 
 **Lưu ý repo:** `Docs/TEST_GD1_BAO_CAO_TUAN.md` được tạo ở máy khác và **chưa có trong repo** — nhớ commit từ máy đó. `Docs/` đã được tạo lại ở phiên 15/11 (HUONG_DAN, TIEP_TUC, TEST_GD2).
 
@@ -129,7 +133,7 @@ DI không vòng: `WeeklyFormService` **không** phụ thuộc `WorkReportUnitSer
 - Xưởng của đơn vị **tính từ cây** khi đọc; **form chụp** xưởng/tên/tiền tố/giờ công/KTV — cập nhật khi chưa khóa báo cáo, cố định khi khóa; tiền tố chỉ đổi khi form chưa cấp mã.
 - Kế hoạch và báo cáo là **2 bảng riêng** (16/11/2026); dòng báo cáo lấy từ kế hoạch có `PlanItemId`, giữ mã; việc phát sinh `PlanItemId = null`. Gợi ý từ kế hoạch chỉ trả cho người đang thêm được dòng báo cáo.
 - Hạn: báo cáo tuần N và kế hoạch tuần N+1 **khóa cùng lúc**; "đang khóa" **tính khi đọc/ghi** (`WeeklyFormRules`), không phụ thuộc tác vụ nền. Báo cáo mở từ 00:00 T2 của tuần.
-- Quá hạn thì không ai sửa; chỉ admin (`configure`) mở khóa. Kỹ sư phụ trách mặc định thêm/sửa/xóa; người khác cần `work-reports.plan.*` / `.report.*` và là trưởng/phó đội/xưởng chứa tổ.
+- Quá hạn thì không ai sửa; mở khóa cần `work-reports.unlock` (theo chức vụ; có `configure` → mọi xưởng). Phân công kỹ sư cần `work-reports.assign-engineers` (17/11). Kỹ sư phụ trách mặc định thêm/sửa/xóa; người khác cần `work-reports.plan.*` / `.report.*` và là trưởng/phó đội/xưởng chứa tổ.
 
 ---
 

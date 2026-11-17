@@ -2,6 +2,7 @@ import {
   CloseOutlined,
   DeleteOutlined,
   EditOutlined,
+  LockOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
@@ -39,12 +40,23 @@ export const EditingActions = ({
   </div>
 );
 
-/** Nút sửa / xóa của 1 dòng (ẩn nút không có quyền). */
+/** Biểu tượng khóa mềm: người khác đang sửa dòng này. */
+export const LockedByIcon = ({ name }: { name: string }) => (
+  <Tooltip title={`${name} đang sửa dòng này`}>
+    <LockOutlined
+      className="text-warning"
+      aria-label={`${name} đang sửa dòng này`}
+    />
+  </Tooltip>
+);
+
+/** Nút sửa / xóa của 1 dòng (ẩn nút không có quyền); người khác đang sửa thì chỉ hiện khóa. */
 export const ItemActions = ({
   code,
   canUpdate,
   canDelete,
   disabled,
+  lockedBy,
   onEdit,
   onDelete,
 }: {
@@ -52,34 +64,41 @@ export const ItemActions = ({
   canUpdate: boolean;
   canDelete: boolean;
   disabled: boolean;
+  /** Tên người khác đang sửa dòng này. */
+  lockedBy?: string;
   onEdit: () => void;
   onDelete: () => void;
-}) => (
-  <div className="flex justify-center">
-    {canUpdate && (
-      <Tooltip title="Sửa (double-click dòng)">
-        <Button
-          type="text"
-          size="small"
-          aria-label={`Sửa dòng ${code}`}
-          icon={<EditOutlined className="text-primary" />}
-          disabled={disabled}
-          onClick={onEdit}
-        />
-      </Tooltip>
-    )}
-    {canDelete && (
-      <Tooltip title="Xóa">
-        <Button
-          type="text"
-          size="small"
-          danger
-          aria-label={`Xóa dòng ${code}`}
-          icon={<DeleteOutlined />}
-          disabled={disabled}
-          onClick={onDelete}
-        />
-      </Tooltip>
-    )}
-  </div>
-);
+}) =>
+  lockedBy && (canUpdate || canDelete) ? (
+    <div className="flex justify-center">
+      <LockedByIcon name={lockedBy} />
+    </div>
+  ) : (
+    <div className="flex justify-center">
+      {canUpdate && (
+        <Tooltip title="Sửa (double-click dòng)">
+          <Button
+            type="text"
+            size="small"
+            aria-label={`Sửa dòng ${code}`}
+            icon={<EditOutlined className="text-primary" />}
+            disabled={disabled}
+            onClick={onEdit}
+          />
+        </Tooltip>
+      )}
+      {canDelete && (
+        <Tooltip title="Xóa">
+          <Button
+            type="text"
+            size="small"
+            danger
+            aria-label={`Xóa dòng ${code}`}
+            icon={<DeleteOutlined />}
+            disabled={disabled}
+            onClick={onDelete}
+          />
+        </Tooltip>
+      )}
+    </div>
+  );

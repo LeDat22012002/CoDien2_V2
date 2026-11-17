@@ -24,6 +24,13 @@ internal static class WorkItemConfigurationHelper
         builder.Property(x => x.Note).HasMaxLength(500);
         builder.Property(x => x.RowVersion).IsRowVersion();
 
+        // KTV phụ trách dòng: cột JSON nvarchar(max) [{"EmployeeId":1,"FullName":"…"}]
+        builder.OwnsMany(x => x.Engineers, engineer =>
+        {
+            engineer.ToJson();
+            engineer.Property(x => x.FullName).HasMaxLength(255);
+        });
+
         builder.HasIndex(x => x.WeeklyFormId);
         builder.HasIndex(x => x.Code);
 
@@ -56,6 +63,7 @@ internal static class WorkItemConfigurationHelper
         builder.Property(x => x.MaterialName).HasMaxLength(255).IsRequired();
         builder.Property(x => x.Uom).HasMaxLength(20);
         builder.Property(x => x.Note).HasMaxLength(500);
+        builder.Property(x => x.RowVersion).IsRowVersion();
 
         builder.HasIndex(x => x.WeeklyFormId);
 

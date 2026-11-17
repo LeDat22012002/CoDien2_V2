@@ -19,6 +19,7 @@ import { notify } from "@/shared/utils/notify";
 import { CollapseToggle } from "@/modules/workReports/components/collapsible/CollapseToggle";
 
 import { FormStatusTag } from "@/modules/workReports/components/FormStatusTag";
+import { lastEditText } from "@/modules/workReports/components/grid/sheetGridShared";
 import { MaterialFormModal } from "@/modules/workReports/components/MaterialFormModal";
 import {
   SHEET_TABLE_CLASS,
@@ -297,10 +298,15 @@ export const WorkshopMaterialTable = ({
       width: COLUMN_WIDTH.code,
       fixed: "left",
       align: "center",
-      render: (_, row) =>
-        isHeaderRow(row)
-          ? null
-          : wrapText(materialOf(row)?.materialCode, "break-all font-mono"),
+      render: (_, row) => {
+        if (isHeaderRow(row)) return null;
+        const material = materialOf(row);
+        return (
+          <Tooltip title={material ? lastEditText(material) : undefined}>
+            {wrapText(material?.materialCode, "break-all font-mono")}
+          </Tooltip>
+        );
+      },
     }),
     leaf({
       title: "Tên vật tư",
@@ -319,16 +325,7 @@ export const WorkshopMaterialTable = ({
       render: (_, row) =>
         isHeaderRow(row) ? null : (materialOf(row)?.uom ?? dash),
     }),
-    leaf({
-      title: "Số lượng KH",
-      key: "plannedQuantity",
-      width: COLUMN_WIDTH.short,
-      align: "center",
-      render: (_, row) =>
-        isHeaderRow(row)
-          ? null
-          : formatNumber(materialOf(row)?.plannedQuantity, 3),
-    }),
+    // Kế hoạch: số lượng KH; báo cáo: chỉ số lượng thực tế
     ...(isReport
       ? [
           leaf({
@@ -352,7 +349,18 @@ export const WorkshopMaterialTable = ({
             },
           }),
         ]
-      : []),
+      : [
+          leaf({
+            title: "Số lượng KH",
+            key: "plannedQuantity",
+            width: COLUMN_WIDTH.short,
+            align: "center",
+            render: (_, row) =>
+              isHeaderRow(row)
+                ? null
+                : formatNumber(materialOf(row)?.plannedQuantity, 3),
+          }),
+        ]),
     leaf({
       title: "KTV phụ trách",
       key: "engineerNames",

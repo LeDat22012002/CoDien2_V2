@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Server.Data;
 using Server.Modules.WorkReports.DTOs;
 using Server.Modules.WorkReports.Entities;
@@ -19,11 +20,14 @@ public abstract class WorkMaterialServiceBase<TMaterial, TItem>(
     IMaterialPurposeRepository purposeRepository,
     IWeeklyFormService formService,
     IWorkReportNotifier notifier,
+    WorkItemSupport support,
     IUnitOfWork unitOfWork) : IWorkMaterialService
     where TMaterial : WorkMaterialBase
     where TItem : BaseEntity
 {
     private const string NotFoundMessage = "Không tìm thấy vật tư (có thể đã bị xóa).";
+    private const string ConflictMessage =
+        "Vật tư vừa được người khác sửa. Hãy xem bản mới nhất rồi chọn giữ bản nào.";
 
     protected abstract string Phase { get; }
 
@@ -83,6 +87,12 @@ public abstract class WorkMaterialServiceBase<TMaterial, TItem>(
             ?? throw new NotFoundException(NotFoundMessage);
         var context = await formService.GetContextAsync(material.WeeklyFormId, Phase, WorkItemAction.Update, cancellationToken);
 
+        var clientRowVersion = WorkItemSupport.ParseRowVersion(request.RowVersion);
+        if (!clientRowVersion.SequenceEqual(material.RowVersion))
+        {
+            throw new ConflictException(ConflictMessage, await GetDtoAsync(id, context, cancellationToken));
+        }
+
         Normalize(request);
         WorkMaterialRequestValidator.Validate(request, context.Week, context.IsPlan);
         if (request.WorkItemId != ItemIdOf(material))
@@ -93,7 +103,16 @@ public abstract class WorkMaterialServiceBase<TMaterial, TItem>(
         await EnsurePurposeAsync(request.MaterialPurposeId, material.MaterialPurposeId, cancellationToken);
 
         ApplyFields(material, request);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        materialRepository.PrepareConcurrentUpdate(material, clientRowVersion);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException(ConflictMessage, await GetDtoAsync(id, context, cancellationToken));
+        }
+
         await notifier.FormChangedAsync(context.Form, Phase);
 
         return await GetDtoAsync(id, context, cancellationToken);
@@ -119,13 +138,15 @@ public abstract class WorkMaterialServiceBase<TMaterial, TItem>(
         var materials = await materialRepository.GetByFormIdsAsync(formIds, cancellationToken);
         var items = await GetItemsAsync(materials, cancellationToken);
 
-        return materials
+        var dtos = materials
             .Select(x => (Material: x, Item: items.GetValueOrDefault(ItemIdOf(x))))
             .Select(x => ToDto(x.Material, contexts[x.Material.WeeklyFormId].Form, x.Item))
             .OrderBy(x => contexts[x.WeeklyFormId].OrderNo)
             .ThenBy(x => x.WorkItemCode)
             .ThenBy(x => x.Id)
             .ToList();
+        await support.FillUpdatedByNamesAsync(dtos, cancellationToken);
+        return dtos;
     }
 
     private async Task<IReadOnlyDictionary<int, TItem>> GetItemsAsync(
@@ -191,7 +212,9 @@ public abstract class WorkMaterialServiceBase<TMaterial, TItem>(
         var material = await materialRepository.GetByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException(NotFoundMessage);
         var item = await itemRepository.GetByIdAsync(ItemIdOf(material), cancellationToken);
-        return ToDto(material, context.Form, item);
+        var dto = ToDto(material, context.Form, item);
+        await support.FillUpdatedByNamesAsync([dto], cancellationToken);
+        return dto;
     }
 }
 
@@ -201,9 +224,11 @@ public class WorkPlanMaterialService(
     IMaterialPurposeRepository purposeRepository,
     IWeeklyFormService formService,
     IWorkReportNotifier notifier,
+    WorkItemSupport support,
     IUnitOfWork unitOfWork)
     : WorkMaterialServiceBase<WorkPlanMaterial, WorkPlanItem>(
-        materialRepository, itemRepository, purposeRepository, formService, notifier, unitOfWork), IWorkPlanMaterialService
+        materialRepository, itemRepository, purposeRepository, formService, notifier, support, unitOfWork),
+        IWorkPlanMaterialService
 {
     protected override string Phase => WorkReportPhases.Plan;
 
@@ -230,9 +255,11 @@ public class WorkReportMaterialService(
     IMaterialPurposeRepository purposeRepository,
     IWeeklyFormService formService,
     IWorkReportNotifier notifier,
+    WorkItemSupport support,
     IUnitOfWork unitOfWork)
     : WorkMaterialServiceBase<WorkReportMaterial, WorkReportItem>(
-        materialRepository, itemRepository, purposeRepository, formService, notifier, unitOfWork), IWorkReportMaterialService
+        materialRepository, itemRepository, purposeRepository, formService, notifier, support, unitOfWork),
+        IWorkReportMaterialService
 {
     protected override string Phase => WorkReportPhases.Report;
 

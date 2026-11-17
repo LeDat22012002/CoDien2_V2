@@ -13,6 +13,8 @@
  *
  * Từ 16/11/2026 có thêm 6 quyền không gắn trang (seeder tự thêm): work-reports.plan.create|update|delete,
  * work-reports.report.create|update|delete — admin cấp cho role ngoài kỹ sư để thêm/sửa/xóa dòng trong đội/xưởng mình.
+ * Từ 17/11/2026 thêm work-reports.assign-engineers (phân công kỹ sư) và work-reports.unlock (mở khóa), không gắn trang:
+ * chạy 1 lần SplitWorkReportManagePermissions.sql để cấp sẵn cho role đang có manage / configure.
  */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;

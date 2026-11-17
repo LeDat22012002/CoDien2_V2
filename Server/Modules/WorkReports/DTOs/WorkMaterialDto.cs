@@ -38,7 +38,15 @@ public class WorkMaterialDto
     public bool IsUnplanned { get; init; }
 
     public DateTime? UpdatedAt { get; init; }
+
+    /// <summary>Mã NV người sửa cuối (hoặc người tạo).</summary>
     public string? UpdatedBy { get; init; }
+
+    /// <summary>Họ tên người sửa cuối.</summary>
+    public string? UpdatedByName { get; set; }
+
+    /// <summary>Base64, gửi lại khi sửa để phát hiện người khác đã sửa trước (409).</summary>
+    public string RowVersion { get; init; } = string.Empty;
 }
 
 // ===== Request =====
@@ -62,7 +70,11 @@ public abstract class WorkMaterialRequestBase
 
 public class CreateWorkMaterialRequest : WorkMaterialRequestBase;
 
-public class UpdateWorkMaterialRequest : WorkMaterialRequestBase;
+public class UpdateWorkMaterialRequest : WorkMaterialRequestBase
+{
+    /// <summary>RowVersion (base64) nhận được lần đọc trước; lệch → 409 kèm vật tư mới nhất.</summary>
+    public string RowVersion { get; set; } = string.Empty;
+}
 
 public class WorkshopMaterialFilterRequest
 {

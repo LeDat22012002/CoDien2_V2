@@ -59,8 +59,10 @@ public static class IdentitySeedData
         new(PermissionCodes.Incidents.UpdateProgress, "Cập nhật tiến độ báo cáo sự cố của xưởng mình", "incidents", 82),
 
         new(PermissionCodes.WorkReports.Submit, "Lập kế hoạch, báo cáo tuần (kỹ sư phụ trách tổ/kíp)", "work-reports", 84),
-        new(PermissionCodes.WorkReports.Manage, "Quản lý báo cáo tuần của đội/xưởng (cấu hình tổ/kíp, phân công kỹ sư)", "work-reports", 85),
-        new(PermissionCodes.WorkReports.Configure, "Cấu hình báo cáo tuần (đầu mục, hạn nộp, giờ công, mở khóa)", "work-reports", 87),
+        new(PermissionCodes.WorkReports.Manage, "Quản lý báo cáo tuần của đội/xưởng (xem, cấu hình tổ/kíp)", "work-reports", 85),
+        new(PermissionCodes.WorkReports.AssignEngineers, "Phân công kỹ sư phụ trách tổ/kíp (trong đội/xưởng mình)", "work-reports", 86),
+        new(PermissionCodes.WorkReports.Configure, "Cấu hình báo cáo tuần (đầu mục, hạn nộp, giờ công)", "work-reports", 87),
+        new(PermissionCodes.WorkReports.Unlock, "Mở khóa kế hoạch / báo cáo tuần quá hạn (trong đội/xưởng mình)", "work-reports", 94),
         new(PermissionCodes.WorkReports.PlanCreate, "Thêm dòng kế hoạch tuần (tổ/kíp trong đội/xưởng mình)", "work-reports", 88),
         new(PermissionCodes.WorkReports.PlanUpdate, "Sửa dòng kế hoạch tuần (tổ/kíp trong đội/xưởng mình)", "work-reports", 89),
         new(PermissionCodes.WorkReports.PlanDelete, "Xóa dòng kế hoạch tuần (tổ/kíp trong đội/xưởng mình)", "work-reports", 90),

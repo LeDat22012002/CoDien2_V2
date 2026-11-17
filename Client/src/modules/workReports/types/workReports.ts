@@ -247,11 +247,36 @@ export interface WorkItemBase {
   endDate: string;
   workerCount: number;
   workers: WorkItemWorker[];
+  /** Cả tổ/kíp: hiển thị "Cả tổ"; workers là danh sách nhân viên tổ/kíp chụp lúc lưu. */
+  isWholeUnit: boolean;
+  /** (10) KTV phụ trách dòng; rỗng = dòng cũ, hiện KTV của form. */
+  engineers: EngineerOption[];
   note?: string | null;
   sortOrder: number;
   rowVersion: string;
   updatedAt?: string | null;
   updatedBy?: string | null;
+  /** Họ tên người sửa cuối. */
+  updatedByName?: string | null;
+}
+
+/** 1 KTV (kỹ sư) để hiển thị / chọn ở cột (10). */
+export interface EngineerOption {
+  employeeId: number;
+  fullName: string;
+}
+
+// ===== Cập nhật tức thì: ai đang sửa =====
+
+/** 1 người đang sửa / thêm dòng (itemId null = đang thêm dòng mới ở tổ/kíp đó). */
+export interface WorkReportEditor {
+  connectionId: string;
+  userId: number;
+  fullName: string;
+  formId: number;
+  phase: WorkReportPhase;
+  itemId?: number | null;
+  since: string;
 }
 
 export interface WorkPlanItem extends WorkItemBase {
@@ -286,6 +311,8 @@ export interface WeeklyFormBase {
   laborType: LaborType;
   capacityMinutes: number;
   engineerNames?: string | null;
+  /** Kỹ sư đang được phân công tổ/kíp: lựa chọn cột (10) khi nhập. */
+  engineers: EngineerOption[];
   status: FormPhaseStatus;
   deadlineAt: string;
   planStatus: FormPhaseStatus;
@@ -355,6 +382,10 @@ interface WorkItemRequestBase {
   /** Trống = bằng ngày bắt đầu. */
   endDate?: string | null;
   workers: WorkItemWorkerRequest[];
+  /** Cả tổ/kíp: Server tự lấy nhân viên tổ/kíp, bỏ qua workers. */
+  isWholeUnit?: boolean;
+  /** (10) KTV phụ trách; trống = người nhập. */
+  engineerIds?: number[];
   note?: string | null;
   sortOrder?: number | null;
 }
@@ -429,9 +460,15 @@ export interface WorkMaterial {
   isUnplanned: boolean;
   updatedAt?: string | null;
   updatedBy?: string | null;
+  /** Họ tên người sửa cuối. */
+  updatedByName?: string | null;
+  /** Gửi lại khi sửa để phát hiện người khác đã sửa trước (409). */
+  rowVersion: string;
 }
 
 export interface WorkMaterialRequest {
+  /** Bắt buộc khi sửa. */
+  rowVersion?: string;
   workItemId: number;
   materialCode?: string | null;
   materialName: string;

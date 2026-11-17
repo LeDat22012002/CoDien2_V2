@@ -13,6 +13,10 @@ public interface IEmployeeService
     Task<IReadOnlyList<EmployeeBriefDto>> GetBriefsAsync(
         IReadOnlyCollection<int> ids, CancellationToken cancellationToken);
 
+    /// <summary>Như GetBriefsAsync nhưng theo mã nhân viên (vd đổi CreatedBy / UpdatedBy ra họ tên).</summary>
+    Task<IReadOnlyList<EmployeeBriefDto>> GetBriefsByEmpCodesAsync(
+        IReadOnlyCollection<string> empCodes, CancellationToken cancellationToken);
+
     /// <summary>Id nhân viên đang làm việc gắn với tài khoản đăng nhập (EmpCode); null nếu không có / đã nghỉ.</summary>
     Task<int?> GetCurrentEmployeeIdAsync(CancellationToken cancellationToken);
 

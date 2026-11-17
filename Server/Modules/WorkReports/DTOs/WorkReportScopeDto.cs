@@ -49,10 +49,13 @@ public class WorkReportUnitAccessDto
     /// <summary>Thêm/sửa/xóa dòng báo cáo (khi báo cáo đang mở): kỹ sư phụ trách, hoặc quyền report.* trong phạm vi.</summary>
     public WorkReportRightsDto Report { get; init; } = new();
 
-    /// <summary>Mở khóa kế hoạch / báo cáo đã quá hạn (chỉ admin).</summary>
+    /// <summary>Mở khóa kế hoạch / báo cáo đã quá hạn: quyền work-reports.unlock trong phạm vi trưởng/phó (configure: mọi xưởng).</summary>
     public bool CanUnlock { get; init; }
 
+    /// <summary>Phân công kỹ sư: quyền work-reports.assign-engineers; kíp chỉ quản đốc/phó, tổ thêm đội trưởng/phó (configure: mọi xưởng).</summary>
     public bool CanManageEngineers { get; init; }
+
+    /// <summary>Cấu hình tổ/kíp: configure, hoặc manage + quản đốc/phó của xưởng.</summary>
     public bool CanConfigure { get; init; }
 }
 

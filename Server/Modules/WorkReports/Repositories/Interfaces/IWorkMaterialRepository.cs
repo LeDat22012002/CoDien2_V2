@@ -20,6 +20,9 @@ public interface IWorkMaterialRepository<TMaterial> where TMaterial : WorkMateri
     void Add(TMaterial material);
 
     void Remove(TMaterial material);
+
+    /// <summary>So rowversion với bản client đã đọc khi lưu (lệch → DbUpdateConcurrencyException).</summary>
+    void PrepareConcurrentUpdate(TMaterial material, byte[] clientRowVersion);
 }
 
 public interface IWorkPlanMaterialRepository : IWorkMaterialRepository<WorkPlanMaterial>;

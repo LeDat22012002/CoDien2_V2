@@ -58,7 +58,8 @@ public static class WorkItemMapper
         WorkItemId = material.WorkPlanItemId,
         WorkItemCode = item?.Code ?? string.Empty,
         WorkItemDescription = item?.Description,
-        EngineerNames = form.EngineerNames,
+        // KTV của dòng; dòng cũ chưa lưu KTV thì lấy KTV của form
+        EngineerNames = EngineerNamesOf(item?.Engineers) ?? form.EngineerNames,
         MaterialCode = material.MaterialCode,
         MaterialName = material.MaterialName,
         Uom = material.Uom,
@@ -70,6 +71,7 @@ public static class WorkItemMapper
         Note = material.Note,
         UpdatedAt = material.UpdatedAt ?? material.CreatedAt,
         UpdatedBy = material.UpdatedBy ?? material.CreatedBy,
+        RowVersion = Convert.ToBase64String(material.RowVersion),
     };
 
     public static WorkMaterialDto ToDto(WorkReportMaterial material, WeeklyForm form, WorkReportItem? item) => new()
@@ -80,7 +82,8 @@ public static class WorkItemMapper
         WorkItemId = material.WorkReportItemId,
         WorkItemCode = item?.Code ?? string.Empty,
         WorkItemDescription = item?.Description,
-        EngineerNames = form.EngineerNames,
+        // KTV của dòng; dòng cũ chưa lưu KTV thì lấy KTV của form
+        EngineerNames = EngineerNamesOf(item?.Engineers) ?? form.EngineerNames,
         MaterialCode = material.MaterialCode,
         MaterialName = material.MaterialName,
         Uom = material.Uom,
@@ -94,7 +97,11 @@ public static class WorkItemMapper
         IsUnplanned = material.PlanMaterialId is null,
         UpdatedAt = material.UpdatedAt ?? material.CreatedAt,
         UpdatedBy = material.UpdatedBy ?? material.CreatedBy,
+        RowVersion = Convert.ToBase64String(material.RowVersion),
     };
+
+    private static string? EngineerNamesOf(IReadOnlyCollection<WorkItemEngineer>? engineers) =>
+        engineers is { Count: > 0 } ? string.Join(", ", engineers.Select(x => x.FullName)) : null;
 
     private static TDto Common<TDto, TWorker>(
         WorkItemBase<TWorker> item,
@@ -135,6 +142,10 @@ public static class WorkItemMapper
                         DisplayName = employee?.FullName ?? x.DisplayName,
                     };
                 })
+                .ToList(),
+            IsWholeUnit = item.IsWholeUnit,
+            Engineers = item.Engineers
+                .Select(x => new EngineerOptionDto { EmployeeId = x.EmployeeId, FullName = x.FullName })
                 .ToList(),
             Note = item.Note,
             SortOrder = item.SortOrder,

@@ -13,7 +13,7 @@ import {
   Typography,
   type TableColumnsType,
 } from "antd";
-import type { KeyboardEvent, ReactNode } from "react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { toApiError } from "@/shared/api/axiosClient";
 import { useTableScrollY } from "@/shared/hooks/useTableScrollY";
 import { applyServerErrors } from "@/shared/utils/formErrors";
@@ -23,20 +23,28 @@ import {
   COLLAPSIBLE_TABLE_COMPONENTS,
   collapsibleRowProps,
 } from "@/modules/workReports/components/collapsible/CollapsibleTable";
+import { ConflictResolveModal } from "@/modules/workReports/components/ConflictResolveModal";
+import {
+  diffConflictFields,
+  type ConflictField,
+} from "@/modules/workReports/utils/conflictFields";
 import {
   EditingActions,
   ItemActions,
+  LockedByIcon,
 } from "@/modules/workReports/components/grid/GridRowActions";
 import {
   SheetGroupHeader,
   SheetUnitHeader,
 } from "@/modules/workReports/components/grid/SheetGridHeaders";
 import {
+  commonConflictFields,
   commonLeadingColumns,
   commonTrailingColumns,
   createGridLeafColumns,
   groupKey,
   headerTitle,
+  lastEditText,
   toCommonFormValues,
   toCommonRequest,
   unitKey,
@@ -67,7 +75,10 @@ import type {
   WorkReportGrid,
   WorkReportItem,
 } from "@/modules/workReports/types/workReports";
-import { parseMinutesInput } from "@/modules/workReports/utils/workReportUtils";
+import {
+  countWorkerValues,
+  parseMinutesInput,
+} from "@/modules/workReports/utils/workReportUtils";
 import { sumColumnWidths } from "@/modules/workReports/utils/sheetTableColumns";
 
 type Row = SheetRow<WorkReportItem, WeeklyReportForm>;
@@ -102,7 +113,16 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
   const { modal } = App.useApp();
   const { containerRef, scrollY } = useTableScrollY();
   const { week, categories } = grid;
-  const editor = useSheetEditor<WorkReportItem, WeeklyReportForm>(forms, week);
+  const editor = useSheetEditor<WorkReportItem, WeeklyReportForm>(
+    forms,
+    week,
+    "REPORT",
+  );
+  /** Lưu bị 409: bản mới nhất + các ô khác nhau (chờ chọn dùng bản mới / ghi đè). */
+  const [conflict, setConflict] = useState<{
+    latest: WorkReportItem;
+    fields: ConflictField[];
+  }>();
   const { rowForm, editing, editingForm, editingItem, isBusy, collapse } =
     editor;
   const saveMutation = useSaveReportItem();
@@ -122,7 +142,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
   const startEdit = (form: WeeklyReportForm, item: WorkReportItem) => {
     if (!form.canUpdate) return;
     editor.startEdit(form, item, {
-      ...toCommonFormValues(item),
+      ...toCommonFormValues(item, form),
       plannedMinutes: item.plannedMinutes?.toString() ?? undefined,
       actualMinutes: item.actualMinutes?.toString() ?? undefined,
       resultPercent: item.resultPercent ?? null,
@@ -157,7 +177,60 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
       onOk: () => accept(form, form.suggestions),
     });
 
-  const handleSave = async () => {
+  /** Ô để so khi xung đột: phần chung + giờ công, kết quả, GPLV, 5S, diễn giải. */
+  const conflictFields = (
+    values: RowFormValues,
+    latest: WorkReportItem,
+  ): ConflictField[] => {
+    const workerCount = countWorkerValues(values.workers);
+    const minutes = (raw?: string) =>
+      formatNumber(parseMinutesInput(raw, workerCount) ?? null, 2);
+    return [
+      ...commonConflictFields(
+        values,
+        latest,
+        editingItem?.workers ?? [],
+        editor.engineerOptions,
+      ),
+      ...(latest.isUnplanned
+        ? [
+            {
+              label: "Giờ công KH (phút)",
+              mine: minutes(values.plannedMinutes),
+              latest: formatNumber(latest.plannedMinutes, 2),
+            },
+          ]
+        : []),
+      {
+        label: "Giờ công thực tế (phút)",
+        mine: minutes(values.actualMinutes),
+        latest: formatNumber(latest.actualMinutes, 2),
+      },
+      {
+        label: "Kết quả (%)",
+        mine: formatNumber(values.resultPercent ?? null, 2),
+        latest: formatNumber(latest.resultPercent, 2),
+      },
+      {
+        label: "GPLV",
+        mine: values.workPermit ?? "",
+        latest: latest.workPermit ?? "",
+      },
+      {
+        label: "5S",
+        mine: values.fiveS?.trim() ?? "",
+        latest: latest.fiveS ?? "",
+      },
+      {
+        label: "Diễn giải",
+        mine: values.explanation?.trim() ?? "",
+        latest: latest.explanation ?? "",
+      },
+    ];
+  };
+
+  /** rowVersionOverride: ghi đè sau xung đột (lưu với rowVersion của bản mới nhất). */
+  const save = async (rowVersionOverride?: string) => {
     if (!editingForm) return;
     const workCategoryId = editingItem?.workCategoryId ?? editing?.categoryId;
     if (workCategoryId === undefined) return;
@@ -170,11 +243,11 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
 
     const planned = parseMinutesInput(
       values.plannedMinutes,
-      values.workers.length,
+      countWorkerValues(values.workers),
     );
     const actual = parseMinutesInput(
       values.actualMinutes,
-      values.workers.length,
+      countWorkerValues(values.workers),
     );
     if (planned === undefined || actual === undefined) {
       rowForm.setFields([
@@ -203,7 +276,10 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
           id: editingItem.id,
           request: {
             ...request,
-            rowVersion: editing?.rowVersion ?? editingItem.rowVersion,
+            rowVersion:
+              rowVersionOverride ??
+              editing?.rowVersion ??
+              editingItem.rowVersion,
           },
         });
       } else {
@@ -214,8 +290,18 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
         });
       }
       editor.cancelEdit();
+      setConflict(undefined);
     } catch (error) {
       const apiError = toApiError(error);
+      const latest = apiError.data as WorkReportItem | undefined;
+      if (apiError.status === 409 && latest && editingItem) {
+        // Người khác vừa sửa: giữ bản đang gõ, cho xem khác nhau ở ô nào rồi chọn
+        setConflict({
+          latest,
+          fields: diffConflictFields(conflictFields(values, latest)),
+        });
+        return;
+      }
       if (apiError.status === 409) {
         notify.warning(apiError.message, {
           toastId: `conflict-${editingItem?.id ?? "draft"}`,
@@ -226,6 +312,30 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
       if (!applyServerErrors(rowForm, error)) notify.apiError(error);
     }
   };
+
+  const handleSave = () => {
+    void save();
+  };
+
+  const conflictModal = conflict && (
+    <ConflictResolveModal
+      open
+      subject={`Dòng báo cáo ${conflict.latest.code}`}
+      updatedByName={conflict.latest.updatedByName ?? conflict.latest.updatedBy}
+      updatedAt={conflict.latest.updatedAt}
+      fields={conflict.fields}
+      saving={saveMutation.isPending}
+      onUseLatest={() => {
+        setConflict(undefined);
+        editor.cancelEdit();
+      }}
+      onOverwrite={() => {
+        editor.setRowVersion(conflict.latest.rowVersion);
+        void save(conflict.latest.rowVersion);
+      }}
+      onClose={() => setConflict(undefined)}
+    />
+  );
 
   const confirmDelete = (item: WorkReportItem) =>
     modal.confirm({
@@ -265,6 +375,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
           expanded={!collapse.collapsed.has(unitKey(form.formId))}
           onToggle={() => collapse.toggle(unitKey(form.formId))}
           collapsedLabel={`${form.itemCount} dòng`}
+          editorNames={editor.editorNamesOf(form.formId)}
           extra={
             form.canCreate && form.suggestions.length > 0 ? (
               <Button
@@ -310,7 +421,15 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
     isEditingRow,
     itemOf,
     renderTt: (row: Row) => {
-      if (row.kind === "item") return row.item.tt;
+      if (row.kind === "item") {
+        const lock = editor.lockOf(row.form.formId, row.item.id);
+        return (
+          <span className="inline-flex items-center gap-1">
+            {row.item.tt}
+            {lock && <LockedByIcon name={lock.fullName} />}
+          </span>
+        );
+      }
       if (row.kind === "suggestion")
         return (
           <Tooltip title="Gợi ý từ kế hoạch (chỉ bạn thấy, chưa có trong báo cáo)">
@@ -328,7 +447,11 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
       const item = itemOf(row);
       return (
         <span className="inline-flex items-center gap-1">
-          <span className="font-mono">{item?.code}</span>
+          <Tooltip
+            title={row.kind === "item" && item ? lastEditText(item) : undefined}
+          >
+            <span className="font-mono">{item?.code}</span>
+          </Tooltip>
           {row.kind === "suggestion" && (
             <Tag title="Dòng kế hoạch chưa đưa vào báo cáo">KH</Tag>
           )}
@@ -347,6 +470,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
     unitNameOf: (row: Row) => row.form.unitName,
     unitIdOf: (row: Row) => row.form.unitId,
     engineerNamesOf: (row: Row) => row.form.engineerNames,
+    engineerOptions: editor.engineerOptions,
     rowForm,
     editingWorkers: editingItem?.workers,
     onSave: handleSave,
@@ -396,8 +520,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
               );
             }
             const item = itemOf(row) as
-              | (WorkPlanItem | WorkReportItem)
-              | undefined;
+              (WorkPlanItem | WorkReportItem) | undefined;
             return item ? formatNumber(item.plannedMinutes, 2) : null;
           },
         }),
@@ -578,6 +701,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
                   canUpdate={row.form.canUpdate}
                   canDelete={row.form.canDelete}
                   disabled={isBusy}
+                  lockedBy={editor.lockOf(row.form.formId, item.id)?.fullName}
                   onEdit={() => startEdit(row.form, item)}
                   onDelete={() => confirmDelete(item)}
                 />
@@ -617,8 +741,15 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
             onRow={(row) => ({
               ...collapsibleRowProps(row.collapsed),
               onDoubleClick: () => {
-                if (row.kind === "item" && !isBusy)
-                  startEdit(row.form, row.item);
+                if (row.kind !== "item" || isBusy) return;
+                const lock = editor.lockOf(row.form.formId, row.item.id);
+                if (lock && row.form.canUpdate) {
+                  notify.info(`${lock.fullName} đang sửa dòng này.`, {
+                    toastId: `lock-${row.item.id}`,
+                  });
+                  return;
+                }
+                startEdit(row.form, row.item);
               },
             })}
             rowClassName={(row) =>
@@ -634,6 +765,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
           />
         </div>
       </ConfigProvider>
+      {conflictModal}
     </Form>
   );
 };

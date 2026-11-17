@@ -64,6 +64,12 @@ public class EmployeeRepository(AppDbContext dbContext) : IEmployeeRepository
             ? []
             : await Employees.AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Employee>> GetByEmpCodesAsync(
+        IReadOnlyCollection<string> empCodes, CancellationToken cancellationToken) =>
+        empCodes.Count == 0
+            ? []
+            : await Employees.AsNoTracking().Where(x => empCodes.Contains(x.EmpCode)).ToListAsync(cancellationToken);
+
     public Task<Employee?> GetByEmpCodeAsync(string empCode, CancellationToken cancellationToken) =>
         Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmpCode == empCode, cancellationToken);
 

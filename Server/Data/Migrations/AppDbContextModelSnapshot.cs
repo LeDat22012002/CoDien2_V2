@@ -839,6 +839,72 @@ namespace Server.Data.Migrations
                     b.ToTable("Incident", "dbo");
                 });
 
+            modelBuilder.Entity("Server.Modules.Materials.Entities.Material", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BasicDataText")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Class")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("Material");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("MaterialDescription");
+
+                    b.Property<string>("DocumentNo")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("SoTaiLieu");
+
+                    b.Property<string>("Level")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MaterialGroup")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("MaterialLevel")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Plant")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TypeOfSupplies")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Uom")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("BOM");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .HasDatabaseName("IX_Material_Material");
+
+                    b.ToTable("Material", "dbo", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("Server.Modules.Organization.Entities.Discipline", b =>
                 {
                     b.Property<string>("Code")
@@ -1605,6 +1671,9 @@ namespace Server.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsWholeUnit")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Note")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -1718,6 +1787,12 @@ namespace Server.Data.Migrations
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<string>("Uom")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
@@ -1804,6 +1879,9 @@ namespace Server.Data.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsWholeUnit")
                         .HasColumnType("bit");
 
                     b.Property<string>("Note")
@@ -1940,6 +2018,12 @@ namespace Server.Data.Migrations
                     b.Property<decimal?>("PlannedQuantity")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<string>("Uom")
                         .HasMaxLength(20)
@@ -2424,6 +2508,35 @@ namespace Server.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.OwnsMany("Server.Modules.WorkReports.Entities.WorkItemEngineer", "Engineers", b1 =>
+                        {
+                            b1.Property<int>("WorkPlanItemId")
+                                .HasColumnType("int");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int");
+
+                            b1.Property<int>("EmployeeId")
+                                .HasColumnType("int");
+
+                            b1.Property<string>("FullName")
+                                .IsRequired()
+                                .HasMaxLength(255)
+                                .HasColumnType("nvarchar(255)");
+
+                            b1.HasKey("WorkPlanItemId", "Id");
+
+                            b1.ToTable("WorkPlanItem", "dbo");
+
+                            b1.ToJson("Engineers");
+
+                            b1.WithOwner()
+                                .HasForeignKey("WorkPlanItemId");
+                        });
+
+                    b.Navigation("Engineers");
+
                     b.Navigation("WeeklyForm");
 
                     b.Navigation("WorkCategory");
@@ -2471,6 +2584,35 @@ namespace Server.Data.Migrations
                         .HasForeignKey("WorkCategoryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.OwnsMany("Server.Modules.WorkReports.Entities.WorkItemEngineer", "Engineers", b1 =>
+                        {
+                            b1.Property<int>("WorkReportItemId")
+                                .HasColumnType("int");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int");
+
+                            b1.Property<int>("EmployeeId")
+                                .HasColumnType("int");
+
+                            b1.Property<string>("FullName")
+                                .IsRequired()
+                                .HasMaxLength(255)
+                                .HasColumnType("nvarchar(255)");
+
+                            b1.HasKey("WorkReportItemId", "Id");
+
+                            b1.ToTable("WorkReportItem", "dbo");
+
+                            b1.ToJson("Engineers");
+
+                            b1.WithOwner()
+                                .HasForeignKey("WorkReportItemId");
+                        });
+
+                    b.Navigation("Engineers");
 
                     b.Navigation("WeeklyForm");
 

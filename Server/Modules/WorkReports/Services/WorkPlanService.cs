@@ -22,7 +22,7 @@ public class WorkPlanService(
     private const string Phase = WorkReportPhases.Plan;
     private const string NotFoundMessage = "Không tìm thấy dòng kế hoạch (có thể đã bị xóa).";
     private const string ConflictMessage =
-        "Dòng kế hoạch vừa được người khác sửa. Dữ liệu mới nhất đã được tải lại, vui lòng kiểm tra rồi nhập lại.";
+        "Dòng kế hoạch vừa được người khác sửa. Hãy xem bản mới nhất rồi chọn giữ bản nào.";
 
     public Task<WorkGridDto<WeeklyPlanFormDto>> GetGridAsync(
         WorkReportGridRequest request, CancellationToken cancellationToken) =>
@@ -45,6 +45,7 @@ public class WorkPlanService(
                 return dto;
             }).ToList();
 
+            await support.FillUpdatedByNamesAsync(forms.SelectMany(x => x.Items), cancellationToken);
             IReadOnlySet<int> usedCategoryIds = items.Select(x => x.WorkCategoryId).ToHashSet();
             return (forms, usedCategoryIds);
         }, cancellationToken);
@@ -68,7 +69,8 @@ public class WorkPlanService(
         WorkItemRequestValidator.ValidatePlan(request, context.Week);
 
         var category = await support.GetUsableCategoryAsync(request.WorkCategoryId, context.Form.WorkshopId, cancellationToken);
-        var workers = await support.BuildWorkersAsync(request.Workers, cancellationToken);
+        var workers = await support.BuildWorkersAsync(request, context.Form, cancellationToken);
+        var engineers = await support.ResolveEngineersAsync(request, context.Form, null, cancellationToken);
         var equipment = await support.ResolveEquipmentAsync(request.EquipmentCode, cancellationToken);
 
         var item = new WorkPlanItem
@@ -80,6 +82,7 @@ public class WorkPlanService(
                         ?? await itemRepository.GetMaxSortOrderAsync(formId, cancellationToken) + WorkItemSupport.SortOrderStep,
         };
         WorkItemSupport.ApplyCommonFields(item, request, equipment, workers, () => new WorkPlanItemWorker());
+        item.Engineers = engineers;
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -114,10 +117,13 @@ public class WorkPlanService(
             newCategory = await support.GetUsableCategoryAsync(request.WorkCategoryId, context.Form.WorkshopId, cancellationToken);
         }
 
-        var workers = await support.BuildWorkersAsync(request.Workers, cancellationToken);
+        var workers = await support.BuildWorkersAsync(request, context.Form, cancellationToken);
+        var engineers = await support.ResolveEngineersAsync(
+            request, context.Form, item.Engineers, cancellationToken);
         var equipment = await support.ResolveEquipmentAsync(request.EquipmentCode, cancellationToken);
 
         WorkItemSupport.ApplyCommonFields(item, request, equipment, workers, () => new WorkPlanItemWorker());
+        item.Engineers = engineers;
         item.PlannedMinutes = request.PlannedMinutes;
         item.SortOrder = request.SortOrder ?? item.SortOrder;
         itemRepository.PrepareConcurrentUpdate(item, clientRowVersion);
@@ -176,6 +182,8 @@ public class WorkPlanService(
     private async Task<WorkPlanItemDto> ToDtoAsync(WorkPlanItem item, CancellationToken cancellationToken)
     {
         var lookups = await support.LoadLookupsAsync(item.Workers, cancellationToken);
-        return WorkItemMapper.ToDto(item, lookups.Categories, lookups.Employees);
+        var dto = WorkItemMapper.ToDto(item, lookups.Categories, lookups.Employees);
+        await support.FillUpdatedByNamesAsync([dto], cancellationToken);
+        return dto;
     }
 }

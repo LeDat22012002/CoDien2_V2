@@ -1,5 +1,6 @@
 using Server.Modules.Organization.Services.Interfaces;
 using Server.Modules.WorkReports.DTOs;
+using Server.Modules.WorkReports.Entities;
 using Server.Modules.WorkReports.Repositories.Interfaces;
 using Server.Modules.WorkReports.Services.Interfaces;
 using Server.Shared.Exceptions;
@@ -13,12 +14,13 @@ public class WorkerOptionService(
     IAssignmentService assignmentService) : IWorkerOptionService
 {
     private const int MaxWorkerOptions = 500;
+    private const string UnitNotFoundMessage = "Không tìm thấy đơn vị báo cáo.";
 
     public async Task<IReadOnlyList<WorkerOptionDto>> GetWorkerOptionsAsync(
         WorkerOptionFilterRequest filter, CancellationToken cancellationToken)
     {
         var unit = await unitRepository.GetByIdAsync(filter.UnitId, cancellationToken)
-            ?? throw new NotFoundException("Không tìm thấy đơn vị báo cáo.");
+            ?? throw new NotFoundException(UnitNotFoundMessage);
         var access = await scopeService.GetUnitAccessAsync(unit, cancellationToken);
         if (!access.CanView)
         {
@@ -34,6 +36,19 @@ public class WorkerOptionService(
             });
         }
 
+        return await GetMembersAsync(unit, scope, filter.Keyword, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<WorkerOptionDto>> GetUnitMembersAsync(int unitId, CancellationToken cancellationToken)
+    {
+        var unit = await unitRepository.GetByIdAsync(unitId, cancellationToken)
+            ?? throw new NotFoundException(UnitNotFoundMessage);
+        return await GetMembersAsync(unit, WorkerOptionScopes.Unit, null, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<WorkerOptionDto>> GetMembersAsync(
+        WorkReportUnit unit, string scope, string? rawKeyword, CancellationToken cancellationToken)
+    {
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
         var root = scope switch
         {
@@ -50,7 +65,7 @@ public class WorkerOptionService(
         }
 
         var members = await assignmentService.GetUnitMembersAsync(orgUnitIds, cancellationToken);
-        var keyword = TextNormalizer.ToKey(filter.Keyword);
+        var keyword = TextNormalizer.ToKey(rawKeyword);
         var ownUnitIds = new HashSet<int>(tree.GetDescendants(unit.OrgUnitId).Select(x => x.Id)) { unit.OrgUnitId };
 
         return members

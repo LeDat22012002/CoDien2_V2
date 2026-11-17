@@ -12,6 +12,19 @@ export const fromWorkerValue = (value: string): WorkItemWorkerRequest =>
     ? { employeeId: Number(value.slice(EMPLOYEE_PREFIX.length)) }
     : { displayName: value.trim() };
 
+/** "Cả tổ": giá trị "all:<số người tổ/kíp>" (mang theo số người để đếm khi đang nhập; Server tự lấy danh sách lúc lưu). */
+export const WHOLE_UNIT_PREFIX = 'all:';
+
+export const toWholeUnitValue = (memberCount: number) => `${WHOLE_UNIT_PREFIX}${memberCount}`;
+
+export const isWholeUnitValue = (value: string) => value.startsWith(WHOLE_UNIT_PREFIX);
+
+/** Số người của ô người thực hiện: "Cả tổ" = số người tổ/kíp, còn lại = số mục đã chọn. */
+export const countWorkerValues = (values: string[] | undefined) => {
+  const wholeUnit = values?.find(isWholeUnitValue);
+  return wholeUnit ? Number(wholeUnit.slice(WHOLE_UNIT_PREFIX.length)) || 0 : (values?.length ?? 0);
+};
+
 const HOURS_PATTERN = /^(\d+(?:[.,]\d+)?)\s*(h|g|giờ|gio)$/i;
 const MINUTES_PATTERN = /^(\d+(?:[.,]\d+)?)\s*(p|ph|phút|phut|')?$/i;
 

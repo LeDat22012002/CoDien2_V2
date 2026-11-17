@@ -49,6 +49,18 @@ public static class GatewayExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    // SignalR (WebSocket) không gửi được header Authorization: token đi qua query access_token,
+                    // chỉ nhận cho đường dẫn hub
+                    OnMessageReceived = context =>
+                    {
+                        var token = context.Request.Query["access_token"];
+                        if (!string.IsNullOrEmpty(token) && context.HttpContext.Request.Path.StartsWithSegments("/api/hubs"))
+                        {
+                            context.Token = token;
+                        }
+
+                        return Task.CompletedTask;
+                    },
                     // Token hợp lệ về chữ ký vẫn bị từ chối nếu tài khoản đã bị khóa / đổi mật khẩu sau khi cấp token
                     OnTokenValidated = async context =>
                     {

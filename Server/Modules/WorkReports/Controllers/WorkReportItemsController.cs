@@ -19,7 +19,7 @@ namespace Server.Modules.WorkReports.Controllers;
     PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage, PermissionCodes.WorkReports.Configure,
     PermissionCodes.WorkReports.PlanCreate, PermissionCodes.WorkReports.PlanUpdate, PermissionCodes.WorkReports.PlanDelete,
     PermissionCodes.WorkReports.ReportCreate, PermissionCodes.WorkReports.ReportUpdate,
-    PermissionCodes.WorkReports.ReportDelete)]
+    PermissionCodes.WorkReports.ReportDelete, PermissionCodes.WorkReports.AssignEngineers, PermissionCodes.WorkReports.Unlock)]
 public class WorkReportItemsController(
     IWorkReportService reportService,
     IWorkReportMaterialService materialService,
@@ -49,8 +49,8 @@ public class WorkReportItemsController(
         return Ok(ApiResponse<IReadOnlyList<WorkMaterialDto>>.Ok(result));
     }
 
-    /// <summary>Admin mở khóa báo cáo đã quá hạn tới body.until (null = khóa lại).</summary>
-    [HasPermission(PermissionCodes.WorkReports.Configure)]
+    /// <summary>Mở khóa báo cáo đã quá hạn tới body.until (null = khóa lại). Quyền unlock, phạm vi theo chức vụ.</summary>
+    [HasPermission(PermissionCodes.WorkReports.Unlock)]
     [HttpPost("forms/{formId:int}/unlock")]
     public async Task<ActionResult<ApiResponse<object>>> Unlock(
         int formId, UnlockFormRequest request, CancellationToken cancellationToken)

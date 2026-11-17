@@ -32,6 +32,9 @@ public static class WorkReportsModule
         // Cập nhật tức thì (SignalR): hub map ở Program.cs (WorkReportHub.Path)
         services.AddSignalR();
         services.AddScoped<IWorkReportNotifier, WorkReportNotifier>();
+        // Ai đang sửa dòng nào (khóa mềm, trong bộ nhớ) + dọn mục quá hạn
+        services.AddSingleton<Hubs.WorkReportPresenceTracker>();
+        services.AddHostedService<Hubs.WorkReportPresenceCleanupService>();
 
         services.AddScoped<WorkItemSupport>();
         services.AddScoped<IWorkerOptionService, WorkerOptionService>();

@@ -5,10 +5,11 @@ import {
   Form,
   Input,
   Table,
+  Tooltip,
   Typography,
   type TableColumnsType,
 } from "antd";
-import type { KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { toApiError } from "@/shared/api/axiosClient";
 import { useTableScrollY } from "@/shared/hooks/useTableScrollY";
 import { applyServerErrors } from "@/shared/utils/formErrors";
@@ -18,20 +19,28 @@ import {
   COLLAPSIBLE_TABLE_COMPONENTS,
   collapsibleRowProps,
 } from "@/modules/workReports/components/collapsible/CollapsibleTable";
+import { ConflictResolveModal } from "@/modules/workReports/components/ConflictResolveModal";
+import {
+  diffConflictFields,
+  type ConflictField,
+} from "@/modules/workReports/utils/conflictFields";
 import {
   EditingActions,
   ItemActions,
+  LockedByIcon,
 } from "@/modules/workReports/components/grid/GridRowActions";
 import {
   SheetGroupHeader,
   SheetUnitHeader,
 } from "@/modules/workReports/components/grid/SheetGridHeaders";
 import {
+  commonConflictFields,
   commonLeadingColumns,
   commonTrailingColumns,
   createGridLeafColumns,
   groupKey,
   headerTitle,
+  lastEditText,
   toCommonFormValues,
   toCommonRequest,
   unitKey,
@@ -55,7 +64,10 @@ import type {
   WorkPlanGrid,
   WorkPlanItem,
 } from "@/modules/workReports/types/workReports";
-import { parseMinutesInput } from "@/modules/workReports/utils/workReportUtils";
+import {
+  countWorkerValues,
+  parseMinutesInput,
+} from "@/modules/workReports/utils/workReportUtils";
 import { sumColumnWidths } from "@/modules/workReports/utils/sheetTableColumns";
 
 type Row = SheetRow<WorkPlanItem, WeeklyPlanForm>;
@@ -75,7 +87,16 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
   const { modal } = App.useApp();
   const { containerRef, scrollY } = useTableScrollY();
   const { week, categories } = grid;
-  const editor = useSheetEditor<WorkPlanItem, WeeklyPlanForm>(forms, week);
+  const editor = useSheetEditor<WorkPlanItem, WeeklyPlanForm>(
+    forms,
+    week,
+    "PLAN",
+  );
+  /** Lưu bị 409: bản mới nhất + các ô khác nhau (chờ chọn dùng bản mới / ghi đè). */
+  const [conflict, setConflict] = useState<{
+    latest: WorkPlanItem;
+    fields: ConflictField[];
+  }>();
   const { rowForm, editing, editingForm, editingItem, isBusy, collapse } =
     editor;
   const saveMutation = useSavePlanItem();
@@ -93,12 +114,37 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
   const startEdit = (form: WeeklyPlanForm, item: WorkPlanItem) => {
     if (!form.canUpdate) return;
     editor.startEdit(form, item, {
-      ...toCommonFormValues(item),
+      ...toCommonFormValues(item, form),
       plannedMinutes: item.plannedMinutes?.toString() ?? undefined,
     });
   };
 
-  const handleSave = async () => {
+  /** Ô để so khi xung đột: phần chung + giờ công KH. */
+  const conflictFields = (
+    values: RowFormValues,
+    latest: WorkPlanItem,
+  ): ConflictField[] => [
+    ...commonConflictFields(
+      values,
+      latest,
+      editingItem?.workers ?? [],
+      editor.engineerOptions,
+    ),
+    {
+      label: "Giờ công KH (phút)",
+      mine: formatNumber(
+        parseMinutesInput(
+          values.plannedMinutes,
+          countWorkerValues(values.workers),
+        ) ?? null,
+        2,
+      ),
+      latest: formatNumber(latest.plannedMinutes, 2),
+    },
+  ];
+
+  /** rowVersionOverride: ghi đè sau xung đột (lưu với rowVersion của bản mới nhất). */
+  const save = async (rowVersionOverride?: string) => {
     if (!editingForm) return;
     // Đầu mục cố định theo nhóm: dòng đang sửa giữ đầu mục của nó, dòng mới lấy nhóm đã bấm "Thêm dòng"
     const workCategoryId = editingItem?.workCategoryId ?? editing?.categoryId;
@@ -112,7 +158,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
 
     const planned = parseMinutesInput(
       values.plannedMinutes,
-      values.workers.length,
+      countWorkerValues(values.workers),
     );
     if (planned === undefined) {
       rowForm.setFields([
@@ -132,7 +178,10 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
           id: editingItem.id,
           request: {
             ...request,
-            rowVersion: editing?.rowVersion ?? editingItem.rowVersion,
+            rowVersion:
+              rowVersionOverride ??
+              editing?.rowVersion ??
+              editingItem.rowVersion,
           },
         });
       } else {
@@ -143,10 +192,19 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
         });
       }
       editor.cancelEdit();
+      setConflict(undefined);
     } catch (error) {
       const apiError = toApiError(error);
+      const latest = apiError.data as WorkPlanItem | undefined;
+      if (apiError.status === 409 && latest && editingItem) {
+        // Người khác vừa sửa: giữ bản đang gõ, cho xem khác nhau ở ô nào rồi chọn
+        setConflict({
+          latest,
+          fields: diffConflictFields(conflictFields(values, latest)),
+        });
+        return;
+      }
       if (apiError.status === 409) {
-        // Người khác vừa sửa: bỏ bản đang sửa, lưới tải lại dữ liệu mới nhất
         notify.warning(apiError.message, {
           toastId: `conflict-${editingItem?.id ?? "draft"}`,
         });
@@ -156,6 +214,30 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
       if (!applyServerErrors(rowForm, error)) notify.apiError(error);
     }
   };
+
+  const handleSave = () => {
+    void save();
+  };
+
+  const conflictModal = conflict && (
+    <ConflictResolveModal
+      open
+      subject={`Dòng kế hoạch ${conflict.latest.code}`}
+      updatedByName={conflict.latest.updatedByName ?? conflict.latest.updatedBy}
+      updatedAt={conflict.latest.updatedAt}
+      fields={conflict.fields}
+      saving={saveMutation.isPending}
+      onUseLatest={() => {
+        setConflict(undefined);
+        editor.cancelEdit();
+      }}
+      onOverwrite={() => {
+        editor.setRowVersion(conflict.latest.rowVersion);
+        void save(conflict.latest.rowVersion);
+      }}
+      onClose={() => setConflict(undefined)}
+    />
+  );
 
   const confirmDelete = (item: WorkPlanItem) =>
     modal.confirm({
@@ -190,6 +272,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
           expanded={!collapse.collapsed.has(unitKey(row.form.formId))}
           onToggle={() => collapse.toggle(unitKey(row.form.formId))}
           collapsedLabel={`${row.form.itemCount} dòng`}
+          editorNames={editor.editorNamesOf(row.form.formId)}
         />
       );
     }
@@ -219,18 +302,27 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
     isHeaderRow,
     isEditingRow,
     itemOf,
-    renderTt: (row: Row) =>
-      row.kind === "item" ? (
-        row.item.tt
-      ) : (
-        <PlusOutlined className="text-primary" aria-label="Dòng mới" />
-      ),
-    renderCode: (row: Row) =>
-      row.kind === "draft" ? (
-        <Typography.Text type="secondary">Tự sinh</Typography.Text>
-      ) : (
-        <span className="font-mono">{itemOf(row)?.code}</span>
-      ),
+    renderTt: (row: Row) => {
+      if (row.kind !== "item")
+        return <PlusOutlined className="text-primary" aria-label="Dòng mới" />;
+      const lock = editor.lockOf(row.form.formId, row.item.id);
+      return (
+        <span className="inline-flex items-center gap-1">
+          {row.item.tt}
+          {lock && <LockedByIcon name={lock.fullName} />}
+        </span>
+      );
+    },
+    renderCode: (row: Row) => {
+      if (row.kind === "draft")
+        return <Typography.Text type="secondary">Tự sinh</Typography.Text>;
+      const item = itemOf(row);
+      return (
+        <Tooltip title={item ? lastEditText(item) : undefined}>
+          <span className="font-mono">{item?.code}</span>
+        </Tooltip>
+      );
+    },
     categoryIdOf: (row: Row) =>
       row.kind === "item"
         ? row.item.workCategoryId
@@ -240,6 +332,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
     unitNameOf: (row: Row) => row.form.unitName,
     unitIdOf: (row: Row) => row.form.unitId,
     engineerNamesOf: (row: Row) => row.form.engineerNames,
+    engineerOptions: editor.engineerOptions,
     rowForm,
     editingWorkers: editingItem?.workers,
     onSave: handleSave,
@@ -302,6 +395,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
                   canUpdate={row.form.canUpdate}
                   canDelete={row.form.canDelete}
                   disabled={isBusy}
+                  lockedBy={editor.lockOf(row.form.formId, item.id)?.fullName}
                   onEdit={() => startEdit(row.form, item)}
                   onDelete={() => confirmDelete(item)}
                 />
@@ -341,8 +435,15 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
             onRow={(row) => ({
               ...collapsibleRowProps(row.collapsed),
               onDoubleClick: () => {
-                if (row.kind === "item" && !isBusy)
-                  startEdit(row.form, row.item);
+                if (row.kind !== "item" || isBusy) return;
+                const lock = editor.lockOf(row.form.formId, row.item.id);
+                if (lock && row.form.canUpdate) {
+                  notify.info(`${lock.fullName} đang sửa dòng này.`, {
+                    toastId: `lock-${row.item.id}`,
+                  });
+                  return;
+                }
+                startEdit(row.form, row.item);
               },
             })}
             rowClassName={(row) => (isEditingRow(row) ? EDITING_ROW_CLASS : "")}
@@ -352,6 +453,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
           />
         </div>
       </ConfigProvider>
+      {conflictModal}
     </Form>
   );
 };

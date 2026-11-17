@@ -2,7 +2,6 @@ import type { OperationStatus } from '@/shared/constants/operationStatus';
 import type {
   FormPhaseStatus,
   LaborType,
-  WorkerOptionScope,
   WorkReportPhase,
   WorkReportRole,
 } from '@/modules/workReports/types/workReports';
@@ -29,11 +28,8 @@ export const LABOR_TYPE_OPTIONS: { value: LaborType; label: string }[] = [
   { value: 'KIP', label: 'KIP – theo ca' },
 ];
 
-export const WORKER_SCOPE_OPTIONS: { value: WorkerOptionScope; label: string }[] = [
-  { value: 'UNIT', label: 'Tổ/kíp' },
-  { value: 'TEAM', label: 'Đội' },
-  { value: 'WORKSHOP', label: 'Xưởng' },
-];
+/** Người thực hiện là cả tổ/kíp (số người = số nhân viên tổ/kíp trên sơ đồ). */
+export const WHOLE_UNIT_LABEL = 'Cả tổ';
 
 export const WORK_PERMIT_OPTIONS = [
   { value: 'Có', label: 'Có' },

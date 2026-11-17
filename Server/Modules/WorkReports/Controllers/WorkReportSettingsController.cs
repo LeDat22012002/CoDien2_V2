@@ -16,7 +16,7 @@ public class WorkReportSettingsController(IWorkReportSettingService settingServi
         PermissionCodes.WorkReports.Submit, PermissionCodes.WorkReports.Manage, PermissionCodes.WorkReports.Configure,
         PermissionCodes.WorkReports.PlanCreate, PermissionCodes.WorkReports.PlanUpdate, PermissionCodes.WorkReports.PlanDelete,
         PermissionCodes.WorkReports.ReportCreate, PermissionCodes.WorkReports.ReportUpdate,
-        PermissionCodes.WorkReports.ReportDelete)]
+        PermissionCodes.WorkReports.ReportDelete, PermissionCodes.WorkReports.AssignEngineers, PermissionCodes.WorkReports.Unlock)]
     [HttpGet]
     public async Task<ActionResult<ApiResponse<WorkReportSettingDto>>> Get(CancellationToken cancellationToken)
     {

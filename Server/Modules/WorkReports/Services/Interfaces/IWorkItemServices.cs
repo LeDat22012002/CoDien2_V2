@@ -8,6 +8,9 @@ public interface IWorkerOptionService
     /// <summary>Scope UNIT (tổ/kíp) | TEAM (đội) | WORKSHOP (xưởng).</summary>
     Task<IReadOnlyList<WorkerOptionDto>> GetWorkerOptionsAsync(
         WorkerOptionFilterRequest filter, CancellationToken cancellationToken);
+
+    /// <summary>Nhân viên của tổ/kíp (kể cả đơn vị con) trên sơ đồ, không kiểm tra quyền: dùng cho "Cả tổ".</summary>
+    Task<IReadOnlyList<WorkerOptionDto>> GetUnitMembersAsync(int unitId, CancellationToken cancellationToken);
 }
 
 /// <summary>Kế hoạch tuần: lưới, tổng hợp, thêm/sửa/xóa dòng (trong hạn kế hoạch hoặc khi admin mở khóa).</summary>

@@ -166,6 +166,12 @@ public class WorkReportUnitEngineerService(
             return;
         }
 
+        var scope = await scopeService.GetScopeAsync(cancellationToken);
+        if (!scope.CanAssignEngineers)
+        {
+            throw new ForbiddenException("Bạn chưa được cấp quyền phân công kỹ sư (work-reports.assign-engineers).");
+        }
+
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
         var isShift = tree.Get(unit.OrgUnitId)?.TypeCode == OrgUnitTypeCodes.Shift;
         throw new ForbiddenException(isShift

@@ -2,34 +2,46 @@ import {
   DatePicker,
   Form,
   Input,
+  Select,
   Tooltip,
   type FormInstance,
   type TableColumnsType,
 } from "antd";
 import type { ColumnType } from "antd/es/table";
 import type { Dayjs } from "dayjs";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import dayjs from "@/shared/utils/dayjs";
-import { EMPTY_TEXT, toIsoDate } from "@/shared/utils/format";
+import { EMPTY_TEXT, formatDateTime, toIsoDate } from "@/shared/utils/format";
+import type { ConflictField } from "@/modules/workReports/utils/conflictFields";
 import { EquipmentInput } from "@/modules/workReports/components/EquipmentInput";
 import { WorkerSelect } from "@/modules/workReports/components/WorkerSelect";
 import {
   GROUP_ROW_BG,
   UNIT_ROW_BG,
 } from "@/modules/workReports/constants/sheetTable";
+import { useAuthStore } from "@/stores/authStore";
 import { useCollapsedKeys } from "@/modules/workReports/hooks/useCollapsedKeys";
+import { useWorkReportPresence } from "@/modules/workReports/hooks/useWorkReportLiveUpdates";
 import type {
+  EngineerOption,
   WeeklyFormBase,
   WorkCategory,
   WorkItemBase,
+  WorkItemWorker,
   WorkPlanItem,
+  WorkReportEditor,
+  WorkReportPhase,
   WorkWeek,
 } from "@/modules/workReports/types/workReports";
 import {
+  countWorkerValues,
   formatDateRange,
   fromWorkerValue,
+  isWholeUnitValue,
+  toWholeUnitValue,
   toWorkerValue,
 } from "@/modules/workReports/utils/workReportUtils";
+import { WHOLE_UNIT_LABEL } from "@/modules/workReports/constants/workReportOptions";
 import { createSheetLeafColumns } from "@/modules/workReports/utils/sheetTableColumns";
 
 /**
@@ -80,6 +92,8 @@ export interface RowFormValues {
   /** [ngày bắt đầu, ngày kết thúc]. */
   dates?: [Dayjs, Dayjs];
   workers: string[];
+  /** (10) KTV phụ trách (Id nhân viên). */
+  engineerIds?: number[];
   plannedMinutes?: string;
   actualMinutes?: string;
   resultPercent?: number | null;
@@ -117,11 +131,21 @@ export const groupKey = (formId: number, categoryId: number) =>
   `g-${formId}-${categoryId}`;
 
 /** Giá trị chung của form khi sửa 1 dòng. */
-export const toCommonFormValues = (item: WorkItemBase): RowFormValues => ({
+export const toCommonFormValues = (
+  item: WorkItemBase,
+  form: WeeklyFormBase,
+): RowFormValues => ({
   equipmentCode: item.equipmentCode ?? undefined,
   description: item.description,
   dates: [dayjs(item.startDate), dayjs(item.endDate)],
-  workers: item.workers.map(toWorkerValue),
+  workers: item.isWholeUnit
+    ? [toWholeUnitValue(item.workerCount)]
+    : item.workers.map(toWorkerValue),
+  // Dòng cũ chưa lưu KTV: điền KTV của tổ (đúng như đang hiển thị)
+  engineerIds: (item.engineers.length > 0
+    ? item.engineers
+    : form.engineers
+  ).map((engineer) => engineer.employeeId),
   note: item.note ?? undefined,
 });
 
@@ -129,15 +153,110 @@ export const toCommonFormValues = (item: WorkItemBase): RowFormValues => ({
 export const toCommonRequest = (
   values: RowFormValues,
   workCategoryId: number,
-) => ({
-  workCategoryId,
-  equipmentCode: values.equipmentCode?.trim() || null,
-  description: values.description.trim(),
-  startDate: toIsoDate(values.dates?.[0]) ?? null,
-  endDate: toIsoDate(values.dates?.[1] ?? values.dates?.[0]) ?? null,
-  workers: values.workers.map(fromWorkerValue),
-  note: values.note?.trim() || null,
-});
+) => {
+  const isWholeUnit = values.workers.some(isWholeUnitValue);
+  return {
+    workCategoryId,
+    equipmentCode: values.equipmentCode?.trim() || null,
+    description: values.description.trim(),
+    startDate: toIsoDate(values.dates?.[0]) ?? null,
+    endDate: toIsoDate(values.dates?.[1] ?? values.dates?.[0]) ?? null,
+    isWholeUnit,
+    workers: isWholeUnit ? [] : values.workers.map(fromWorkerValue),
+    engineerIds: values.engineerIds ?? [],
+    note: values.note?.trim() || null,
+  };
+};
+
+/** Tooltip "Sửa lần cuối: … · giờ" của 1 dòng (undefined nếu chưa có thông tin). */
+export const lastEditText = (item: {
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}) =>
+  item.updatedAt
+    ? `Sửa lần cuối: ${item.updatedByName ?? item.updatedBy ?? "không rõ"} · ${formatDateTime(item.updatedAt)}`
+    : undefined;
+
+/** Tên người thực hiện để so sánh khi xung đột: "Cả tổ" hoặc danh sách tên (nhân viên chưa biết tên: "NV #id"). */
+const workersText = (values: string[], known: WorkItemWorker[]) => {
+  if (values.some(isWholeUnitValue)) return WHOLE_UNIT_LABEL;
+  const names = new Map(
+    known.map((worker) => [toWorkerValue(worker), worker.displayName]),
+  );
+  return values
+    .map(
+      (value) =>
+        names.get(value) ??
+        (value.startsWith("e:") ? `NV #${value.slice(2)}` : value),
+    )
+    .join(", ");
+};
+
+/** Các ô chung để so bản đang sửa (mine) với bản mới nhất trên Server (latest) khi bị 409. */
+export const commonConflictFields = (
+  mine: RowFormValues,
+  latest: WorkItemBase,
+  knownWorkers: WorkItemWorker[],
+  engineerOptions: EngineerOption[] = [],
+): ConflictField[] => [
+  {
+    label: "KTV phụ trách",
+    mine: (mine.engineerIds ?? [])
+      .map(
+        (id) =>
+          [...engineerOptions, ...latest.engineers].find(
+            (engineer) => engineer.employeeId === id,
+          )?.fullName ?? `NV #${id}`,
+      )
+      .join(", "),
+    latest: latest.engineers.map((engineer) => engineer.fullName).join(", "),
+  },
+  {
+    label: "Equipment",
+    mine: mine.equipmentCode?.trim() ?? "",
+    latest: latest.equipmentCode ?? "",
+  },
+  {
+    label: "Hạng mục công việc",
+    mine: mine.description?.trim() ?? "",
+    latest: latest.description,
+  },
+  {
+    label: "Thời gian",
+    mine: formatDateRange(
+      toIsoDate(mine.dates?.[0]),
+      toIsoDate(mine.dates?.[1] ?? mine.dates?.[0]),
+    ),
+    latest: formatDateRange(latest.startDate, latest.endDate),
+  },
+  {
+    label: "Người thực hiện",
+    mine: workersText(mine.workers ?? [], [...knownWorkers, ...latest.workers]),
+    latest: latest.isWholeUnit
+      ? WHOLE_UNIT_LABEL
+      : latest.workers.map((worker) => worker.displayName).join(", "),
+  },
+  {
+    label: "Ghi chú",
+    mine: mine.note?.trim() ?? "",
+    latest: latest.note ?? "",
+  },
+];
+
+/** Ô người thực hiện khi xem: "Cả tổ" (rê chuột xem danh sách) hoặc tên từng người, mỗi người 1 dòng. */
+const renderWorkers = (item?: WorkItemBase) => {
+  if (!item) return null;
+  const names = item.workers.map((worker) => worker.displayName);
+  if (item.isWholeUnit) {
+    return (
+      <Tooltip title={names.join(", ")}>
+        <span className="cursor-help">{WHOLE_UNIT_LABEL}</span>
+      </Tooltip>
+    );
+  }
+  return wrapText(names.join(", "));
+};
 
 /** Dựng dòng bảng: mọi đầu mục đang dùng đều hiện đủ A→… (đầu mục ngừng dùng chỉ hiện khi còn dòng / gợi ý). */
 export const useSheetRows = <
@@ -243,8 +362,11 @@ export const useSheetEditor = <
 >(
   forms: TForm[],
   week: WorkWeek,
+  phase: WorkReportPhase,
 ) => {
   const [rowForm] = Form.useForm<RowFormValues>();
+  const presence = useWorkReportPresence();
+  const currentUser = useAuthStore((state) => state.user);
   const [editingState, setEditing] = useState<EditingState>();
   const collapse = useCollapsedKeys();
 
@@ -260,6 +382,62 @@ export const useSheetEditor = <
     editingState !== undefined &&
     (!editingForm || (editingState.itemId !== undefined && !editingItem));
   const editing = isStale ? undefined : editingState;
+
+  // Báo người khác mình đang sửa / thêm dòng nào; lưu, hủy, rời trang thì thôi
+  const editingFormId = editing?.formId;
+  const editingItemId = editing?.itemId;
+  const { startEditing, stopEditing } = presence;
+  useEffect(() => {
+    if (editingFormId === undefined) return;
+    startEditing(editingFormId, phase, editingItemId);
+    return stopEditing;
+  }, [editingFormId, editingItemId, phase, startEditing, stopEditing]);
+
+  /** Người khác đang sửa của giai đoạn này. */
+  const phaseEditors = presence.editors.filter(
+    (editor) => editor.phase === phase,
+  );
+  /** Người khác đang sửa đúng dòng này (khóa mềm). */
+  const lockOf = (
+    formId: number,
+    itemId: number,
+  ): WorkReportEditor | undefined =>
+    phaseEditors.find(
+      (editor) => editor.formId === formId && editor.itemId === itemId,
+    );
+  /** Tên người đang sửa / thêm dòng trong tổ/kíp (để hiện ở dòng tiêu đề). */
+  const editorNamesOf = (formId: number) => [
+    ...new Set(
+      phaseEditors
+        .filter((editor) => editor.formId === formId)
+        .map((editor) => editor.fullName),
+    ),
+  ];
+
+  /** Lựa chọn cột (10) của dòng đang sửa: KTV đang có trên dòng, kỹ sư được phân công tổ/kíp, người nhập. */
+  const engineerOptions = (() => {
+    const options = new Map<number, EngineerOption>();
+    [
+      ...(editingItem?.engineers ?? []),
+      ...(editingForm?.engineers ?? []),
+      ...(currentUser?.employeeId
+        ? [
+            {
+              employeeId: currentUser.employeeId,
+              fullName: currentUser.fullName,
+            },
+          ]
+        : []),
+    ].forEach((engineer) => {
+      if (!options.has(engineer.employeeId))
+        options.set(engineer.employeeId, engineer);
+    });
+    return [...options.values()];
+  })();
+
+  /** Sau khi chọn ghi đè: lưu tiếp với rowVersion mới nhất. */
+  const setRowVersion = (rowVersion: string) =>
+    setEditing((current) => (current ? { ...current, rowVersion } : current));
 
   const startEdit = (form: TForm, item: TItem, values: RowFormValues) => {
     rowForm.setFieldsValue(values);
@@ -279,7 +457,13 @@ export const useSheetEditor = <
       today >= week.startDate && today <= week.endDate
         ? dayjs(today)
         : dayjs(week.startDate);
-    rowForm.setFieldsValue({ workers: [], description: "", dates: [day, day] });
+    rowForm.setFieldsValue({
+      workers: [],
+      description: "",
+      dates: [day, day],
+      // KTV phụ trách mặc định: người nhập
+      engineerIds: currentUser?.employeeId ? [currentUser.employeeId] : [],
+    });
     setEditing({ formId: form.formId, categoryId });
   };
 
@@ -298,6 +482,10 @@ export const useSheetEditor = <
     startEdit,
     startDraft,
     cancelEdit,
+    setRowVersion,
+    engineerOptions,
+    lockOf,
+    editorNamesOf,
     collapse,
   };
 };
@@ -319,7 +507,10 @@ interface CommonColumnContext<TRow> {
   categoryIdOf: (row: TRow) => number | undefined;
   unitNameOf: (row: TRow) => string;
   unitIdOf: (row: TRow) => number;
+  /** KTV của tổ/kíp (form): hiện cho dòng cũ chưa lưu KTV theo dòng. */
   engineerNamesOf: (row: TRow) => string | null | undefined;
+  /** Lựa chọn KTV của dòng đang sửa. */
+  engineerOptions: EngineerOption[];
   rowForm: FormInstance<RowFormValues>;
   editingWorkers?: WorkItemBase["workers"];
   onSave: () => void;
@@ -495,8 +686,10 @@ export const commonLeadingColumns = <TRow,>(
             ctx.isEditingRow(row) ? (
               <Form.Item noStyle shouldUpdate>
                 {() =>
-                  (ctx.rowForm.getFieldValue("workers") as string[] | undefined)
-                    ?.length ?? 0
+                  countWorkerValues(
+                    ctx.rowForm.getFieldValue("workers") as
+                      string[] | undefined,
+                  )
                 }
               </Form.Item>
             ) : (
@@ -517,13 +710,7 @@ export const commonLeadingColumns = <TRow,>(
                   initialWorkers={ctx.editingWorkers}
                 />
               </Form.Item>,
-              () =>
-                wrapText(
-                  ctx
-                    .itemOf(row)
-                    ?.workers.map((worker) => worker.displayName)
-                    .join(", "),
-                ),
+              () => renderWorkers(ctx.itemOf(row)),
             ),
         }),
         leaf({
@@ -532,9 +719,31 @@ export const commonLeadingColumns = <TRow,>(
           width: 160,
           align: "center",
           render: (_, row) =>
-            ctx.isHeaderRow(row)
-              ? null
-              : wrapText(ctx.engineerNamesOf(row)?.split(", ").join("\n")),
+            cell(
+              row,
+              <Form.Item name="engineerIds" className="mb-0">
+                <Select
+                  mode="multiple"
+                  aria-label="KTV phụ trách"
+                  placeholder="Người nhập"
+                  className="w-full"
+                  optionFilterProp="label"
+                  options={ctx.engineerOptions.map((engineer) => ({
+                    value: engineer.employeeId,
+                    label: engineer.fullName,
+                  }))}
+                />
+              </Form.Item>,
+              () => {
+                // KTV của dòng; dòng cũ chưa lưu KTV theo dòng thì KTV của tổ/kíp
+                const engineers = ctx.itemOf(row)?.engineers ?? [];
+                return wrapText(
+                  engineers.length > 0
+                    ? engineers.map((engineer) => engineer.fullName).join("\n")
+                    : ctx.engineerNamesOf(row)?.split(", ").join("\n"),
+                );
+              },
+            ),
         }),
       ],
     },

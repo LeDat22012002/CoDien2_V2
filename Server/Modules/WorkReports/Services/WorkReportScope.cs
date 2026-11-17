@@ -11,8 +11,14 @@ public sealed class WorkReportScope
     /// <summary>work-reports.configure (SUPER_ADMIN luôn có).</summary>
     public bool CanConfigure { get; init; }
 
-    /// <summary>work-reports.manage: xem, cấu hình tổ/kíp, phân công kỹ sư trong đội/xưởng mình là trưởng/phó.</summary>
+    /// <summary>work-reports.manage: xem, cấu hình tổ/kíp (quản đốc/phó) trong đội/xưởng mình là trưởng/phó.</summary>
     public bool CanManage { get; init; }
+
+    /// <summary>work-reports.assign-engineers: phân công kỹ sư trong phạm vi trưởng/phó (configure → mọi xưởng).</summary>
+    public bool CanAssignEngineers { get; init; }
+
+    /// <summary>work-reports.unlock: mở khóa form quá hạn trong phạm vi trưởng/phó (configure → mọi xưởng).</summary>
+    public bool CanUnlock { get; init; }
 
     /// <summary>Xem mọi xưởng, chỉ xem: request của trang công khai (IWorkReportScopeService.UsePublicView).</summary>
     public bool CanViewFactory { get; init; }
@@ -20,10 +26,10 @@ public sealed class WorkReportScope
     /// <summary>Id đơn vị báo cáo người gọi là kỹ sư phụ trách (cần work-reports.submit).</summary>
     public IReadOnlySet<int> EngineerUnitIds { get; init; } = new HashSet<int>();
 
-    /// <summary>OrgUnit.Id các Đội (TEAM) người gọi là trưởng/phó (chỉ tính khi có manage hoặc quyền thêm/sửa/xóa).</summary>
+    /// <summary>OrgUnit.Id các Đội (TEAM) người gọi là trưởng/phó (chỉ tính khi có manage, assign-engineers, unlock hoặc quyền thêm/sửa/xóa).</summary>
     public IReadOnlySet<int> HeadTeamIds { get; init; } = new HashSet<int>();
 
-    /// <summary>OrgUnit.Id các xưởng (đơn vị cấp 1) người gọi là trưởng/phó (chỉ tính khi có manage hoặc quyền thêm/sửa/xóa).</summary>
+    /// <summary>OrgUnit.Id các xưởng (đơn vị cấp 1) người gọi là trưởng/phó (chỉ tính khi có quyền dùng theo chức vụ).</summary>
     public IReadOnlySet<int> HeadWorkshopIds { get; init; } = new HashSet<int>();
 
     /// <summary>Quyền thêm/sửa/xóa kế hoạch do admin cấp (work-reports.plan.*), dùng trong phạm vi trưởng/phó.</summary>

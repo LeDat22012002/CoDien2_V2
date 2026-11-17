@@ -113,12 +113,20 @@ public static class PermissionCodes
         /// Kỹ sư được phân công mặc định thêm/sửa/xóa kế hoạch, báo cáo của tổ/kíp mình (không cần 6 quyền bên dưới).</summary>
         public const string Submit = "work-reports.submit";
 
-        /// <summary>Đội trưởng/phó, quản đốc/phó: xem báo cáo tuần của đội/xưởng mình, cấu hình tổ/kíp, phân công kỹ sư
-        /// (trang /admin/work-reports). Không gồm thêm/sửa/xóa dòng (6 quyền bên dưới do admin cấp riêng).</summary>
+        /// <summary>Đội trưởng/phó, quản đốc/phó: xem báo cáo tuần của đội/xưởng mình, cấu hình tổ/kíp (quản đốc/phó)
+        /// (trang /admin/work-reports). Không gồm phân công kỹ sư, mở khóa, thêm/sửa/xóa dòng (quyền riêng bên dưới).</summary>
         public const string Manage = "work-reports.manage";
 
-        /// <summary>Cấu hình: đầu mục công việc, mục đích vật tư, hằng số giờ công, hạn nộp, đơn vị báo cáo mọi xưởng;
-        /// mở khóa kế hoạch / báo cáo đã quá hạn.</summary>
+        /// <summary>Phân công kỹ sư phụ trách tổ/kíp. Phạm vi theo sơ đồ: quản đốc/phó → mọi tổ/kíp của xưởng;
+        /// đội trưởng/phó → tổ thuộc đội (kíp chỉ quản đốc/phó); có thêm configure → mọi xưởng.</summary>
+        public const string AssignEngineers = "work-reports.assign-engineers";
+
+        /// <summary>Mở khóa kế hoạch / báo cáo đã quá hạn (tối đa 30 ngày) hoặc khóa lại. Phạm vi như 6 quyền thêm/sửa/xóa:
+        /// quản đốc/phó → mọi tổ/kíp của xưởng; đội trưởng/phó → tổ thuộc đội; có thêm configure → mọi xưởng.</summary>
+        public const string Unlock = "work-reports.unlock";
+
+        /// <summary>Cấu hình: đầu mục công việc, mục đích vật tư, hằng số giờ công, hạn nộp, đơn vị báo cáo mọi xưởng.
+        /// Không tự có quyền mở khóa / phân công kỹ sư (cần thêm unlock / assign-engineers, khi đó phạm vi là mọi xưởng).</summary>
         public const string Configure = "work-reports.configure";
 
         // Thêm/sửa/xóa dòng (và vật tư) của người KHÔNG phải kỹ sư phụ trách, admin cấp cho role.

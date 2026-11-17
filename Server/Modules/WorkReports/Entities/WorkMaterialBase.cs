@@ -21,6 +21,9 @@ public abstract class WorkMaterialBase : BaseEntity
 
     public string? Note { get; set; }
 
+    /// <summary>rowversion của SQL Server: chống ghi đè khi nhiều người sửa cùng vật tư.</summary>
+    public byte[] RowVersion { get; set; } = [];
+
     public MaterialPurpose? MaterialPurpose { get; set; }
 }
 

@@ -1,4 +1,4 @@
-import { PlusOutlined } from "@ant-design/icons";
+import { EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { Button, Typography } from "antd";
 import type { ReactNode } from "react";
 import { CollapseToggle } from "@/modules/workReports/components/collapsible/CollapseToggle";
@@ -10,7 +10,10 @@ import type {
   WorkReportPhase,
 } from "@/modules/workReports/types/workReports";
 
-/** Dòng tiêu đề tổ/kíp: thứ tự La Mã, tên, trạng thái, mở khóa (admin), nút riêng của bảng (extra). */
+/**
+ * Dòng tiêu đề tổ/kíp: thứ tự La Mã, tên, trạng thái, mở khóa, nút riêng của bảng (extra),
+ * người khác đang nhập ở tổ/kíp này (cập nhật tức thì).
+ */
 export const SheetUnitHeader = ({
   form,
   phase,
@@ -18,6 +21,7 @@ export const SheetUnitHeader = ({
   onToggle,
   collapsedLabel,
   extra,
+  editorNames = [],
 }: {
   form: WeeklyFormBase;
   phase: WorkReportPhase;
@@ -25,6 +29,7 @@ export const SheetUnitHeader = ({
   onToggle: () => void;
   collapsedLabel: string;
   extra?: ReactNode;
+  editorNames?: string[];
 }) => (
   // sticky: nội dung luôn thấy khi cuộn ngang bảng
   <div className="sticky inset-s-2 inline-flex items-center gap-x-3 whitespace-nowrap">
@@ -39,6 +44,11 @@ export const SheetUnitHeader = ({
     <FormStatusTag status={form.status} />
     <FormUnlockButton form={form} phase={phase} />
     {extra}
+    {editorNames.length > 0 && (
+      <Typography.Text type="warning" className="text-xs">
+        <EditOutlined /> Đang nhập: {editorNames.join(", ")}
+      </Typography.Text>
+    )}
   </div>
 );
 

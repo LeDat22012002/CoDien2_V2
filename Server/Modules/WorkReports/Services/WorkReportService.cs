@@ -27,7 +27,7 @@ public class WorkReportService(
     private const string Phase = WorkReportPhases.Report;
     private const string NotFoundMessage = "Không tìm thấy dòng báo cáo (có thể đã bị xóa).";
     private const string ConflictMessage =
-        "Dòng báo cáo vừa được người khác sửa. Dữ liệu mới nhất đã được tải lại, vui lòng kiểm tra rồi nhập lại.";
+        "Dòng báo cáo vừa được người khác sửa. Hãy xem bản mới nhất rồi chọn giữ bản nào.";
     private const int MaxAcceptItems = 1000;
 
     public Task<WorkGridDto<WeeklyReportFormDto>> GetGridAsync(
@@ -70,6 +70,7 @@ public class WorkReportService(
                 return dto;
             }).ToList();
 
+            await support.FillUpdatedByNamesAsync(forms.SelectMany(x => x.Items), cancellationToken);
             IReadOnlySet<int> usedCategoryIds = items.Select(x => x.WorkCategoryId)
                 .Concat(suggestions.Select(x => x.WorkCategoryId))
                 .ToHashSet();
@@ -95,7 +96,8 @@ public class WorkReportService(
         WorkItemRequestValidator.ValidateReport(request, context.Week, isUnplanned: true);
 
         var category = await support.GetUsableCategoryAsync(request.WorkCategoryId, context.Form.WorkshopId, cancellationToken);
-        var workers = await support.BuildWorkersAsync(request.Workers, cancellationToken);
+        var workers = await support.BuildWorkersAsync(request, context.Form, cancellationToken);
+        var engineers = await support.ResolveEngineersAsync(request, context.Form, null, cancellationToken);
         var equipment = await support.ResolveEquipmentAsync(request.EquipmentCode, cancellationToken);
 
         var item = new WorkReportItem
@@ -106,6 +108,7 @@ public class WorkReportService(
                         ?? await itemRepository.GetMaxSortOrderAsync(formId, cancellationToken) + WorkItemSupport.SortOrderStep,
         };
         ApplyFields(item, request, equipment, workers);
+        item.Engineers = engineers;
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -170,6 +173,11 @@ public class WorkReportService(
                 StartDate = plan.StartDate,
                 EndDate = plan.EndDate,
                 Note = plan.Note,
+                IsWholeUnit = plan.IsWholeUnit,
+                // KTV phụ trách: chép của dòng kế hoạch (người dùng chốt); dòng KH cũ chưa có thì để trống
+                Engineers = plan.Engineers
+                    .Select(x => new WorkItemEngineer { EmployeeId = x.EmployeeId, FullName = x.FullName })
+                    .ToList(),
                 PlannedMinutes = plan.PlannedMinutes,
                 SortOrder = plan.SortOrder,
                 Workers = plan.Workers
@@ -216,7 +224,9 @@ public class WorkReportService(
         await notifier.FormChangedAsync(context.Form, Phase);
 
         var lookups = await support.LoadLookupsAsync(created.SelectMany(x => x.Workers), cancellationToken);
-        return created.Select(x => WorkItemMapper.ToDto(x, lookups.Categories, lookups.Employees)).ToList();
+        var dtos = created.Select(x => WorkItemMapper.ToDto(x, lookups.Categories, lookups.Employees)).ToList();
+        await support.FillUpdatedByNamesAsync(dtos, cancellationToken);
+        return dtos;
     }
 
     public async Task<WorkReportItemDto> UpdateAsync(int id, UpdateReportItemRequest request, CancellationToken cancellationToken)
@@ -247,10 +257,13 @@ public class WorkReportService(
             newCategory = await support.GetUsableCategoryAsync(request.WorkCategoryId, context.Form.WorkshopId, cancellationToken);
         }
 
-        var workers = await support.BuildWorkersAsync(request.Workers, cancellationToken);
+        var workers = await support.BuildWorkersAsync(request, context.Form, cancellationToken);
+        var engineers = await support.ResolveEngineersAsync(
+            request, context.Form, item.Engineers, cancellationToken);
         var equipment = await support.ResolveEquipmentAsync(request.EquipmentCode, cancellationToken);
 
         ApplyFields(item, request, equipment, workers);
+        item.Engineers = engineers;
         item.SortOrder = request.SortOrder ?? item.SortOrder;
         itemRepository.PrepareConcurrentUpdate(item, clientRowVersion);
 
@@ -337,6 +350,8 @@ public class WorkReportService(
     private async Task<WorkReportItemDto> ToDtoAsync(WorkReportItem item, CancellationToken cancellationToken)
     {
         var lookups = await support.LoadLookupsAsync(item.Workers, cancellationToken);
-        return WorkItemMapper.ToDto(item, lookups.Categories, lookups.Employees);
+        var dto = WorkItemMapper.ToDto(item, lookups.Categories, lookups.Employees);
+        await support.FillUpdatedByNamesAsync([dto], cancellationToken);
+        return dto;
     }
 }
