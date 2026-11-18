@@ -49,6 +49,7 @@ public class WorkReportScopeService(
 
         var employeeId = await employeeService.GetCurrentEmployeeIdAsync(cancellationToken);
         var engineerUnitIds = new HashSet<int>();
+        IReadOnlyList<EngineerAssignmentPeriod> engineerHistory = [];
         var headTeamIds = new HashSet<int>();
         var headWorkshopIds = new HashSet<int>();
 
@@ -56,6 +57,7 @@ public class WorkReportScopeService(
         if (employeeId is { } id && canSubmit)
         {
             engineerUnitIds.UnionWith(await unitRepository.GetUnitIdsOfEngineerAsync(id, Today, cancellationToken));
+            engineerHistory = await unitRepository.GetEngineerHistoryAsync(id, cancellationToken);
         }
 
         // Chức vụ trên sơ đồ chỉ có tác dụng khi có ít nhất 1 quyền dùng theo chức vụ
@@ -93,6 +95,7 @@ public class WorkReportScopeService(
             CanAssignEngineers = canAssignEngineers,
             CanUnlock = canUnlock,
             EngineerUnitIds = engineerUnitIds,
+            EngineerHistory = engineerHistory,
             HeadTeamIds = headTeamIds,
             HeadWorkshopIds = headWorkshopIds,
             PlanRights = planRights,
@@ -103,14 +106,14 @@ public class WorkReportScopeService(
     public void UsePublicView() => _scope = new WorkReportScope { CanViewFactory = true };
 
     public Task<WorkReportUnitAccessDto> GetUnitAccessAsync(WorkReportUnit unit, CancellationToken cancellationToken) =>
-        GetUnitAccessAsync(unit, null, cancellationToken);
+        GetUnitAccessAsync(unit, null, null, cancellationToken);
 
     public async Task<WorkReportUnitAccessDto> GetUnitAccessAsync(
-        WorkReportUnit unit, int? workshopId, CancellationToken cancellationToken)
+        WorkReportUnit unit, int? workshopId, WorkWeek? week, CancellationToken cancellationToken)
     {
         var scope = await GetScopeAsync(cancellationToken);
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
-        return ComputeAccess(scope, tree, unit, workshopId);
+        return ComputeAccess(scope, tree, unit, workshopId, week);
     }
 
     public async Task<bool> CanManageWorkshopAsync(int workshopId, CancellationToken cancellationToken)
@@ -137,8 +140,10 @@ public class WorkReportScopeService(
                 .Where(x => x.CanView)
                 .ToList();
             var isManager = scope.CanConfigure || scope.ManagedWorkshopIds.Contains(workshop.Id);
+            // Từng phụ trách tổ/kíp của xưởng (kể cả tổ đã ngừng dùng / đã xóa): vẫn vào xưởng xem lại các tuần cũ
+            var wasEngineer = scope.EngineerHistory.Any(x => tree.GetWorkshop(x.OrgUnitId)?.Id == workshop.Id);
 
-            if (isManager || scope.CanViewFactory || accesses.Count > 0)
+            if (isManager || scope.CanViewFactory || accesses.Count > 0 || wasEngineer)
             {
                 workshops.Add(new WorkReportScopeWorkshopDto
                 {
@@ -160,8 +165,13 @@ public class WorkReportScopeService(
     }
 
     /// <param name="formWorkshopId">Xưởng đã chụp trong form (tổ đã chuyển xưởng thì tuần cũ thuộc quản đốc xưởng cũ).</param>
+    /// <param name="week">
+    /// Tuần của form đang xem; null = quyền trên đơn vị nói chung (danh sách tổ/kíp, phân công…).
+    /// Kỹ sư đang phụ trách: đủ quyền kỹ sư chỉ với tuần từ lúc bắt đầu phụ trách trở đi (tuần trước đó không xem, không sửa).
+    /// Kỹ sư đã bị thay người: chỉ XEM form của tuần từng phụ trách.
+    /// </param>
     private static WorkReportUnitAccessDto ComputeAccess(
-        WorkReportScope scope, OrgTree tree, WorkReportUnit unit, int? formWorkshopId = null)
+        WorkReportScope scope, OrgTree tree, WorkReportUnit unit, int? formWorkshopId = null, WorkWeek? week = null)
     {
         var orgUnit = tree.Get(unit.OrgUnitId);
         var isShift = orgUnit?.TypeCode == OrgUnitTypeCodes.Shift;
@@ -172,7 +182,14 @@ public class WorkReportScopeService(
         // Đơn vị tự đặt gắn trực tiếp với đội: OrgUnitId chính là đội
         var isTeamHead = scope.HeadTeamIds.Contains(unit.OrgUnitId)
                          || tree.GetAncestors(unit.OrgUnitId).Any(x => scope.HeadTeamIds.Contains(x.Id));
-        var isEngineer = scope.EngineerUnitIds.Contains(unit.Id);
+        // Đang phụ trách: với form của 1 tuần, phân công hiện tại phải bắt đầu trước khi tuần đó kết thúc
+        var today = Today;
+        var isEngineer = scope.EngineerUnitIds.Contains(unit.Id)
+                         && (week is null || scope.EngineerHistory.Any(x =>
+                             x.UnitId == unit.Id && x.IsActiveOn(today) && x.StartDate <= week.EndDate));
+        // Đã bị thay người (hoặc đơn vị ngừng dùng / đã xóa): chỉ xem tuần từng phụ trách
+        var wasEngineer = !isEngineer && scope.EngineerHistory.Any(x =>
+            x.UnitId == unit.Id && (week is null || x.Overlaps(week.StartDate, week.EndDate)));
         var isWorkshopManager = scope.CanManage && isWorkshopHead;
         var isTeamManager = scope.CanManage && isTeamHead;
 
@@ -189,7 +206,7 @@ public class WorkReportScopeService(
             : isTeamHead && (isTeamManager || hasGrantedRight) ? WorkReportRoles.TeamManager
             : isEngineer ? WorkReportRoles.Engineer
             : isAdmin ? WorkReportRoles.Admin
-            : scope.CanViewFactory ? WorkReportRoles.Viewer
+            : scope.CanViewFactory || wasEngineer ? WorkReportRoles.Viewer
             : WorkReportRoles.None;
 
         return new WorkReportUnitAccessDto
@@ -201,7 +218,7 @@ public class WorkReportScopeService(
             SortOrder = unit.SortOrder,
             Role = role,
             CanView = isAdmin || scope.CanViewFactory || isWorkshopManager || isTeamManager || isEngineer
-                      || hasGrantedRight,
+                      || wasEngineer || hasGrantedRight,
             Plan = plan,
             Report = report,
             CanUnlock = canUnlock,

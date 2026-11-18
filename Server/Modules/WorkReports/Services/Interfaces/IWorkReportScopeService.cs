@@ -21,9 +21,12 @@ public interface IWorkReportScopeService
     /// <summary>Quyền của người gọi trên 1 đơn vị báo cáo.</summary>
     Task<WorkReportUnitAccessDto> GetUnitAccessAsync(WorkReportUnit unit, CancellationToken cancellationToken);
 
-    /// <summary>Quyền trên form của đơn vị; workshopId = xưởng đã chụp trong form (null = xưởng hiện tại trên sơ đồ).</summary>
+    /// <summary>
+    /// Quyền trên form của đơn vị; workshopId = xưởng đã chụp trong form (null = xưởng hiện tại trên sơ đồ);
+    /// week = tuần của form: kỹ sư từng phụ trách đơn vị trong tuần đó được xem (không sửa) dù đã bị thay người.
+    /// </summary>
     Task<WorkReportUnitAccessDto> GetUnitAccessAsync(
-        WorkReportUnit unit, int? workshopId, CancellationToken cancellationToken);
+        WorkReportUnit unit, int? workshopId, WorkWeek? week, CancellationToken cancellationToken);
 
     /// <summary>Admin hoặc quản đốc/phó của xưởng (work-reports.manage): cấu hình đơn vị báo cáo.</summary>
     Task<bool> CanManageWorkshopAsync(int workshopId, CancellationToken cancellationToken);

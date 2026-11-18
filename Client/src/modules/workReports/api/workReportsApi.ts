@@ -147,6 +147,7 @@ export const updateWorkWeekDeadline = (
 export const getWorkReportUnits = (params: {
   workshopId?: number;
   includeInactive?: boolean;
+  weekId?: number;
 }) => httpGet<WorkReportUnit[]>("/work-report-units", params);
 
 /** Đơn vị đã xóa của xưởng (để khôi phục). */

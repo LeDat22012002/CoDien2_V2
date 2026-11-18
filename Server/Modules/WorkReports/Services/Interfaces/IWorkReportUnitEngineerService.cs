@@ -20,4 +20,11 @@ public interface IWorkReportUnitEngineerService
     /// <summary>Kỹ sư đang phụ trách của nhiều đơn vị (null = mọi đơn vị), nhóm theo Id đơn vị; dùng nội bộ module.</summary>
     Task<IReadOnlyDictionary<int, IReadOnlyList<WorkReportUnitEngineerDto>>> GetActiveByUnitAsync(
         IReadOnlyCollection<int>? unitIds, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Kỹ sư có phân công hiệu lực ít nhất 1 ngày trong [from, to] (cả đã kết thúc), nhóm theo Id đơn vị,
+    /// theo thứ tự bắt đầu phụ trách; dùng hiển thị kỹ sư của 1 tuần đã khóa.
+    /// </summary>
+    Task<IReadOnlyDictionary<int, IReadOnlyList<WorkReportUnitEngineerDto>>> GetByUnitInRangeAsync(
+        IReadOnlyCollection<int> unitIds, DateOnly from, DateOnly to, CancellationToken cancellationToken);
 }

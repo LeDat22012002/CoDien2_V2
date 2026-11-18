@@ -9,18 +9,21 @@ public class WeeklyFormRepository(AppDbContext dbContext) : IWeeklyFormRepositor
 {
     private DbSet<WeeklyForm> Forms => dbContext.Set<WeeklyForm>();
 
+    // Form của tuần đã khóa vẫn hiện dù đơn vị đã xóa sau đó (form là bản chụp của tuần): bỏ bộ lọc xóa mềm
+    // để Include không loại form theo đơn vị, rồi tự lọc form / hạn riêng chưa xóa.
+
     public async Task<IReadOnlyList<WeeklyForm>> GetByWeekAndWorkshopAsync(
         int weekId, int workshopId, CancellationToken cancellationToken) =>
-        await Forms.AsNoTracking()
+        await Forms.AsNoTracking().IgnoreQueryFilters()
             .Include(x => x.WorkReportUnit)
-            .Where(x => x.WorkWeekId == weekId && x.WorkshopId == workshopId)
+            .Where(x => !x.IsDeleted && x.WorkWeekId == weekId && x.WorkshopId == workshopId)
             .ToListAsync(cancellationToken);
 
     public Task<WeeklyForm?> GetByIdAsync(int id, CancellationToken cancellationToken) =>
-        Forms.AsNoTracking()
+        Forms.AsNoTracking().IgnoreQueryFilters()
             .Include(x => x.WorkReportUnit)
-            .Include(x => x.WorkWeek).ThenInclude(x => x.DeadlineOverrides)
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .Include(x => x.WorkWeek).ThenInclude(x => x.DeadlineOverrides.Where(o => !o.IsDeleted))
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted && !x.WorkWeek.IsDeleted, cancellationToken);
 
     public async Task<IReadOnlyList<WeeklyForm>> FindByWeeksAsync(
         IReadOnlyCollection<int> weekIds, IReadOnlyCollection<int>? unitIds, CancellationToken cancellationToken)

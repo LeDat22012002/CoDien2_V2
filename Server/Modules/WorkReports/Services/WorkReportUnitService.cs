@@ -17,6 +17,8 @@ namespace Server.Modules.WorkReports.Services;
 /// </summary>
 public class WorkReportUnitService(
     IWorkReportUnitRepository unitRepository,
+    IWeeklyFormRepository formRepository,
+    IWorkWeekRepository weekRepository,
     IWorkReportUnitSyncService unitSyncService,
     IWorkReportUnitEngineerService engineerService,
     IWorkReportScopeService scopeService,
@@ -30,6 +32,17 @@ public class WorkReportUnitService(
     public async Task<IReadOnlyList<WorkReportUnitDto>> GetListAsync(
         WorkReportUnitFilterRequest filter, CancellationToken cancellationToken)
     {
+        // Xem 1 tuần đã khóa: danh sách tổ/kíp + kỹ sư đúng như tuần đó (thay đổi chỉ áp từ tuần còn mở trở đi)
+        if (filter is { WeekId: { } weekId, WorkshopId: { } snapshotWorkshopId })
+        {
+            var week = await weekRepository.GetByIdAsync(weekId, cancellationToken)
+                ?? throw new NotFoundException("Không tìm thấy kỳ tuần.");
+            if (DateTime.Now > WorkWeekService.GetEffectiveDeadlines(week, snapshotWorkshopId).Report)
+            {
+                return await GetWeekSnapshotAsync(week, snapshotWorkshopId, cancellationToken);
+            }
+        }
+
         // Tổ/kíp mới trên sơ đồ → đơn vị báo cáo + form ngay khi mở danh sách
         var createdIds = await unitSyncService.EnsureFromOrgChartAsync(filter.WorkshopId, cancellationToken);
         if (createdIds.Count > 0)
@@ -51,6 +64,54 @@ public class WorkReportUnitService(
             .ThenBy(x => x.SortOrder)
             .ThenBy(x => x.Id)
             .ToList();
+    }
+
+    /// <summary>
+    /// Tổ/kíp của 1 tuần đã khóa: lấy từ form của tuần (kể cả đơn vị đã ngừng dùng / xóa sau đó), tên / tiền tố /
+    /// giờ công theo bản chụp, kỹ sư = người phụ trách trong tuần; chỉ xem.
+    /// </summary>
+    private async Task<IReadOnlyList<WorkReportUnitDto>> GetWeekSnapshotAsync(
+        WorkWeek week, int workshopId, CancellationToken cancellationToken)
+    {
+        var tree = await orgTreeProvider.GetAsync(cancellationToken);
+        var forms = (await formRepository.GetByWeekAndWorkshopAsync(week.Id, workshopId, cancellationToken))
+            .OrderBy(x => x.WorkReportUnit.SortOrder).ThenBy(x => x.WorkReportUnitId)
+            .ToList();
+        var engineers = await engineerService.GetByUnitInRangeAsync(
+            forms.Select(x => x.WorkReportUnitId).ToList(), week.StartDate, week.EndDate, cancellationToken);
+        var workshop = tree.Get(workshopId);
+
+        return forms.Select(form =>
+        {
+            var unit = form.WorkReportUnit;
+            var orgUnit = tree.Get(unit.OrgUnitId);
+            var team = tree.GetTeam(unit.OrgUnitId);
+            return new WorkReportUnitDto
+            {
+                Id = unit.Id,
+                OrgUnitId = unit.OrgUnitId,
+                OrgUnitCode = orgUnit?.Code ?? string.Empty,
+                OrgUnitName = orgUnit?.Name ?? string.Empty,
+                OrgUnitTypeCode = orgUnit?.TypeCode ?? string.Empty,
+                IsCustom = unit.IsCustom,
+                Shift = orgUnit?.Shift,
+                IsOrgUnitActive = orgUnit?.IsActive ?? false,
+                TeamId = team?.Id,
+                TeamName = team?.Name,
+                WorkshopId = workshopId,
+                WorkshopName = workshop?.Name,
+                DisplayName = form.UnitName,
+                CodePrefix = form.CodePrefix,
+                LaborType = form.LaborType,
+                SortOrder = unit.SortOrder,
+                IsActive = true,
+                Engineers = engineers.GetValueOrDefault(unit.Id, []),
+                CanConfigure = false,
+                CanManageEngineers = false,
+                IsWeekSnapshot = true,
+                WeekId = week.Id,
+            };
+        }).ToList();
     }
 
     public async Task<WorkReportUnitDto> GetByIdAsync(int id, CancellationToken cancellationToken)
@@ -187,20 +248,39 @@ public class WorkReportUnitService(
                 $"'{unit.DisplayName}' đã có kế hoạch / báo cáo, không xóa được để giữ lịch sử. Hãy chuyển sang \"Ngừng dùng\".");
         }
 
+        var now = DateTime.Now;
+        var today = DateOnly.FromDateTime(now);
+
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            // Chưa có dữ liệu: bỏ form trống và phân công kỹ sư; tổ/kíp theo sơ đồ giữ dòng đã xóa để không tự tạo lại
+            // Chỉ áp từ tuần còn mở trở đi: bỏ form (trống) của tuần báo cáo chưa quá hạn;
+            // form của tuần đã khóa giữ nguyên để tuần đó hiện đúng như lúc chốt
             foreach (var form in await unitRepository.FindFormsAsync(id, ct))
             {
-                unitRepository.RemoveForm(form);
+                if (now <= WorkWeekService.GetEffectiveDeadlines(form.WorkWeek, form.WorkshopId).Report)
+                {
+                    unitRepository.RemoveForm(form);
+                }
             }
 
+            // Phân công kỹ sư: kết thúc chứ không xóa, để kỹ sư vẫn xem lại được các tuần đã phụ trách.
+            // Phân công bắt đầu từ hôm nay trở đi chưa có hiệu lực ngày nào thì bỏ hẳn.
             foreach (var engineer in await unitRepository.FindAllEngineersAsync(id, ct))
             {
-                unitRepository.RemoveEngineer(engineer);
+                if (engineer.StartDate >= today)
+                {
+                    unitRepository.RemoveEngineer(engineer);
+                }
+                else if (engineer.EndDate is null || engineer.EndDate >= today)
+                {
+                    engineer.EndDate = today.AddDays(-1);
+                }
             }
 
-            unitRepository.Remove(unit);
+            // Xóa mềm bằng cờ, không gọi Remove: đơn vị còn form tuần đã khóa và phân công kỹ sư (đã kết thúc) đang được
+            // theo dõi, Remove khiến EF xử lý quan hệ bắt buộc như xóa thật và báo lỗi "association has been severed".
+            // Tổ/kíp theo sơ đồ giữ dòng đã xóa để không tự tạo lại.
+            unit.IsDeleted = true;
             await unitOfWork.SaveChangesAsync(ct);
         }, cancellationToken);
     }

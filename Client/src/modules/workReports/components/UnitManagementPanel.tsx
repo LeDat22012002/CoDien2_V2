@@ -8,6 +8,7 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import {
+  Alert,
   Button,
   Collapse,
   Empty,
@@ -22,7 +23,7 @@ import { useState } from "react";
 import { ErrorState } from "@/shared/components/ErrorState";
 import { COLUMN_WIDTH } from "@/shared/constants/tableColumns";
 import { useTableScrollY } from "@/shared/hooks/useTableScrollY";
-import { EMPTY_TEXT } from "@/shared/utils/format";
+import { EMPTY_TEXT, formatDate } from "@/shared/utils/format";
 import { notify } from "@/shared/utils/notify";
 import { UnitEngineersModal } from "@/modules/workReports/components/UnitEngineersModal";
 import { UnitFormModal } from "@/modules/workReports/components/UnitFormModal";
@@ -39,6 +40,8 @@ interface UnitManagementPanelProps {
   workshopId: number;
   /** Quản đốc/phó của xưởng hoặc admin: thêm / sửa / xóa / khôi phục / sắp xếp đơn vị. */
   isManager: boolean;
+  /** Tuần đang chọn: tuần đã khóa → danh sách tổ/kíp + kỹ sư đúng như tuần đó, chỉ xem. */
+  weekId?: number;
 }
 
 type DialogState =
@@ -69,16 +72,24 @@ const text = (value?: string | null) =>
  * Quản đốc/phó: thêm đơn vị tự đặt, sửa tên / tiền tố / loại giờ công / ngừng dùng, xóa (chưa có dữ liệu),
  * khôi phục, sắp thứ tự I, II…, phân công kỹ sư. Đội trưởng/phó: phân công kỹ sư cho tổ trong đội.
  * Cao hết nội dung tab: thân bảng tự cuộn (useTableScrollY), mục "Đã xóa" luôn ở đáy.
+ * Theo tuần đang chọn: tuần đã khóa → Server trả bản chụp của tuần (tổ/kíp + kỹ sư phụ trách trong tuần), chỉ xem;
+ * thêm / sửa / xóa / phân công chỉ áp từ tuần còn mở trở đi.
  */
 export const UnitManagementPanel = ({
   workshopId,
   isManager,
+  weekId,
 }: UnitManagementPanelProps) => {
   const { containerRef, scrollY } = useTableScrollY();
   const [dialog, setDialog] = useState<DialogState>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const unitsQuery = useWorkReportUnits(workshopId, true);
-  const deletedQuery = useDeletedWorkReportUnits(workshopId, isManager);
+  const unitsQuery = useWorkReportUnits(workshopId, true, weekId);
+  // Tuần đã khóa: chỉ xem (không thêm / sắp xếp / xóa / khôi phục; nút sửa, phân công tự ẩn vì Server trả quyền false)
+  const isSnapshot = (unitsQuery.data ?? []).some(
+    (unit) => unit.isWeekSnapshot,
+  );
+  const canEditStructure = isManager && !isSnapshot;
+  const deletedQuery = useDeletedWorkReportUnits(workshopId, canEditStructure);
   const reorderMutation = useReorderWorkReportUnits();
   const deleteMutation = useDeleteWorkReportUnit();
   const restoreMutation = useRestoreWorkReportUnit();
@@ -144,7 +155,7 @@ export const UnitManagementPanel = ({
       render: (_, unit, index) => (
         <div className="flex items-center justify-center gap-1">
           <span className="w-6 text-right">{index + 1}</span>
-          {isManager && (
+          {canEditStructure && (
             <>
               <Button
                 type="text"
@@ -201,7 +212,16 @@ export const UnitManagementPanel = ({
       width: COLUMN_WIDTH.longText,
       render: (_, unit) =>
         unit.engineers.length > 0 ? (
-          text(unit.engineers.map((engineer) => engineer.fullName).join(", "))
+          text(
+            unit.engineers
+              // Tuần đã khóa: người đã thôi phụ trách ghi kèm ngày kết thúc
+              .map((engineer) =>
+                engineer.endDate
+                  ? `${engineer.fullName} (đến ${formatDate(engineer.endDate)})`
+                  : engineer.fullName,
+              )
+              .join(", "),
+          )
         ) : (
           <Tag color="warning">Chưa phân công</Tag>
         ),
@@ -281,7 +301,10 @@ export const UnitManagementPanel = ({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      {isManager && (
+      {isSnapshot && (
+        <Alert type="info" showIcon className="shrink-0" title="Tuần đã khóa" />
+      )}
+      {canEditStructure && (
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           {/* <Typography.Text type="secondary">
             Tổ/kíp trên sơ đồ tổ chức tự có trong danh sách. Xóa đơn vị không
@@ -315,7 +338,7 @@ export const UnitManagementPanel = ({
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
-                  isManager
+                  canEditStructure
                     ? "Xưởng chưa có tổ/kíp trên sơ đồ tổ chức. Bấm “Thêm đơn vị” để tạo đơn vị báo cáo."
                     : "Xưởng chưa có đơn vị báo cáo."
                 }
@@ -325,7 +348,7 @@ export const UnitManagementPanel = ({
         />
       </div>
 
-      {isManager && deletedUnits.length > 0 && (
+      {canEditStructure && deletedUnits.length > 0 && (
         <Collapse
           size="small"
           className="shrink-0"

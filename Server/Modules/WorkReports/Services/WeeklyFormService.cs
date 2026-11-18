@@ -55,7 +55,7 @@ public class WeeklyFormService(
         var unitIdList = units.Select(x => x.Id).ToList();
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
         var setting = await settingRepository.GetAsync(cancellationToken);
-        var engineerNames = await GetEngineerNamesAsync(unitIdList, today, cancellationToken);
+        var engineerNames = await GetEngineerNamesAsync(unitIdList, weeks, cancellationToken);
 
         var forms = await formRepository.FindByWeeksAsync(
             weeks.Select(x => x.Id).ToList(), unitIdList, cancellationToken);
@@ -69,10 +69,11 @@ public class WeeklyFormService(
             var orgUnit = tree.Get(unit.OrgUnitId);
             var workshop = tree.GetWorkshop(unit.OrgUnitId);
             var isUsable = unit.IsActive && orgUnit?.IsActive == true && workshop is not null;
-            var names = engineerNames.GetValueOrDefault(unit.Id);
 
             foreach (var week in weeks)
             {
+                // KTV của form = mọi người phụ trách trong tuần đó (đổi người giữa tuần → "B, C")
+                var names = engineerNames.GetValueOrDefault((unit.Id, week.Id));
                 var form = forms.FirstOrDefault(x => x.WorkReportUnitId == unit.Id && x.WorkWeekId == week.Id);
                 if (form is null)
                 {
@@ -87,16 +88,17 @@ public class WeeklyFormService(
                     continue;
                 }
 
-                if (WeeklyFormRules.GetReportState(form, week, now).Status == FormPhaseStatuses.Locked)
+                if (!IsReportStillOpen(week, form.WorkshopId, now))
                 {
-                    // Đã khóa báo cáo: giữ nguyên thông tin đã chụp
+                    // Tuần đã khóa (quá hạn báo cáo, kể cả khi admin mở khóa lại để sửa số liệu): giữ nguyên form
+                    // và thông tin đã chụp; thêm / sửa / ngừng dùng / xóa đơn vị chỉ áp từ tuần còn mở trở đi
                     continue;
                 }
 
                 if (!isUsable)
                 {
-                    // Đơn vị ngừng dùng: bỏ form trống của tuần chưa bắt đầu; form đã có dữ liệu giữ nguyên
-                    if (week.StartDate > today && !formIdsWithItems.Contains(form.Id))
+                    // Đơn vị ngừng dùng: bỏ form trống của mọi tuần còn mở (kể cả tuần đang chạy); form đã có dữ liệu giữ nguyên
+                    if (!formIdsWithItems.Contains(form.Id))
                     {
                         formRepository.Remove(form);
                     }
@@ -131,7 +133,8 @@ public class WeeklyFormService(
         var form = await formRepository.GetByIdAsync(formId, cancellationToken)
             ?? throw new NotFoundException(FormNotFoundMessage);
 
-        var access = await scopeService.GetUnitAccessAsync(form.WorkReportUnit, form.WorkshopId, cancellationToken);
+        var access = await scopeService.GetUnitAccessAsync(
+            form.WorkReportUnit, form.WorkshopId, form.WorkWeek, cancellationToken);
         if (!access.CanView)
         {
             throw new ForbiddenException("Bạn không có quyền xem form của đơn vị này.");
@@ -181,7 +184,7 @@ public class WeeklyFormService(
         var visible = new List<WeeklyFormContext>();
         for (var i = 0; i < forms.Count; i++)
         {
-            var access = await scopeService.GetUnitAccessAsync(forms[i].WorkReportUnit, workshopId, cancellationToken);
+            var access = await scopeService.GetUnitAccessAsync(forms[i].WorkReportUnit, workshopId, week, cancellationToken);
             if (access.CanView)
             {
                 visible.Add(BuildContext(forms[i], week, access, phase, now, i + 1));
@@ -508,26 +511,49 @@ public class WeeklyFormService(
                     .ToList());
     }
 
-    private async Task<IReadOnlyDictionary<int, string>> GetEngineerNamesAsync(
-        IReadOnlyCollection<int> unitIds, DateOnly today, CancellationToken cancellationToken)
+    /// <summary>
+    /// Tên KTV theo (đơn vị, tuần): mọi kỹ sư có phân công hiệu lực ít nhất 1 ngày trong tuần, theo thứ tự bắt đầu phụ trách.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<(int UnitId, int WeekId), string>> GetEngineerNamesAsync(
+        IReadOnlyCollection<int> unitIds, IReadOnlyList<WorkWeek> weeks, CancellationToken cancellationToken)
     {
-        var engineers = await unitRepository.GetActiveEngineersAsync(unitIds, today, cancellationToken);
+        var result = new Dictionary<(int UnitId, int WeekId), string>();
+        if (weeks.Count == 0)
+        {
+            return result;
+        }
+
+        var engineers = await unitRepository.GetEngineersInRangeAsync(
+            unitIds, weeks.Min(x => x.StartDate), weeks.Max(x => x.EndDate), cancellationToken);
         if (engineers.Count == 0)
         {
-            return new Dictionary<int, string>();
+            return result;
         }
 
         var employees = (await employeeService.GetBriefsAsync(
                 engineers.Select(x => x.EmployeeId).Distinct().ToList(), cancellationToken))
             .ToDictionary(x => x.Id, x => x.FullName);
 
-        return engineers
-            .GroupBy(x => x.WorkReportUnitId)
-            .ToDictionary(g => g.Key, g =>
+        foreach (var group in engineers.GroupBy(x => x.WorkReportUnitId))
+        {
+            foreach (var week in weeks)
             {
-                var names = string.Join(", ", g.Select(x => employees.GetValueOrDefault(x.EmployeeId) ?? $"#{x.EmployeeId}"));
-                return names.Length > EngineerNamesMaxLength ? names[..EngineerNamesMaxLength] : names;
-            });
+                var employeeIds = group
+                    .Where(x => x.StartDate <= week.EndDate && (x.EndDate is null || x.EndDate >= week.StartDate))
+                    .Select(x => x.EmployeeId)
+                    .Distinct()
+                    .ToList();
+                if (employeeIds.Count == 0)
+                {
+                    continue;
+                }
+
+                var names = string.Join(", ", employeeIds.Select(id => employees.GetValueOrDefault(id) ?? $"#{id}"));
+                result[(group.Key, week.Id)] = names.Length > EngineerNamesMaxLength ? names[..EngineerNamesMaxLength] : names;
+            }
+        }
+
+        return result;
     }
 
     /// <summary>Dựng WorkWeek tạm từ DTO để tạo tiêu đề.</summary>

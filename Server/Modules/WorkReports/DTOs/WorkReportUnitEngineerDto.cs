@@ -9,6 +9,9 @@ public class WorkReportUnitEngineerDto
     public string EmpCode { get; init; } = string.Empty;
     public string FullName { get; init; } = string.Empty;
     public DateOnly StartDate { get; init; }
+
+    /// <summary>Ngày kết thúc phụ trách; null = đang phụ trách (chỉ có giá trị ở danh sách theo tuần đã khóa).</summary>
+    public DateOnly? EndDate { get; init; }
 }
 
 /// <summary>Kỹ sư gợi ý từ sơ đồ tổ chức (cấp KS ở tổ/kíp, và ở đội chứa tổ).</summary>

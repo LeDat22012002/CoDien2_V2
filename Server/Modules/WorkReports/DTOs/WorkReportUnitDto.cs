@@ -48,6 +48,15 @@ public class WorkReportUnitDto
 
     /// <summary>Người đang gọi được đổi kỹ sư phụ trách.</summary>
     public bool CanManageEngineers { get; init; }
+
+    /// <summary>
+    /// True = dòng là bản chụp của tuần đã khóa (xem theo weekId): tên, tiền tố, giờ công lấy từ form của tuần;
+    /// Engineers = kỹ sư phụ trách trong tuần đó; chỉ xem, không sửa / xóa / phân công.
+    /// </summary>
+    public bool IsWeekSnapshot { get; init; }
+
+    /// <summary>Bản chụp: tuần báo cáo đã khóa. Null = danh sách hiện tại.</summary>
+    public int? WeekId { get; init; }
 }
 
 /// <summary>Chỗ gắn đơn vị tự đặt: xưởng hoặc 1 đội trong xưởng.</summary>
@@ -94,4 +103,10 @@ public class WorkReportUnitFilterRequest
 {
     public int? WorkshopId { get; set; }
     public bool IncludeInactive { get; set; }
+
+    /// <summary>
+    /// Tuần đang xem (cần kèm WorkshopId). Tuần đã khóa (quá hạn báo cáo của xưởng) → danh sách tổ/kíp và kỹ sư
+    /// đúng như tuần đó (bản chụp, chỉ xem). Tuần còn mở hoặc bỏ trống → danh sách hiện tại (sửa được).
+    /// </summary>
+    public int? WeekId { get; set; }
 }

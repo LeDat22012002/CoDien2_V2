@@ -127,9 +127,18 @@ public class WorkReportUnitEngineerService(
     }
 
     public async Task<IReadOnlyDictionary<int, IReadOnlyList<WorkReportUnitEngineerDto>>> GetActiveByUnitAsync(
-        IReadOnlyCollection<int>? unitIds, CancellationToken cancellationToken)
+        IReadOnlyCollection<int>? unitIds, CancellationToken cancellationToken) =>
+        await ToDtosByUnitAsync(
+            await unitRepository.GetActiveEngineersAsync(unitIds, Today, cancellationToken), cancellationToken);
+
+    public async Task<IReadOnlyDictionary<int, IReadOnlyList<WorkReportUnitEngineerDto>>> GetByUnitInRangeAsync(
+        IReadOnlyCollection<int> unitIds, DateOnly from, DateOnly to, CancellationToken cancellationToken) =>
+        await ToDtosByUnitAsync(
+            await unitRepository.GetEngineersInRangeAsync(unitIds, from, to, cancellationToken), cancellationToken);
+
+    private async Task<IReadOnlyDictionary<int, IReadOnlyList<WorkReportUnitEngineerDto>>> ToDtosByUnitAsync(
+        IReadOnlyList<WorkReportUnitEngineer> engineers, CancellationToken cancellationToken)
     {
-        var engineers = await unitRepository.GetActiveEngineersAsync(unitIds, Today, cancellationToken);
         if (engineers.Count == 0)
         {
             return new Dictionary<int, IReadOnlyList<WorkReportUnitEngineerDto>>();
@@ -151,6 +160,7 @@ public class WorkReportUnitEngineerService(
                         EmpCode = employees.GetValueOrDefault(x.EmployeeId)?.EmpCode ?? string.Empty,
                         FullName = employees.GetValueOrDefault(x.EmployeeId)?.FullName ?? $"#{x.EmployeeId}",
                         StartDate = x.StartDate,
+                        EndDate = x.EndDate,
                     })
                     .ToList());
     }

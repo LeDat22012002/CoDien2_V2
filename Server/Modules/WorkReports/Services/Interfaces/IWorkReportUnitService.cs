@@ -30,7 +30,10 @@ public interface IWorkReportUnitService
     Task<WorkReportUnitDto> UpdateAsync(
         int id, UpdateWorkReportUnitRequest request, CancellationToken cancellationToken);
 
-    /// <summary>Xóa đơn vị chưa có dữ liệu (đã có thì chỉ ngừng dùng được); tổ/kíp theo sơ đồ không tự tạo lại.</summary>
+    /// <summary>
+    /// Xóa đơn vị chưa có dữ liệu (đã có thì chỉ ngừng dùng được); tổ/kíp theo sơ đồ không tự tạo lại.
+    /// Chỉ bỏ form của tuần báo cáo còn mở; tuần đã khóa giữ nguyên form. Phân công kỹ sư được kết thúc (không xóa).
+    /// </summary>
     Task DeleteAsync(int id, CancellationToken cancellationToken);
 
     Task<WorkReportUnitDto> RestoreAsync(int id, CancellationToken cancellationToken);

@@ -23,8 +23,15 @@ public sealed class WorkReportScope
     /// <summary>Xem mọi xưởng, chỉ xem: request của trang công khai (IWorkReportScopeService.UsePublicView).</summary>
     public bool CanViewFactory { get; init; }
 
-    /// <summary>Id đơn vị báo cáo người gọi là kỹ sư phụ trách (cần work-reports.submit).</summary>
+    /// <summary>Id đơn vị báo cáo người gọi đang là kỹ sư phụ trách hôm nay (cần work-reports.submit): quyền thêm/sửa/xóa.</summary>
     public IReadOnlySet<int> EngineerUnitIds { get; init; } = new HashSet<int>();
+
+    /// <summary>
+    /// Mọi lần người gọi được phân công phụ trách (kể cả đã kết thúc, đơn vị đã ngừng dùng / đã xóa; cần work-reports.submit).
+    /// Theo tuần của form: kỹ sư đang phụ trách chỉ xem/sửa từ tuần bắt đầu phụ trách trở đi;
+    /// kỹ sư đã bị thay chỉ XEM các tuần từng phụ trách (vd tuần 46 sau khi bị thay người ở tuần 47).
+    /// </summary>
+    public IReadOnlyList<EngineerAssignmentPeriod> EngineerHistory { get; init; } = [];
 
     /// <summary>OrgUnit.Id các Đội (TEAM) người gọi là trưởng/phó (chỉ tính khi có manage, assign-engineers, unlock hoặc quyền thêm/sửa/xóa).</summary>
     public IReadOnlySet<int> HeadTeamIds { get; init; } = new HashSet<int>();
@@ -45,6 +52,16 @@ public sealed class WorkReportScope
     public IReadOnlySet<int> ManagedWorkshopIds => CanManage ? HeadWorkshopIds : EmptySet;
 
     private static readonly IReadOnlySet<int> EmptySet = new HashSet<int>();
+}
+
+/// <summary>1 lần phụ trách đơn vị báo cáo: OrgUnitId của đơn vị để biết xưởng (kể cả đơn vị đã xóa).</summary>
+public sealed record EngineerAssignmentPeriod(int UnitId, int OrgUnitId, DateOnly StartDate, DateOnly? EndDate)
+{
+    /// <summary>Phân công có hiệu lực ít nhất 1 ngày trong khoảng [from, to].</summary>
+    public bool Overlaps(DateOnly from, DateOnly to) => StartDate <= to && (EndDate is null || EndDate >= from);
+
+    /// <summary>Phân công có hiệu lực vào ngày day.</summary>
+    public bool IsActiveOn(DateOnly day) => StartDate <= day && (EndDate is null || EndDate >= day);
 }
 
 /// <summary>Thêm / sửa / xóa dòng (và vật tư) của 1 giai đoạn.</summary>

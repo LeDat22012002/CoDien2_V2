@@ -478,6 +478,7 @@ export const WorkReportWorkspace = ({ mode }: WorkReportWorkspaceProps) => {
                         <UnitManagementPanel
                           workshopId={workshop.workshopId}
                           isManager={workshop.isManager}
+                          weekId={filter?.weekId}
                         />
                       ),
                     },

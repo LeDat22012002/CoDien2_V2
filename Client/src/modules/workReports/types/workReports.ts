@@ -162,6 +162,8 @@ export interface WorkReportUnitEngineer {
   empCode: string;
   fullName: string;
   startDate: string;
+  /** Ngày kết thúc phụ trách (chỉ có ở danh sách theo tuần đã khóa); null = đang phụ trách. */
+  endDate?: string | null;
 }
 
 export interface WorkReportUnit {
@@ -186,6 +188,9 @@ export interface WorkReportUnit {
   engineers: WorkReportUnitEngineer[];
   canConfigure: boolean;
   canManageEngineers: boolean;
+  /** Bản chụp của tuần đã khóa (xem theo weekId): chỉ xem, không sửa / xóa / phân công. */
+  isWeekSnapshot?: boolean;
+  weekId?: number | null;
 }
 
 /** Chỗ gắn đơn vị tự đặt: xưởng hoặc 1 đội trong xưởng. */

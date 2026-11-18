@@ -1,4 +1,5 @@
 using Server.Modules.WorkReports.Entities;
+using Server.Modules.WorkReports.Services;
 
 namespace Server.Modules.WorkReports.Repositories.Interfaces;
 
@@ -24,7 +25,10 @@ public interface IWorkReportUnitRepository
     /// <summary>Đơn vị đã có dòng công việc hoặc vật tư ở bất kỳ tuần nào.</summary>
     Task<bool> HasDataAsync(int unitId, CancellationToken cancellationToken);
 
-    /// <summary>Có tracking: mọi form của đơn vị (xóa đơn vị chưa có dữ liệu thì bỏ form trống).</summary>
+    /// <summary>
+    /// Có tracking: mọi form của đơn vị, kèm kỳ tuần + hạn riêng xưởng để biết tuần nào đã khóa
+    /// (xóa đơn vị chỉ bỏ form của tuần còn mở, tuần đã khóa giữ nguyên).
+    /// </summary>
     Task<IReadOnlyList<WeeklyForm>> FindFormsAsync(int unitId, CancellationToken cancellationToken);
 
     /// <summary>Có tracking: mọi dòng phân công kỹ sư của đơn vị (cả đã kết thúc).</summary>
@@ -45,6 +49,13 @@ public interface IWorkReportUnitRepository
     Task<IReadOnlyList<WorkReportUnitEngineer>> GetActiveEngineersAsync(
         IReadOnlyCollection<int>? unitIds, DateOnly today, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Không tracking: phân công có hiệu lực ít nhất 1 ngày trong [from, to] (cả đã kết thúc), sắp theo ngày bắt đầu.
+    /// Dùng ghi tên KTV của form: mọi người phụ trách trong tuần (đổi người giữa tuần → "B, C").
+    /// </summary>
+    Task<IReadOnlyList<WorkReportUnitEngineer>> GetEngineersInRangeAsync(
+        IReadOnlyCollection<int> unitIds, DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
     /// <summary>Có tracking: kỹ sư đang phụ trách 1 đơn vị; dùng khi lưu danh sách mới.</summary>
     Task<IReadOnlyList<WorkReportUnitEngineer>> FindActiveEngineersAsync(
         int unitId, DateOnly today, CancellationToken cancellationToken);
@@ -52,6 +63,13 @@ public interface IWorkReportUnitRepository
     /// <summary>Id đơn vị (đang dùng) mà nhân viên đang phụ trách.</summary>
     Task<IReadOnlyList<int>> GetUnitIdsOfEngineerAsync(
         int employeeId, DateOnly today, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Không tracking: mọi lần nhân viên được phân công (cả đã kết thúc), kể cả đơn vị đã ngừng dùng / đã xóa.
+    /// Dùng cho quyền xem form các tuần từng phụ trách.
+    /// </summary>
+    Task<IReadOnlyList<EngineerAssignmentPeriod>> GetEngineerHistoryAsync(
+        int employeeId, CancellationToken cancellationToken);
 
     void AddEngineer(WorkReportUnitEngineer engineer);
 

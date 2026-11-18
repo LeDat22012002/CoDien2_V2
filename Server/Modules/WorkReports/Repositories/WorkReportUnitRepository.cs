@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Server.Data;
 using Server.Modules.WorkReports.Entities;
 using Server.Modules.WorkReports.Repositories.Interfaces;
+using Server.Modules.WorkReports.Services;
 
 namespace Server.Modules.WorkReports.Repositories;
 
@@ -46,7 +47,10 @@ public class WorkReportUnitRepository(AppDbContext dbContext) : IWorkReportUnitR
     }
 
     public async Task<IReadOnlyList<WeeklyForm>> FindFormsAsync(int unitId, CancellationToken cancellationToken) =>
-        await dbContext.Set<WeeklyForm>().Where(x => x.WorkReportUnitId == unitId).ToListAsync(cancellationToken);
+        await dbContext.Set<WeeklyForm>()
+            .Include(x => x.WorkWeek).ThenInclude(x => x.DeadlineOverrides)
+            .Where(x => x.WorkReportUnitId == unitId)
+            .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<WorkReportUnitEngineer>> FindAllEngineersAsync(
         int unitId, CancellationToken cancellationToken) =>
@@ -92,6 +96,24 @@ public class WorkReportUnitRepository(AppDbContext dbContext) : IWorkReportUnitR
             .Where(x => x.EmployeeId == employeeId && x.WorkReportUnit.IsActive)
             .Select(x => x.WorkReportUnitId)
             .Distinct()
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<WorkReportUnitEngineer>> GetEngineersInRangeAsync(
+        IReadOnlyCollection<int> unitIds, DateOnly from, DateOnly to, CancellationToken cancellationToken) =>
+        await Engineers.AsNoTracking()
+            .Where(x => unitIds.Contains(x.WorkReportUnitId)
+                        && x.StartDate <= to && (x.EndDate == null || x.EndDate >= from))
+            .OrderBy(x => x.StartDate).ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<EngineerAssignmentPeriod>> GetEngineerHistoryAsync(
+        int employeeId, CancellationToken cancellationToken) =>
+        // Join đơn vị bỏ bộ lọc xóa mềm: đơn vị đã xóa vẫn cần OrgUnitId để biết xưởng của các tuần cũ
+        await (from engineer in Engineers.AsNoTracking()
+               join unit in Units.AsNoTracking().IgnoreQueryFilters() on engineer.WorkReportUnitId equals unit.Id
+               where engineer.EmployeeId == employeeId
+               select new EngineerAssignmentPeriod(
+                   engineer.WorkReportUnitId, unit.OrgUnitId, engineer.StartDate, engineer.EndDate))
             .ToListAsync(cancellationToken);
 
     public void AddEngineer(WorkReportUnitEngineer engineer) => Engineers.Add(engineer);

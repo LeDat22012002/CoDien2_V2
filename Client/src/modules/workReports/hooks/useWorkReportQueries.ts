@@ -78,8 +78,15 @@ export const WORK_REPORT_QUERY_KEYS = {
   all: ["workReports"] as const,
   scope: ["workReports", "structure", "scope"] as const,
   structure: ["workReports", "structure"] as const,
-  units: (workshopId?: number, includeInactive?: boolean) =>
-    ["workReports", "structure", "units", workshopId, includeInactive] as const,
+  units: (workshopId?: number, includeInactive?: boolean, weekId?: number) =>
+    [
+      "workReports",
+      "structure",
+      "units",
+      workshopId,
+      includeInactive,
+      weekId,
+    ] as const,
   deletedUnits: (workshopId?: number) =>
     ["workReports", "structure", "deletedUnits", workshopId] as const,
   unitParentOptions: (workshopId?: number) =>
@@ -262,10 +269,11 @@ export const useUpdateWorkWeekDeadline = () => {
 export const useWorkReportUnits = (
   workshopId?: number,
   includeInactive = true,
+  weekId?: number,
 ) =>
   useQuery({
-    queryKey: WORK_REPORT_QUERY_KEYS.units(workshopId, includeInactive),
-    queryFn: () => getWorkReportUnits({ workshopId, includeInactive }),
+    queryKey: WORK_REPORT_QUERY_KEYS.units(workshopId, includeInactive, weekId),
+    queryFn: () => getWorkReportUnits({ workshopId, includeInactive, weekId }),
     enabled: workshopId !== undefined,
   });
 
