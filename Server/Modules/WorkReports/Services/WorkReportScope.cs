@@ -23,6 +23,9 @@ public sealed class WorkReportScope
     /// <summary>Xem mọi xưởng, chỉ xem: request của trang công khai (IWorkReportScopeService.UsePublicView).</summary>
     public bool CanViewFactory { get; init; }
 
+    /// <summary>Trang công khai: chỉ các xưởng này (Cài đặt → "Xưởng hiện trên trang công khai"); null = không giới hạn.</summary>
+    public IReadOnlySet<int>? PublicWorkshopIds { get; init; }
+
     /// <summary>Id đơn vị báo cáo người gọi đang là kỹ sư phụ trách hôm nay (cần work-reports.submit): quyền thêm/sửa/xóa.</summary>
     public IReadOnlySet<int> EngineerUnitIds { get; init; } = new HashSet<int>();
 

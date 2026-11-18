@@ -1,9 +1,10 @@
-import { EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined } from "@ant-design/icons";
 import { Button, Typography } from "antd";
 import type { ReactNode } from "react";
 import { CollapseToggle } from "@/modules/workReports/components/collapsible/CollapseToggle";
 import { FormStatusTag } from "@/modules/workReports/components/FormStatusTag";
 import { FormUnlockButton } from "@/modules/workReports/components/grid/FormUnlockButton";
+import { EditingByBadge } from "@/modules/workReports/components/grid/GridRowActions";
 import type {
   WeeklyFormBase,
   WorkCategory,
@@ -12,7 +13,7 @@ import type {
 
 /**
  * Dòng tiêu đề tổ/kíp: thứ tự La Mã, tên, trạng thái, mở khóa, nút riêng của bảng (extra),
- * người khác đang nhập ở tổ/kíp này (cập nhật tức thì).
+ * người khác đang thêm dòng mới ở tổ/kíp này (cập nhật tức thì).
  */
 export const SheetUnitHeader = ({
   form,
@@ -41,14 +42,11 @@ export const SheetUnitHeader = ({
         <Typography.Text type="secondary">· {collapsedLabel}</Typography.Text>
       )}
     </CollapseToggle>
-    <FormStatusTag status={form.status} />
+    {/* Đang nhập (mở) là bình thường: chỉ hiện Đã khóa / Chưa tới tuần */}
+    {form.status !== "OPEN" && <FormStatusTag status={form.status} />}
     <FormUnlockButton form={form} phase={phase} />
     {extra}
-    {editorNames.length > 0 && (
-      <Typography.Text type="warning" className="text-xs">
-        <EditOutlined /> Đang nhập: {editorNames.join(", ")}
-      </Typography.Text>
-    )}
+    {editorNames.length > 0 && <EditingByBadge names={editorNames} />}
   </div>
 );
 

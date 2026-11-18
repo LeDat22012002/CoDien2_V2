@@ -97,6 +97,7 @@ public class WorkReportService(
 
         var category = await support.GetUsableCategoryAsync(request.WorkCategoryId, context.Form.WorkshopId, cancellationToken);
         var workers = await support.BuildWorkersAsync(request, context.Form, cancellationToken);
+        var wholeGroups = await support.ResolveWholeGroupsAsync(request, context.Form, cancellationToken);
         var engineers = await support.ResolveEngineersAsync(request, context.Form, null, cancellationToken);
         var equipment = await support.ResolveEquipmentAsync(request.EquipmentCode, cancellationToken);
 
@@ -109,6 +110,7 @@ public class WorkReportService(
         };
         ApplyFields(item, request, equipment, workers);
         item.Engineers = engineers;
+        item.WholeGroups = wholeGroups;
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -174,6 +176,9 @@ public class WorkReportService(
                 EndDate = plan.EndDate,
                 Note = plan.Note,
                 IsWholeUnit = plan.IsWholeUnit,
+                WholeGroups = plan.WholeGroups
+                    .Select(x => new WorkItemGroup { OrgUnitId = x.OrgUnitId, Name = x.Name })
+                    .ToList(),
                 // KTV phụ trách: chép của dòng kế hoạch (người dùng chốt); dòng KH cũ chưa có thì để trống
                 Engineers = plan.Engineers
                     .Select(x => new WorkItemEngineer { EmployeeId = x.EmployeeId, FullName = x.FullName })
@@ -234,6 +239,7 @@ public class WorkReportService(
         var item = await itemRepository.FindByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException(NotFoundMessage);
         var context = await formService.GetContextAsync(item.WeeklyFormId, Phase, WorkItemAction.Update, cancellationToken);
+        await support.EnsureRowEngineerAsync(context, item.Engineers, WorkItemAction.Update, cancellationToken);
 
         var clientRowVersion = WorkItemSupport.ParseRowVersion(request.RowVersion);
         if (!clientRowVersion.SequenceEqual(item.RowVersion))
@@ -258,12 +264,14 @@ public class WorkReportService(
         }
 
         var workers = await support.BuildWorkersAsync(request, context.Form, cancellationToken);
+        var wholeGroups = await support.ResolveWholeGroupsAsync(request, context.Form, cancellationToken);
         var engineers = await support.ResolveEngineersAsync(
             request, context.Form, item.Engineers, cancellationToken);
         var equipment = await support.ResolveEquipmentAsync(request.EquipmentCode, cancellationToken);
 
         ApplyFields(item, request, equipment, workers);
         item.Engineers = engineers;
+        item.WholeGroups = wholeGroups;
         item.SortOrder = request.SortOrder ?? item.SortOrder;
         itemRepository.PrepareConcurrentUpdate(item, clientRowVersion);
 
@@ -300,6 +308,7 @@ public class WorkReportService(
         var item = await itemRepository.FindByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException(NotFoundMessage);
         var context = await formService.GetContextAsync(item.WeeklyFormId, Phase, WorkItemAction.Delete, cancellationToken);
+        await support.EnsureRowEngineerAsync(context, item.Engineers, WorkItemAction.Delete, cancellationToken);
 
         foreach (var material in await materialRepository.FindByItemIdsAsync([id], cancellationToken))
         {

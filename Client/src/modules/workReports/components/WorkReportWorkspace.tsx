@@ -95,12 +95,13 @@ const MODE_TEXT: Record<
  * Chiều cao màn hình = phần dưới header của layout (trừ lề trên + dưới), để trang không cuộn,
  * chỉ thân bảng cuộn và bảng dùng hết chỗ còn lại (giống trang Nhật ký hệ thống).
  * - submit / manage (PrivateLayout): header 56px + lề p-4 / md:p-6.
- * - factory (PublicLayout + FactoryWorkReportPage): header 64px + lề py-4 / md:py-6.
+ * - factory (PublicLayout + FactoryWorkReportPage): header 64px + lề py-4 / md:py-6 + thanh chọn phần
+ *   (Hôm nay / Phân tích / Chi tiết tuần) 32px + mb-2 / md:mb-3.
  */
 const MODE_HEIGHT_CLASS: Record<WorkReportWorkspaceMode, string> = {
   submit: "h-[calc(100dvh-88px)] md:h-[calc(100dvh-104px)]",
   manage: "h-[calc(100dvh-88px)] md:h-[calc(100dvh-104px)]",
-  factory: "h-[calc(100dvh-96px)] md:h-[calc(100dvh-112px)]",
+  factory: "h-[calc(100dvh-136px)] md:h-[calc(100dvh-156px)]",
 };
 
 /**

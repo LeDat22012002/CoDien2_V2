@@ -11,6 +11,12 @@ public interface IWorkerOptionService
 
     /// <summary>Nhân viên của tổ/kíp (kể cả đơn vị con) trên sơ đồ, không kiểm tra quyền: dùng cho "Cả tổ".</summary>
     Task<IReadOnlyList<WorkerOptionDto>> GetUnitMembersAsync(int unitId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// "Cả tổ" theo từng tổ: nhân viên các tổ gợi ý được chọn của đơn vị (tổ không thuộc tổ gợi ý → 400), kèm tên tổ.
+    /// </summary>
+    Task<(IReadOnlyList<WorkerOptionDto> Members, IReadOnlyList<OrgUnitOptionDto> Groups)> GetGroupMembersAsync(
+        int unitId, IReadOnlyCollection<int> groupOrgUnitIds, CancellationToken cancellationToken);
 }
 
 /// <summary>Kế hoạch tuần: lưới, tổng hợp, thêm/sửa/xóa dòng (trong hạn kế hoạch hoặc khi admin mở khóa).</summary>

@@ -50,7 +50,7 @@ Ký hiệu: ⬜ chưa làm · 🟡 đang làm · 🔵 xong, chờ xác nhận ·
 
 | Thuật ngữ | Nghĩa |
 |---|---|
-| Đơn vị báo cáo (Unit) | Một tổ (`GROUP`) hoặc một kíp (`SHIFT`, ca A/B/C) có form tuần riêng; tương ứng một "sheet tổ" trong Excel |
+| Đơn vị báo cáo (Unit) | Một tổ (`GROUP`) có form tuần riêng; tổ dưới nhóm "Kỹ sư … - Theo ca" (`SHIFT`) là tổ kíp A/B/C, giờ công KIP (mục 23); tương ứng một "sheet tổ" trong Excel |
 | Form tuần (WeeklyForm) | Dữ liệu của 1 đơn vị trong 1 tuần, gồm 2 giai đoạn **Kế hoạch** và **Báo cáo** |
 | Dòng công việc | 1 dòng trên lưới. **Từ 16/11/2026 tách 2 bảng**: dòng kế hoạch (`WorkPlanItem`) và dòng báo cáo (`WorkReportItem`) — mục 16 |
 | Dòng phát sinh | Dòng thêm ở giai đoạn báo cáo, không có trong kế hoạch (`IsUnplanned`) |
@@ -165,7 +165,7 @@ Sáng thứ 2 tuần N trước 11:00: kế hoạch tuần N **và** báo cáo t
 ## 4. Liên kết sơ đồ tổ chức
 
 - Cây đơn vị có sẵn: `FACTORY` → `WORKSHOP` (Xưởng) → `TEAM` (Đội) / `SHIFT` (Nhóm theo ca, `OrgUnit.Shift` = A/B/C, `SingleHead = false` cho nhiều KS) → `GROUP` (Tổ).
-- **Đơn vị báo cáo** = một `GROUP` hoặc `SHIFT`, kèm: tiền tố mã, loại giờ công HC/KIP, thứ tự I, II… trong xưởng, tên hiển thị.
+- **Đơn vị báo cáo** = một `GROUP` (từ 18/11 nhóm `SHIFT` không thành đơn vị; tổ con của nó là tổ kíp, mục 23), kèm: tiền tố mã, loại giờ công HC/KIP, thứ tự I, II… trong xưởng, tên hiển thị.
 - **Kỹ sư phụ trách** lưu ở bảng riêng `WorkReportUnitEngineer` (nhiều–nhiều, có lịch sử), áp dụng cho cả tổ và kíp:
   - 1 kỹ sư phụ trách nhiều tổ (vd Nguyễn Kim Lộc: Đ-NHLB1, Đ-NHLB2); 1 kíp có nhiều kỹ sư.
   - **Đội trưởng/phó** (trong đội) và **quản đốc/phó** (trong xưởng) được đổi kỹ sư phụ trách.
@@ -615,6 +615,48 @@ Người dùng chốt làm A + B + C + D (bỏ E "cảnh báo trùng việc", đ
 - **Dòng cũ** (chưa lưu KTV theo dòng): vẫn hiện KTV của tổ/kíp như trước; khi sửa, ô KTV điền sẵn KTV của tổ/kíp. **Đưa kế hoạch vào báo cáo**: chép KTV của dòng kế hoạch (người dùng chốt).
 - Vật tư: cột KTV lấy KTV của dòng công việc gắn vật tư (dòng cũ: KTV của form). Hộp thoại xung đột so cả ô KTV.
 
+## 22. Chỉ KTV phụ trách dòng được sửa / xóa (18/11/2026)
+
+- Kỹ sư (vai trò ENGINEER) chỉ sửa / xóa được dòng mà mình có tên ở cột (10) KTV phụ trách. Dòng có từ 2 KTV trở lên thì **ai trong số đó** cũng sửa / xóa được.
+- Admin, quản đốc/phó, đội trưởng/phó: sửa / xóa mọi dòng trong phạm vi như trước. Dòng cũ chưa lưu KTV theo dòng (`Engineers` rỗng): không giới hạn.
+- Thêm dòng, đưa kế hoạch vào báo cáo, vật tư: không đổi.
+- Server: `WorkItemSupport.EnsureRowEngineerAsync` gọi trong Update/Delete của `WorkPlanService`, `WorkReportService` → 403 "Chỉ KTV phụ trách dòng này (…) mới được sửa/xóa." Client: `isRowEngineer` (workReportUtils) ẩn nút bút/xóa và chặn double-click.
+- UI: dòng tiêu đề tổ/kíp bỏ tag "Đang nhập", chỉ còn "Đã khóa" / "Chưa tới tuần" (cả tab Vật tư xưởng). Người khác đang sửa dòng: cột Thao tác hiện **bút + tên (2 chữ cuối) + 3 chấm nhấp nháy** thay nút (rê chuột thấy họ tên đầy đủ), bỏ biểu tượng khóa ở cột TT. Người đang **thêm dòng mới** hiện cùng kiểu ở dòng tiêu đề tổ/kíp.
+
+## 23. Tổ theo kíp dưới nhóm Kỹ sư theo ca (18/11/2026)
+
+- Sơ đồ thực tế: Xưởng → **"Kỹ sư Cơ điện - Theo ca"** (`SHIFT`, chứa các kỹ sư theo ca) → **"Tổ Cơ điện - … - Kíp A/B/C"** (`GROUP`, `OrgUnit.Shift` = A/B/C).
+- Trước: nhóm SHIFT thành 1 sheet giờ KIP, các tổ kíp con thành sheet giờ HC (sai).
+- Nay: **chỉ tổ (`GROUP`) thành sheet**. Tổ nằm dưới nhóm SHIFT (`OrgTree.IsShiftCrew`) → giờ công **KIP**; nhóm SHIFT không thành sheet. Xưởng không có nhóm Kỹ sư theo ca: không đổi.
+- Gợi ý phân công kỹ sư cho tổ kíp: kỹ sư (cấp KS) ở nhóm **Kỹ sư theo ca** cha (không lấy kỹ sư HC của đội). Phân công tổ kíp: chỉ quản đốc/phó (`OrgTree.IsShiftUnit`).
+- Dữ liệu cũ: chạy 1 lần `Data/Scripts/FixShiftCrewUnits.sql` — xóa mềm đơn vị nhóm SHIFT (bỏ form trống; đơn vị đã có dữ liệu thì giữ, in ra để xử lý tay), đổi các tổ kíp (cả đơn vị đã xóa) + form của chúng sang KIP / giờ công kíp.
+- Trang Đơn vị báo cáo: dòng phụ hiện "Tổ kíp A · …".
+
+## 24. Đơn vị tự đặt có tổ gợi ý người thực hiện (18/11/2026)
+
+- Thực tế Excel có sheet làm chung nhiều tổ trên sơ đồ, vd "Tổ Cơ khí - Lọc bụi - Lò cao 1–4" = tổ "Lọc bụi - Lò cao 1, 2" + tổ "Lọc bụi - Lò cao 3, 4". Trước: đơn vị tự đặt gắn với đội → ô người thực hiện gợi ý **cả đội** (vd 45 người Đội Nạp liệu, lọc bụi).
+- Hộp thoại Thêm / Sửa đơn vị **tự đặt** có ô **"Tổ gợi ý người thực hiện"** (chọn nhiều tổ đang hoạt động trong đội/xưởng đã gắn). Không gộp tổ: ô người thực hiện **chia nhóm theo từng tổ** (tiêu đề tổ), mỗi tổ có dòng **"Cả tổ Lò cao 1, 2 (n người)"** riêng; chọn được "Cả tổ" của nhiều tổ cùng lúc; "Cả tổ" và người lẻ loại trừ nhau. Để trống = cả đội/xưởng như cũ (1 dòng "Cả tổ").
+- Ô (9) khi xem: "Cả tổ Lò cao 1, 2" (mỗi tổ 1 dòng; rê chuột thấy danh sách người). Số người = tổng nhân viên các tổ chọn.
+- Gợi ý phân công kỹ sư thêm kỹ sư ở các tổ gợi ý.
+- Server:
+  - `WorkReportUnit.MemberOrgUnitIds` (mảng JSON, migration `AddWorkReportUnitMemberOrgUnits`). Request `memberOrgUnitIds`; DTO `memberOrgUnits`; `parent-options` trả thêm `groups` của từng xưởng/đội. Sai → 400 `memberOrgUnitIds`. Tối đa 20 tổ.
+  - Gợi ý người (`WorkerOptionDto`) có `groupOrgUnitId`, `groupName`.
+  - Dòng: cột JSON `WholeGroups` [{OrgUnitId, Name}] (migration `AddWorkItemWholeGroups`, dòng cũ `[]`); request `wholeGroupOrgUnitIds` (cùng `isWholeUnit`), chỉ nhận tổ gợi ý của đơn vị (sai → 400 `workers`). Đưa kế hoạch vào báo cáo chép `WholeGroups`.
+  - Client: giá trị "Cả tổ" của 1 tổ = `grp:<OrgUnitId>:<số người>` (workReportUtils).
+- Cách dùng: Thêm đơn vị → Thuộc "Đội Cơ khí - Nạp liệu, lọc bụi" → Tổ gợi ý: 2 tổ Lọc bụi → phân công kỹ sư. Nếu sheet này thay 2 sheet tổ Lọc bụi riêng thì **Ngừng dùng / Xóa** 2 đơn vị đó.
+
+## 25. Trang công khai: Hôm nay, Phân tích, xưởng công khai (18/11/2026)
+
+- Trang `/work-reports` có 3 phần (`?page=`): **Hôm nay** (mặc định), **Phân tích** (`analysis`), **Chi tiết tuần** (`week`, màn hình xem tuần cũ).
+- **Xưởng công khai**: Cài đặt báo cáo tuần → "Xưởng hiện trên trang công khai" (`WorkReportSetting.PublicWorkshopIds`, mảng JSON, migration `AddWorkReportPublicWorkshops` mặc định 5 xưởng X.CĐLG1, X.CĐLG2, X.CĐNĐ1, X.CĐNĐ2, X.CĐNL). Rỗng = mọi xưởng. Xưởng khác tạm ẩn ở cả 3 phần: `UsePublicViewAsync` đặt `WorkReportScope.PublicWorkshopIds` → `GetMyScopeAsync` lọc, `ComputeAccess` CanView = false, `GetVisibleFormsAsync` 403.
+- **Hôm nay**: "Báo cáo hôm nay" = dòng báo cáo có khoảng ngày làm phủ ngày chọn (mặc định hôm nay); "Kế hoạch ngày mai" = dòng kế hoạch phủ ngày kế tiếp (sang tuần mới thì lấy kế hoạch tuần mới). Mỗi xưởng 1 khung, bảng gộp ô theo tổ/kíp: mã CV (+ Phát sinh), đầu mục, thiết bị, hạng mục, thời gian, người thực hiện (số người), KTV, giờ công KH/TT, % hoàn thành, ghi chú. Chọn ngày, lọc xưởng.
+- **Phân tích** (chọn tuần báo cáo, mặc định tuần đang báo cáo; kế hoạch = tuần kế tiếp):
+  - Báo cáo: bảng theo xưởng (số việc, phát sinh, giờ công KH, TT, % thực hiện = TT/KH, định biên, số mã / số dòng vật tư, dòng Tổng); biểu đồ cột KH vs TT; cột chồng phút thực tế theo đầu mục (8 màu theo thứ tự đầu mục, quá thì gộp "Khác"); số mã vật tư; bảng đầu mục × xưởng "phút (x%)".
+  - Kế hoạch tuần tới: bảng theo xưởng, cột chồng phút kế hoạch theo đầu mục, số mã vật tư dự kiến, bảng đầu mục × xưởng.
+  - Màu: bảng màu đã kiểm tra mù màu dùng chung với dashboard Sự cố (`incidents/constants/incidentDashboard`).
+- API công khai mới: `GET /api/work-reports/public/daily/report?date=`, `daily/plan?date=`, `dashboard?weekId=` (`WorkReportDashboardService`, dùng lại lưới từng xưởng rồi lọc / cộng dồn).
+- Chưa tự làm mới tức thì ở 2 phần mới (bấm Tải lại).
+
 ## 14. Nhật ký thay đổi
 
 | Ngày | Nội dung |
@@ -637,3 +679,7 @@ Người dùng chốt làm A + B + C + D (bỏ E "cảnh báo trùng việc", đ
 | 17/11/2026 | **Người thực hiện** (mục 19): thêm "Cả tổ" (cột `IsWholeUnit`, migration `AddWorkItemIsWholeUnit`, số người = nhân viên tổ/kíp); bỏ gợi ý Đội/Xưởng; ô chọn chỉ hiện tên, hiện đủ tên. |
 | 17/11/2026 | **Nhiều kỹ sư cùng nhập** (mục 20): hiện "đang sửa" (SignalR, khóa mềm), hộp thoại xung đột không mất dữ liệu (dòng + vật tư), vật tư có rowVersion (migration `AddWorkMaterialRowVersion`), tooltip người sửa cuối (`updatedByName`). |
 | 17/11/2026 | **KTV phụ trách theo dòng** (mục 21): cột JSON `Engineers` (migration `AddWorkItemEngineers`), mặc định người nhập, chọn thêm kỹ sư được phân công tổ; dòng cũ giữ KTV của tổ; đưa KH vào BC chép KTV. |
+| 18/11/2026 | **Chỉ KTV phụ trách dòng được sửa/xóa** (mục 22): `EnsureRowEngineerAsync`; quản lý/admin không giới hạn; bỏ tag "Đang nhập"; người đang sửa hiện bút + tên + 3 chấm động. |
+| 18/11/2026 | **Tổ theo kíp** (mục 23): nhóm Kỹ sư theo ca (SHIFT) không thành sheet; tổ con Kíp A/B/C giờ KIP, gợi ý kỹ sư theo ca; script `FixShiftCrewUnits.sql`. |
+| 18/11/2026 | **Tổ gợi ý người thực hiện** (mục 24): đơn vị tự đặt chọn tổ gợi ý (`MemberOrgUnitIds`); ô người thực hiện chia theo tổ, "Cả tổ" riêng từng tổ (`WholeGroups`). Migration `AddWorkReportUnitMemberOrgUnits`, `AddWorkItemWholeGroups`. |
+| 18/11/2026 | **Trang công khai** (mục 25): phần Hôm nay (báo cáo hôm nay, kế hoạch ngày mai), Phân tích (giờ công KH/TT, %, phút theo đầu mục, vật tư; báo cáo tuần + kế hoạch tuần tới), Chi tiết tuần; xưởng công khai chọn trong Cài đặt (migration `AddWorkReportPublicWorkshops`). |

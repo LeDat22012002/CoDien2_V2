@@ -31,7 +31,6 @@ import {
 import {
   EditingActions,
   ItemActions,
-  LockedByIcon,
 } from "@/modules/workReports/components/grid/GridRowActions";
 import {
   SheetGroupHeader,
@@ -140,7 +139,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
   const canEditAny = forms.some((form) => form.canEditNow);
 
   const startEdit = (form: WeeklyReportForm, item: WorkReportItem) => {
-    if (!form.canUpdate) return;
+    if (!editor.canUpdateItem(form, item)) return;
     editor.startEdit(form, item, {
       ...toCommonFormValues(item, form),
       plannedMinutes: item.plannedMinutes?.toString() ?? undefined,
@@ -191,6 +190,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
         latest,
         editingItem?.workers ?? [],
         editor.engineerOptions,
+        editingItem?.wholeGroups,
       ),
       ...(latest.isUnplanned
         ? [
@@ -421,15 +421,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
     isEditingRow,
     itemOf,
     renderTt: (row: Row) => {
-      if (row.kind === "item") {
-        const lock = editor.lockOf(row.form.formId, row.item.id);
-        return (
-          <span className="inline-flex items-center gap-1">
-            {row.item.tt}
-            {lock && <LockedByIcon name={lock.fullName} />}
-          </span>
-        );
-      }
+      if (row.kind === "item") return row.item.tt;
       if (row.kind === "suggestion")
         return (
           <Tooltip title="Gợi ý từ kế hoạch (chỉ bạn thấy, chưa có trong báo cáo)">
@@ -473,6 +465,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
     engineerOptions: editor.engineerOptions,
     rowForm,
     editingWorkers: editingItem?.workers,
+    editingWholeGroups: editingItem?.wholeGroups,
     onSave: handleSave,
   };
 
@@ -698,8 +691,8 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
               return (
                 <ItemActions
                   code={item.code}
-                  canUpdate={row.form.canUpdate}
-                  canDelete={row.form.canDelete}
+                  canUpdate={editor.canUpdateItem(row.form, item)}
+                  canDelete={editor.canDeleteItem(row.form, item)}
                   disabled={isBusy}
                   lockedBy={editor.lockOf(row.form.formId, item.id)?.fullName}
                   onEdit={() => startEdit(row.form, item)}
@@ -743,7 +736,7 @@ export const ReportGridTable = ({ grid, forms }: ReportGridTableProps) => {
               onDoubleClick: () => {
                 if (row.kind !== "item" || isBusy) return;
                 const lock = editor.lockOf(row.form.formId, row.item.id);
-                if (lock && row.form.canUpdate) {
+                if (lock && editor.canUpdateItem(row.form, row.item)) {
                   notify.info(`${lock.fullName} đang sửa dòng này.`, {
                     toastId: `lock-${row.item.id}`,
                   });

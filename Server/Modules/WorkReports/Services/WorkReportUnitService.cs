@@ -28,6 +28,7 @@ public class WorkReportUnitService(
 {
     private const string NotFoundMessage = "Không tìm thấy đơn vị báo cáo.";
     private const int SortOrderStep = 10;
+    private const int MaxMemberGroups = 20;
 
     public async Task<IReadOnlyList<WorkReportUnitDto>> GetListAsync(
         WorkReportUnitFilterRequest filter, CancellationToken cancellationToken)
@@ -142,11 +143,47 @@ public class WorkReportUnitService(
         await EnsureCanManageWorkshopAsync(workshopId, cancellationToken);
 
         var workshop = tree.Get(workshopId)!;
-        return new[] { new WorkReportUnitParentOptionDto { OrgUnitId = workshop.Id, Name = workshop.Name, IsWorkshop = true } }
+        return new[] { new WorkReportUnitParentOptionDto
+            {
+                OrgUnitId = workshop.Id, Name = workshop.Name, IsWorkshop = true, Groups = GroupOptions(tree, workshop.Id),
+            } }
             .Concat(tree.GetDescendants(workshopId)
                 .Where(x => x.IsActive && x.TypeCode == OrgUnitTypeCodes.Team)
-                .Select(x => new WorkReportUnitParentOptionDto { OrgUnitId = x.Id, Name = x.Name }))
+                .Select(x => new WorkReportUnitParentOptionDto
+                {
+                    OrgUnitId = x.Id, Name = x.Name, Groups = GroupOptions(tree, x.Id),
+                }))
             .ToList();
+    }
+
+    /// <summary>Tổ đang hoạt động nằm trong đội / xưởng: lựa chọn gộp nhân sự cho đơn vị tự đặt.</summary>
+    private static IReadOnlyList<OrgUnitOptionDto> GroupOptions(OrgTree tree, int parentOrgUnitId) =>
+        tree.GetDescendants(parentOrgUnitId)
+            .Where(x => x.IsActive && x.TypeCode == OrgUnitTypeCodes.Group)
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
+            .Select(x => new OrgUnitOptionDto { OrgUnitId = x.Id, Name = x.Name })
+            .ToList();
+
+    /// <summary>
+    /// Tổ gộp của đơn vị tự đặt: phải là tổ trên sơ đồ nằm trong đội/xưởng gắn. Tổ cũ đã có trên đơn vị mà nay ngừng
+    /// trên sơ đồ vẫn giữ được (không bắt bỏ khi sửa tên / tiền tố).
+    /// </summary>
+    private static List<int> ResolveMemberOrgUnitIds(
+        OrgTree tree, int parentOrgUnitId, IReadOnlyCollection<int>? requested, IReadOnlyCollection<int> current)
+    {
+        var ids = (requested ?? []).Where(x => x > 0).Distinct().ToList();
+        if (ids.Count > MaxMemberGroups)
+        {
+            throw FieldError("memberOrgUnitIds", $"Gộp tối đa {MaxMemberGroups} tổ.");
+        }
+
+        var allowed = GroupOptions(tree, parentOrgUnitId).Select(x => x.OrgUnitId).Concat(current).ToHashSet();
+        if (ids.Any(x => !allowed.Contains(x)))
+        {
+            throw FieldError("memberOrgUnitIds", "Chỉ gộp được các tổ đang hoạt động nằm trong đội / xưởng đã gắn.");
+        }
+
+        return ids;
     }
 
     public async Task<WorkReportUnitDto> CreateAsync(
@@ -176,6 +213,7 @@ public class WorkReportUnitService(
             DisplayName = request.DisplayName!,
             CodePrefix = request.CodePrefix,
             LaborType = request.LaborType,
+            MemberOrgUnitIds = ResolveMemberOrgUnitIds(tree, parent.Id, request.MemberOrgUnitIds, []),
             SortOrder = (unitsInWorkshop.Count == 0 ? 0 : unitsInWorkshop.Max(x => x.SortOrder)) + SortOrderStep,
             IsActive = true,
         };
@@ -224,6 +262,11 @@ public class WorkReportUnitService(
         unit.CodePrefix = request.CodePrefix;
         unit.LaborType = request.LaborType;
         unit.IsActive = request.IsActive;
+        if (unit.IsCustom)
+        {
+            unit.MemberOrgUnitIds = ResolveMemberOrgUnitIds(
+                tree, unit.OrgUnitId, request.MemberOrgUnitIds, unit.MemberOrgUnitIds);
+        }
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Cập nhật tên / loại giờ công của form chưa khóa; bật lại → tạo form; ngừng → bỏ form trống tuần sau
@@ -374,6 +417,9 @@ public class WorkReportUnitService(
                 LaborType = unit.LaborType,
                 SortOrder = unit.SortOrder,
                 IsActive = unit.IsActive,
+                MemberOrgUnits = unit.MemberOrgUnitIds
+                    .Select(x => new OrgUnitOptionDto { OrgUnitId = x, Name = tree.GetName(x) })
+                    .ToList(),
                 Engineers = engineers.GetValueOrDefault(unit.Id, []),
                 CanConfigure = access.CanConfigure,
                 CanManageEngineers = !unit.IsDeleted && access.CanManageEngineers,

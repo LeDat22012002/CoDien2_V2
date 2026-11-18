@@ -70,6 +70,7 @@ public class WorkPlanService(
 
         var category = await support.GetUsableCategoryAsync(request.WorkCategoryId, context.Form.WorkshopId, cancellationToken);
         var workers = await support.BuildWorkersAsync(request, context.Form, cancellationToken);
+        var wholeGroups = await support.ResolveWholeGroupsAsync(request, context.Form, cancellationToken);
         var engineers = await support.ResolveEngineersAsync(request, context.Form, null, cancellationToken);
         var equipment = await support.ResolveEquipmentAsync(request.EquipmentCode, cancellationToken);
 
@@ -83,6 +84,7 @@ public class WorkPlanService(
         };
         WorkItemSupport.ApplyCommonFields(item, request, equipment, workers, () => new WorkPlanItemWorker());
         item.Engineers = engineers;
+        item.WholeGroups = wholeGroups;
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -101,6 +103,7 @@ public class WorkPlanService(
         var item = await itemRepository.FindByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException(NotFoundMessage);
         var context = await formService.GetContextAsync(item.WeeklyFormId, Phase, WorkItemAction.Update, cancellationToken);
+        await support.EnsureRowEngineerAsync(context, item.Engineers, WorkItemAction.Update, cancellationToken);
 
         var clientRowVersion = WorkItemSupport.ParseRowVersion(request.RowVersion);
         if (!clientRowVersion.SequenceEqual(item.RowVersion))
@@ -118,12 +121,14 @@ public class WorkPlanService(
         }
 
         var workers = await support.BuildWorkersAsync(request, context.Form, cancellationToken);
+        var wholeGroups = await support.ResolveWholeGroupsAsync(request, context.Form, cancellationToken);
         var engineers = await support.ResolveEngineersAsync(
             request, context.Form, item.Engineers, cancellationToken);
         var equipment = await support.ResolveEquipmentAsync(request.EquipmentCode, cancellationToken);
 
         WorkItemSupport.ApplyCommonFields(item, request, equipment, workers, () => new WorkPlanItemWorker());
         item.Engineers = engineers;
+        item.WholeGroups = wholeGroups;
         item.PlannedMinutes = request.PlannedMinutes;
         item.SortOrder = request.SortOrder ?? item.SortOrder;
         itemRepository.PrepareConcurrentUpdate(item, clientRowVersion);
@@ -162,6 +167,7 @@ public class WorkPlanService(
         var item = await itemRepository.FindByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException(NotFoundMessage);
         var context = await formService.GetContextAsync(item.WeeklyFormId, Phase, WorkItemAction.Delete, cancellationToken);
+        await support.EnsureRowEngineerAsync(context, item.Engineers, WorkItemAction.Delete, cancellationToken);
 
         foreach (var material in await materialRepository.FindByItemIdsAsync([id], cancellationToken))
         {

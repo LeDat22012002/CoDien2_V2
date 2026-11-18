@@ -24,6 +24,12 @@ public class WorkReportSetting : BaseEntity
 
     /// <summary>Cảnh báo trên web trước hạn bao nhiêu ngày (mặc định 2: thứ 7 và Chủ nhật).</summary>
     public int WarnDaysBefore { get; set; } = WorkReportDefaults.WarnDaysBefore;
+
+    /// <summary>
+    /// Xưởng (OrgUnit.Id đơn vị cấp 1) hiện trên trang công khai /work-reports, theo thứ tự sơ đồ; xưởng khác tạm ẩn.
+    /// Rỗng = mọi xưởng.
+    /// </summary>
+    public List<int> PublicWorkshopIds { get; set; } = [];
 }
 
 // ===== Giá trị mặc định =====

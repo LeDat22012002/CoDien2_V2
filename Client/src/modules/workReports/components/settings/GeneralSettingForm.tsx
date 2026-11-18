@@ -16,6 +16,7 @@ import dayjs from "@/shared/utils/dayjs";
 import { applyServerErrors } from "@/shared/utils/formErrors";
 import { notify } from "@/shared/utils/notify";
 import {
+  useMyWorkReportScope,
   useUpdateWorkReportSetting,
   useWorkReportSetting,
 } from "@/modules/workReports/hooks/useWorkReportQueries";
@@ -26,7 +27,13 @@ interface SettingFormValues {
   deadlineDayOffset: number;
   deadlineTime: Dayjs;
   warnDaysBefore: number;
+  publicWorkshopIds: number[];
 }
+
+/** So 2 danh sách Id không phân biệt thứ tự. */
+const sameIds = (a: number[] = [], b: number[] = []) =>
+  [...a].sort((x, y) => x - y).join(",") ===
+  [...b].sort((x, y) => x - y).join(",");
 
 const DAY_NAMES = [
   "Thứ 2",
@@ -62,6 +69,8 @@ export const GeneralSettingForm = () => {
   const [form] = Form.useForm<SettingFormValues>();
   const settingQuery = useWorkReportSetting();
   const updateMutation = useUpdateWorkReportSetting();
+  // Người cấu hình (configure) thấy mọi xưởng
+  const scopeQuery = useMyWorkReportScope();
   // Theo dõi toàn bộ giá trị form (hook phải gọi trước các lệnh return sớm)
   const values = Form.useWatch([], form) as
     | Partial<SettingFormValues>
@@ -87,6 +96,7 @@ export const GeneralSettingForm = () => {
       values.shiftMinutesPerWeek !== setting.shiftMinutesPerWeek ||
       values.deadlineDayOffset !== setting.deadlineDayOffset ||
       values.warnDaysBefore !== setting.warnDaysBefore ||
+      !sameIds(values.publicWorkshopIds, setting.publicWorkshopIds) ||
       values.deadlineTime?.format("HH:mm") !==
         toHourMinute(setting.deadlineTime));
 
@@ -99,6 +109,7 @@ export const GeneralSettingForm = () => {
         deadlineDayOffset: formValues.deadlineDayOffset,
         deadlineTime: formValues.deadlineTime.format("HH:mm:00"),
         warnDaysBefore: formValues.warnDaysBefore,
+        publicWorkshopIds: formValues.publicWorkshopIds ?? [],
       });
       notify.success("Đã lưu cấu hình.");
     } catch (error) {
@@ -118,6 +129,7 @@ export const GeneralSettingForm = () => {
         deadlineDayOffset: setting.deadlineDayOffset,
         deadlineTime: toTime(setting.deadlineTime),
         warnDaysBefore: setting.warnDaysBefore,
+        publicWorkshopIds: setting.publicWorkshopIds,
       }}
     >
       <Alert
@@ -188,6 +200,25 @@ export const GeneralSettingForm = () => {
             rules={[{ required: true, message: "Nhập số ngày" }]}
           >
             <InputNumber min={0} max={6} className="w-full" />
+          </Form.Item>
+        </Col>
+        <Col xs={24}>
+          <Form.Item
+            name="publicWorkshopIds"
+            label="Xưởng hiện trên trang công khai"
+            extra="Trang /work-reports (Hôm nay, Phân tích, Chi tiết tuần) chỉ hiện các xưởng đã chọn; xưởng khác tạm ẩn. Để trống = mọi xưởng."
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="Mọi xưởng"
+              loading={scopeQuery.isLoading}
+              optionFilterProp="label"
+              options={(scopeQuery.data?.workshops ?? []).map((workshop) => ({
+                value: workshop.workshopId,
+                label: workshop.workshopName,
+              }))}
+            />
           </Form.Item>
         </Col>
       </Row>

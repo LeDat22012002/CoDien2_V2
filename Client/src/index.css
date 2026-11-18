@@ -10,6 +10,22 @@
   /* Header cố định của trang công khai trượt xuống khi cuộn: class animate-slide-down */
   --animate-slide-down: slide-down 0.3s ease-out;
 
+  /* 3 chấm "đang nhập" (báo cáo tuần): class animate-typing-dot, mỗi chấm lệch animation-delay */
+  --animate-typing-dot: typing-dot 1.2s ease-in-out infinite;
+
+  @keyframes typing-dot {
+    0%,
+    60%,
+    100% {
+      opacity: 0.3;
+      transform: translateY(0);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+  }
+
   @keyframes slide-down {
     from {
       opacity: 0;

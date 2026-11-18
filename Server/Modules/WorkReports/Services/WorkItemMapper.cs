@@ -144,6 +144,9 @@ public static class WorkItemMapper
                 })
                 .ToList(),
             IsWholeUnit = item.IsWholeUnit,
+            WholeGroups = item.WholeGroups
+                .Select(x => new OrgUnitOptionDto { OrgUnitId = x.OrgUnitId, Name = x.Name })
+                .ToList(),
             Engineers = item.Engineers
                 .Select(x => new EngineerOptionDto { EmployeeId = x.EmployeeId, FullName = x.FullName })
                 .ToList(),

@@ -44,6 +44,9 @@ public abstract class WorkItemDtoBase
     /// <summary>(9) Cả tổ/kíp: hiển thị "Cả tổ"; Workers là danh sách nhân viên tổ/kíp chụp lúc lưu.</summary>
     public bool IsWholeUnit { get; set; }
 
+    /// <summary>(9) "Cả tổ" theo từng tổ (IsWholeUnit = true): các tổ đã chọn; rỗng = cả đơn vị.</summary>
+    public IReadOnlyList<OrgUnitOptionDto> WholeGroups { get; set; } = [];
+
     /// <summary>(10) KTV phụ trách dòng; rỗng = dòng cũ (trước 17/11/2026), Client hiện KTV của form.</summary>
     public IReadOnlyList<EngineerOptionDto> Engineers { get; set; } = [];
 
@@ -122,6 +125,11 @@ public class WorkerOptionDto
     public string FullName { get; set; } = string.Empty;
     public string OrgUnitName { get; set; } = string.Empty;
     public string LevelName { get; set; } = string.Empty;
+
+    /// <summary>Đơn vị có tổ gợi ý: tổ của người này (Client chia nhóm theo tổ); null = không chia nhóm.</summary>
+    public int? GroupOrgUnitId { get; set; }
+
+    public string? GroupName { get; set; }
 }
 
 // ===== Request =====
@@ -149,6 +157,12 @@ public abstract class WorkItemRequestBase
 
     /// <summary>Cả tổ/kíp: Server tự lấy toàn bộ nhân viên của tổ/kíp trên sơ đồ làm người thực hiện.</summary>
     public bool IsWholeUnit { get; set; }
+
+    /// <summary>
+    /// Cùng IsWholeUnit = true, đơn vị có tổ gợi ý: "Cả tổ" của các tổ này (Server lấy nhân viên các tổ đó).
+    /// Trống = cả đơn vị.
+    /// </summary>
+    public List<int>? WholeGroupOrgUnitIds { get; set; }
 
     /// <summary>(10) KTV phụ trách (Id nhân viên): kỹ sư được phân công tổ/kíp hoặc người nhập. Trống = người nhập.</summary>
     public List<int>? EngineerIds { get; set; }

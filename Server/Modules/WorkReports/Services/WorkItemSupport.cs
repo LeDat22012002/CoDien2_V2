@@ -55,7 +55,10 @@ public class WorkItemSupport(
             return await BuildWorkersAsync(request.Workers, cancellationToken);
         }
 
-        var members = await workerOptionService.GetUnitMembersAsync(form.WorkReportUnitId, cancellationToken);
+        var groupIds = (request.WholeGroupOrgUnitIds ?? []).Where(x => x > 0).Distinct().ToList();
+        var members = groupIds.Count > 0
+            ? (await workerOptionService.GetGroupMembersAsync(form.WorkReportUnitId, groupIds, cancellationToken)).Members
+            : await workerOptionService.GetUnitMembersAsync(form.WorkReportUnitId, cancellationToken);
         if (members.Count == 0)
         {
             throw new ValidationException("Dữ liệu không hợp lệ.", new Dictionary<string, string[]>
@@ -65,6 +68,20 @@ public class WorkItemSupport(
         }
 
         return members.Select(x => ((int?)x.EmployeeId, x.FullName)).ToList();
+    }
+
+    /// <summary>"Cả tổ" theo từng tổ: bản chụp tên các tổ được chọn (không phải "Cả tổ" hoặc cả đơn vị → rỗng).</summary>
+    public async Task<List<WorkItemGroup>> ResolveWholeGroupsAsync(
+        WorkItemRequestBase request, WeeklyForm form, CancellationToken cancellationToken)
+    {
+        var groupIds = (request.WholeGroupOrgUnitIds ?? []).Where(x => x > 0).Distinct().ToList();
+        if (!request.IsWholeUnit || groupIds.Count == 0)
+        {
+            return [];
+        }
+
+        var (_, groups) = await workerOptionService.GetGroupMembersAsync(form.WorkReportUnitId, groupIds, cancellationToken);
+        return groups.Select(x => new WorkItemGroup { OrgUnitId = x.OrgUnitId, Name = x.Name }).ToList();
     }
 
     private async Task<IReadOnlyList<(int? EmployeeId, string DisplayName)>> BuildWorkersAsync(
@@ -88,6 +105,36 @@ public class WorkItemSupport(
                 x.DisplayName ?? (x.EmployeeId is { } id ? employees[id].FullName : string.Empty)))
             .ToList();
     }
+
+    /// <summary>
+    /// Sửa / xóa dòng: kỹ sư chỉ được thao tác dòng mình là KTV phụ trách (dòng nhiều KTV thì ai trong số đó cũng được).
+    /// Admin, quản đốc/phó, đội trưởng/phó được mọi dòng trong phạm vi; dòng cũ chưa lưu KTV theo dòng không giới hạn.
+    /// </summary>
+    public async Task EnsureRowEngineerAsync(
+        WeeklyFormContext context,
+        IReadOnlyCollection<WorkItemEngineer> engineers,
+        WorkItemAction action,
+        CancellationToken cancellationToken)
+    {
+        if (IsRowUnrestricted(context.Access.Role) || engineers.Count == 0)
+        {
+            return;
+        }
+
+        var currentEmployeeId = await employeeService.GetCurrentEmployeeIdAsync(cancellationToken);
+        if (currentEmployeeId is { } me && engineers.Any(x => x.EmployeeId == me))
+        {
+            return;
+        }
+
+        var verb = action == WorkItemAction.Delete ? "xóa" : "sửa";
+        throw new ForbiddenException(
+            $"Chỉ KTV phụ trách dòng này ({string.Join(", ", engineers.Select(x => x.FullName))}) mới được {verb}.");
+    }
+
+    /// <summary>Vai trò sửa / xóa được mọi dòng của tổ/kíp (không cần là KTV phụ trách dòng).</summary>
+    public static bool IsRowUnrestricted(string role) =>
+        role is WorkReportRoles.Admin or WorkReportRoles.WorkshopManager or WorkReportRoles.TeamManager;
 
     /// <summary>
     /// (10) KTV phụ trách dòng: trống = người nhập. Chỉ nhận kỹ sư đang được phân công tổ/kíp, người nhập

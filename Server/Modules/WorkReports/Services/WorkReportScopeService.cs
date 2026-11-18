@@ -17,6 +17,7 @@ public class WorkReportScopeService(
     IPermissionChecker permissionChecker,
     ICurrentUserService currentUserService,
     IWorkReportUnitRepository unitRepository,
+    IWorkReportSettingRepository settingRepository,
     IOrgTreeProvider orgTreeProvider) : IWorkReportScopeService
 {
     private const string InvalidSessionMessage = "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.";
@@ -103,7 +104,12 @@ public class WorkReportScopeService(
         };
     }
 
-    public void UsePublicView() => _scope = new WorkReportScope { CanViewFactory = true };
+    public async Task UsePublicViewAsync(CancellationToken cancellationToken)
+    {
+        // Rỗng = chưa cấu hình → mọi xưởng
+        var ids = (await settingRepository.GetAsync(cancellationToken)).PublicWorkshopIds;
+        _scope = new WorkReportScope { CanViewFactory = true, PublicWorkshopIds = ids.Count > 0 ? ids.ToHashSet() : null };
+    }
 
     public Task<WorkReportUnitAccessDto> GetUnitAccessAsync(WorkReportUnit unit, CancellationToken cancellationToken) =>
         GetUnitAccessAsync(unit, null, null, cancellationToken);
@@ -135,6 +141,11 @@ public class WorkReportScopeService(
         var workshops = new List<WorkReportScopeWorkshopDto>();
         foreach (var workshop in tree.GetWorkshops())
         {
+            if (scope.PublicWorkshopIds is { } publicIds && !publicIds.Contains(workshop.Id))
+            {
+                continue;
+            }
+
             var accesses = unitsByWorkshop.GetValueOrDefault(workshop.Id, [])
                 .Select(x => ComputeAccess(scope, tree, x))
                 .Where(x => x.CanView)
@@ -173,9 +184,11 @@ public class WorkReportScopeService(
     private static WorkReportUnitAccessDto ComputeAccess(
         WorkReportScope scope, OrgTree tree, WorkReportUnit unit, int? formWorkshopId = null, WorkWeek? week = null)
     {
-        var orgUnit = tree.Get(unit.OrgUnitId);
-        var isShift = orgUnit?.TypeCode == OrgUnitTypeCodes.Shift;
+        var isShift = tree.IsShiftUnit(unit.OrgUnitId);
         var workshopId = formWorkshopId ?? tree.GetWorkshop(unit.OrgUnitId)?.Id;
+        // Trang công khai: xưởng tạm ẩn thì không xem được
+        var isPublicHidden = scope.PublicWorkshopIds is { } publicIds
+                             && (workshopId is not { } publicWsId || !publicIds.Contains(publicWsId));
 
         var isAdmin = scope.CanConfigure;
         var isWorkshopHead = workshopId is { } wsId && scope.HeadWorkshopIds.Contains(wsId);
@@ -217,8 +230,8 @@ public class WorkReportScopeService(
             LaborType = unit.LaborType,
             SortOrder = unit.SortOrder,
             Role = role,
-            CanView = isAdmin || scope.CanViewFactory || isWorkshopManager || isTeamManager || isEngineer
-                      || wasEngineer || hasGrantedRight,
+            CanView = !isPublicHidden && (isAdmin || scope.CanViewFactory || isWorkshopManager || isTeamManager || isEngineer
+                      || wasEngineer || hasGrantedRight),
             Plan = plan,
             Report = report,
             CanUnlock = canUnlock,

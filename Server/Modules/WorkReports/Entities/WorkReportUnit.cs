@@ -34,6 +34,13 @@ public class WorkReportUnit : BaseEntity
     /// <summary>Thứ tự I, II… trong xưởng (bảng công việc và Tổng hợp).</summary>
     public int SortOrder { get; set; }
 
+    /// <summary>
+    /// Đơn vị tự đặt gộp nhiều tổ (vd 1 sheet "Tổ Cơ khí - Lọc bụi - Lò cao 1–4" gộp 2 tổ Lọc bụi trên sơ đồ):
+    /// OrgUnit.Id các tổ nằm trong đội/xưởng gắn. Người thực hiện và "Cả tổ" chỉ lấy nhân viên các tổ này.
+    /// Rỗng = lấy cả đội/xưởng gắn (như trước). Đơn vị theo sơ đồ luôn rỗng.
+    /// </summary>
+    public List<int> MemberOrgUnitIds { get; set; } = [];
+
     /// <summary>False = không tạo form từ tuần sau; dữ liệu cũ giữ nguyên.</summary>
     public bool IsActive { get; set; } = true;
 

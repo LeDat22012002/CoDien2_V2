@@ -2084,6 +2084,11 @@ namespace Server.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<string>("PublicWorkshopIds")
+                        .IsRequired()
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(max)");
+
                     b.Property<decimal>("ShiftMinutesPerWeek")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -2142,6 +2147,11 @@ namespace Server.Data.Migrations
                         .HasMaxLength(10)
                         .IsUnicode(false)
                         .HasColumnType("varchar(10)");
+
+                    b.Property<string>("MemberOrgUnitIds")
+                        .IsRequired()
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(max)");
 
                     b.Property<int>("OrgUnitId")
                         .HasColumnType("int");
@@ -2535,9 +2545,38 @@ namespace Server.Data.Migrations
                                 .HasForeignKey("WorkPlanItemId");
                         });
 
+                    b.OwnsMany("Server.Modules.WorkReports.Entities.WorkItemGroup", "WholeGroups", b1 =>
+                        {
+                            b1.Property<int>("WorkPlanItemId")
+                                .HasColumnType("int");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(255)
+                                .HasColumnType("nvarchar(255)");
+
+                            b1.Property<int>("OrgUnitId")
+                                .HasColumnType("int");
+
+                            b1.HasKey("WorkPlanItemId", "Id");
+
+                            b1.ToTable("WorkPlanItem", "dbo");
+
+                            b1.ToJson("WholeGroups");
+
+                            b1.WithOwner()
+                                .HasForeignKey("WorkPlanItemId");
+                        });
+
                     b.Navigation("Engineers");
 
                     b.Navigation("WeeklyForm");
+
+                    b.Navigation("WholeGroups");
 
                     b.Navigation("WorkCategory");
                 });
@@ -2612,9 +2651,38 @@ namespace Server.Data.Migrations
                                 .HasForeignKey("WorkReportItemId");
                         });
 
+                    b.OwnsMany("Server.Modules.WorkReports.Entities.WorkItemGroup", "WholeGroups", b1 =>
+                        {
+                            b1.Property<int>("WorkReportItemId")
+                                .HasColumnType("int");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(255)
+                                .HasColumnType("nvarchar(255)");
+
+                            b1.Property<int>("OrgUnitId")
+                                .HasColumnType("int");
+
+                            b1.HasKey("WorkReportItemId", "Id");
+
+                            b1.ToTable("WorkReportItem", "dbo");
+
+                            b1.ToJson("WholeGroups");
+
+                            b1.WithOwner()
+                                .HasForeignKey("WorkReportItemId");
+                        });
+
                     b.Navigation("Engineers");
 
                     b.Navigation("WeeklyForm");
+
+                    b.Navigation("WholeGroups");
 
                     b.Navigation("WorkCategory");
                 });

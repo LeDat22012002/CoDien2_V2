@@ -62,6 +62,17 @@ public sealed class OrgTree
             ? self
             : GetAncestors(id).FirstOrDefault(x => x.TypeCode == OrgUnitTypeCodes.Team);
 
+    /// <summary>
+    /// Tổ theo kíp: tổ (GROUP) nằm dưới nhóm "Kỹ sư … - Theo ca" (SHIFT), vd "Tổ Cơ điện - Kíp A".
+    /// Thành đơn vị báo cáo giờ công KIP; nhóm SHIFT cha chỉ chứa kỹ sư theo ca (gợi ý phân công), không thành sheet.
+    /// </summary>
+    public bool IsShiftCrew(int id) =>
+        Get(id) is { TypeCode: OrgUnitTypeCodes.Group, ParentId: { } parentId }
+        && Get(parentId)?.TypeCode == OrgUnitTypeCodes.Shift;
+
+    /// <summary>Đơn vị theo kíp (tổ theo kíp hoặc nhóm SHIFT cũ): chỉ quản đốc/phó phân công kỹ sư.</summary>
+    public bool IsShiftUnit(int id) => Get(id)?.TypeCode == OrgUnitTypeCodes.Shift || IsShiftCrew(id);
+
     /// <summary>Đơn vị con cháu (không gồm chính nó), duyệt theo chiều rộng.</summary>
     public IReadOnlyList<OrgUnitDto> GetDescendants(int id)
     {

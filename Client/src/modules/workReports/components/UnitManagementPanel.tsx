@@ -51,10 +51,18 @@ type DialogState =
 
 /** Dòng phụ dưới tên: tổ / kíp theo sơ đồ hoặc đơn vị tự đặt, kèm đội. */
 const describeUnit = (unit: WorkReportUnit) => {
-  if (unit.isCustom)
-    return `Tự đặt · ${unit.teamName ?? unit.workshopName ?? ""}`;
-  const kind =
-    unit.orgUnitTypeCode === "SHIFT" ? `Kíp ${unit.shift ?? ""}` : "Tổ";
+  if (unit.isCustom) {
+    const base = `Tự đặt · ${unit.teamName ?? unit.workshopName ?? ""}`;
+    return unit.memberOrgUnits.length > 0
+      ? `${base} · tổ gợi ý: ${unit.memberOrgUnits.map((group) => group.name).join(", ")}`
+      : base;
+  }
+  // Tổ theo kíp (dưới nhóm Kỹ sư theo ca) có ký hiệu kíp A/B/C trên sơ đồ
+  const kind = unit.shift
+    ? `Tổ kíp ${unit.shift}`
+    : unit.orgUnitTypeCode === "SHIFT"
+      ? "Kíp"
+      : "Tổ";
   return unit.teamName ? `${kind} · ${unit.teamName}` : kind;
 };
 

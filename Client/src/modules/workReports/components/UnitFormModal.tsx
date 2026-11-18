@@ -7,11 +7,12 @@ import {
   useUnitParentOptions,
   useUpdateWorkReportUnit,
 } from '@/modules/workReports/hooks/useWorkReportQueries';
-import type { LaborType, WorkReportUnit } from '@/modules/workReports/types/workReports';
+import type { LaborType, OrgUnitOption, WorkReportUnit } from '@/modules/workReports/types/workReports';
 
 interface UnitFormValues {
   displayName?: string;
   parentOrgUnitId?: number;
+  memberOrgUnitIds?: number[];
   codePrefix: string;
   laborType: LaborType;
   isActive: boolean;
@@ -26,7 +27,7 @@ interface UnitFormModalProps {
 }
 
 /**
- * Thêm đơn vị tự đặt (tên, gắn với xưởng hoặc 1 đội, tiền tố, loại giờ công) / sửa đơn vị (thêm bật/ngừng).
+ * Thêm đơn vị tự đặt (tên, gắn với xưởng hoặc 1 đội, tổ gộp nhân sự, tiền tố, loại giờ công) / sửa đơn vị (thêm bật/ngừng).
  * Tổ/kíp trên sơ đồ Server tự tạo nên không thêm ở đây. Lưu xong Server tự tạo / cập nhật form tuần đang chạy và tuần sau.
  */
 export const UnitFormModal = ({ open, unit, workshopId, onClose }: UnitFormModalProps) => {
@@ -34,8 +35,18 @@ export const UnitFormModal = ({ open, unit, workshopId, onClose }: UnitFormModal
   const createMutation = useCreateWorkReportUnit();
   const updateMutation = useUpdateWorkReportUnit();
   const isCreate = !unit;
-  const parentOptionsQuery = useUnitParentOptions(workshopId, open && isCreate);
-  const isNameRequired = isCreate || Boolean(unit?.isCustom);
+  const isCustom = isCreate || Boolean(unit?.isCustom);
+  const parentOptionsQuery = useUnitParentOptions(workshopId, open && isCustom);
+  const isNameRequired = isCustom;
+
+  // Tổ gộp được: tổ trong xưởng / đội đã gắn (sửa: giữ cả tổ đã gộp mà nay ngừng trên sơ đồ)
+  const watchedParentId = Form.useWatch('parentOrgUnitId', form);
+  const parentId = unit ? unit.orgUnitId : watchedParentId;
+  const groupOptions = new Map<number, OrgUnitOption>();
+  [
+    ...(unit?.memberOrgUnits ?? []),
+    ...(parentOptionsQuery.data?.find((option) => option.orgUnitId === parentId)?.groups ?? []),
+  ].forEach((group) => groupOptions.set(group.orgUnitId, group));
 
   const handleSubmit = async () => {
     let values: UnitFormValues;
@@ -49,6 +60,7 @@ export const UnitFormModal = ({ open, unit, workshopId, onClose }: UnitFormModal
       displayName: values.displayName?.trim() || null,
       codePrefix: values.codePrefix.trim().toUpperCase(),
       laborType: values.laborType,
+      memberOrgUnitIds: isCustom ? (values.memberOrgUnitIds ?? []) : undefined,
     };
 
     try {
@@ -86,9 +98,19 @@ export const UnitFormModal = ({ open, unit, workshopId, onClose }: UnitFormModal
         className="pt-1"
         initialValues={
           unit
-            ? { displayName: unit.displayName, codePrefix: unit.codePrefix, laborType: unit.laborType, isActive: unit.isActive }
-            : { parentOrgUnitId: workshopId, laborType: 'HC', isActive: true }
+            ? {
+                displayName: unit.displayName,
+                codePrefix: unit.codePrefix,
+                laborType: unit.laborType,
+                isActive: unit.isActive,
+                memberOrgUnitIds: unit.memberOrgUnits.map((group) => group.orgUnitId),
+              }
+            : { parentOrgUnitId: workshopId, laborType: 'HC', isActive: true, memberOrgUnitIds: [] }
         }
+        onValuesChange={(changed: Partial<UnitFormValues>) => {
+          // Đổi chỗ gắn: tổ gộp cũ không còn thuộc đội / xưởng mới
+          if ('parentOrgUnitId' in changed) form.setFieldValue('memberOrgUnitIds', []);
+        }}
       >
         {isCreate && (
           <Alert
@@ -107,7 +129,7 @@ export const UnitFormModal = ({ open, unit, workshopId, onClose }: UnitFormModal
             { max: 255, message: 'Tối đa 255 ký tự' },
           ]}
         >
-          <Input placeholder={isCreate ? 'Vd: Tổ Cơ khí chung - Lò cao 5' : unit?.orgUnitName} />
+          <Input placeholder={isCreate ? 'Vd: Tổ Cơ khí - Lọc bụi - Lò cao 1-4' : unit?.orgUnitName} />
         </Form.Item>
         {isCreate && (
           <Form.Item
@@ -123,6 +145,27 @@ export const UnitFormModal = ({ open, unit, workshopId, onClose }: UnitFormModal
               options={(parentOptionsQuery.data ?? []).map((option) => ({
                 value: option.orgUnitId,
                 label: option.isWorkshop ? `${option.name} (cả xưởng)` : option.name,
+              }))}
+            />
+          </Form.Item>
+        )}
+        {isCustom && (
+          <Form.Item
+            name="memberOrgUnitIds"
+            label="Tổ gợi ý người thực hiện"
+            extra={
+              'Ô người thực hiện chỉ gợi ý nhân viên các tổ đã chọn, chia theo từng tổ (mỗi tổ có "Cả tổ" riêng). Để trống = cả đội / xưởng đã gắn.'
+            }
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              loading={parentOptionsQuery.isLoading}
+              placeholder="Cả đội / xưởng"
+              optionFilterProp="label"
+              options={[...groupOptions.values()].map((group) => ({
+                value: group.orgUnitId,
+                label: group.name,
               }))}
             />
           </Form.Item>

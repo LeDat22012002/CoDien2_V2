@@ -1,5 +1,28 @@
 import { formatDate } from '@/shared/utils/format';
-import type { WorkItemWorker, WorkItemWorkerRequest } from '@/modules/workReports/types/workReports';
+import type {
+  WorkItemBase,
+  WorkItemWorker,
+  WorkItemWorkerRequest,
+  WorkReportRole,
+} from '@/modules/workReports/types/workReports';
+
+/** Tên ngắn: 2 chữ cuối, "Nguyễn Tấn Lộc Ninh" → "Lộc Ninh". */
+export const toShortName = (fullName: string) => fullName.trim().split(/\s+/).slice(-2).join(' ');
+
+/**
+ * Được sửa / xóa dòng (khớp Server WorkItemSupport.EnsureRowEngineerAsync): kỹ sư chỉ dòng mình là KTV phụ trách;
+ * admin, quản đốc/phó, đội trưởng/phó mọi dòng; dòng cũ chưa lưu KTV theo dòng không giới hạn.
+ */
+export const isRowEngineer = (
+  role: WorkReportRole,
+  item: Pick<WorkItemBase, 'engineers'>,
+  employeeId: number | null | undefined,
+) =>
+  role === 'ADMIN' ||
+  role === 'WORKSHOP_MANAGER' ||
+  role === 'TEAM_MANAGER' ||
+  item.engineers.length === 0 ||
+  (employeeId != null && item.engineers.some((engineer) => engineer.employeeId === employeeId));
 
 export const EMPLOYEE_PREFIX = 'e:';
 
@@ -19,10 +42,38 @@ export const toWholeUnitValue = (memberCount: number) => `${WHOLE_UNIT_PREFIX}${
 
 export const isWholeUnitValue = (value: string) => value.startsWith(WHOLE_UNIT_PREFIX);
 
-/** Số người của ô người thực hiện: "Cả tổ" = số người tổ/kíp, còn lại = số mục đã chọn. */
+/**
+ * "Cả tổ" của 1 tổ gợi ý (đơn vị có tổ gợi ý, vd sheet Lọc bụi gồm tổ Lò cao 1, 2 và tổ Lò cao 3, 4):
+ * "grp:<OrgUnitId>:<số người>". Chọn được nhiều tổ cùng lúc.
+ */
+export const WHOLE_GROUP_PREFIX = 'grp:';
+
+export const toWholeGroupValue = (orgUnitId: number, memberCount: number) =>
+  `${WHOLE_GROUP_PREFIX}${orgUnitId}:${memberCount}`;
+
+export const isWholeGroupValue = (value: string) => value.startsWith(WHOLE_GROUP_PREFIX);
+
+export const parseWholeGroupValue = (value: string) => {
+  const [orgUnitId, memberCount] = value.slice(WHOLE_GROUP_PREFIX.length).split(':');
+  return { orgUnitId: Number(orgUnitId) || 0, memberCount: Number(memberCount) || 0 };
+};
+
+/** "Cả tổ" (cả đơn vị hoặc của 1 tổ gợi ý). */
+export const isWholeValue = (value: string) => isWholeUnitValue(value) || isWholeGroupValue(value);
+
+/** Tên ngắn của tổ: phần sau dấu " - " cuối, "Tổ Cơ khí - Lọc bụi - Lò cao 1, 2" → "Lò cao 1, 2". */
+export const toGroupShortName = (name: string) => name.split(' - ').pop()?.trim() || name;
+
+/** Nhãn "Cả tổ" của 1 tổ gợi ý: "Cả tổ Lò cao 1, 2". */
+export const wholeGroupLabel = (name: string) => `Cả tổ ${toGroupShortName(name)}`;
+
+/** Số người của ô người thực hiện: "Cả tổ" = số người tổ/kíp (tổ gợi ý: cộng các tổ), còn lại = số mục đã chọn. */
 export const countWorkerValues = (values: string[] | undefined) => {
   const wholeUnit = values?.find(isWholeUnitValue);
-  return wholeUnit ? Number(wholeUnit.slice(WHOLE_UNIT_PREFIX.length)) || 0 : (values?.length ?? 0);
+  if (wholeUnit) return Number(wholeUnit.slice(WHOLE_UNIT_PREFIX.length)) || 0;
+  const groups = values?.filter(isWholeGroupValue) ?? [];
+  if (groups.length > 0) return groups.reduce((sum, value) => sum + parseWholeGroupValue(value).memberCount, 0);
+  return values?.length ?? 0;
 };
 
 const HOURS_PATTERN = /^(\d+(?:[.,]\d+)?)\s*(h|g|giờ|gio)$/i;

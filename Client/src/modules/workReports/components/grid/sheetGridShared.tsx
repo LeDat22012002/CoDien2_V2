@@ -24,6 +24,7 @@ import { useCollapsedKeys } from "@/modules/workReports/hooks/useCollapsedKeys";
 import { useWorkReportPresence } from "@/modules/workReports/hooks/useWorkReportLiveUpdates";
 import type {
   EngineerOption,
+  OrgUnitOption,
   WeeklyFormBase,
   WorkCategory,
   WorkItemBase,
@@ -37,9 +38,15 @@ import {
   countWorkerValues,
   formatDateRange,
   fromWorkerValue,
+  isRowEngineer,
+  isWholeGroupValue,
   isWholeUnitValue,
+  isWholeValue,
+  parseWholeGroupValue,
+  toWholeGroupValue,
   toWholeUnitValue,
   toWorkerValue,
+  wholeGroupLabel,
 } from "@/modules/workReports/utils/workReportUtils";
 import { WHOLE_UNIT_LABEL } from "@/modules/workReports/constants/workReportOptions";
 import { createSheetLeafColumns } from "@/modules/workReports/utils/sheetTableColumns";
@@ -138,9 +145,14 @@ export const toCommonFormValues = (
   equipmentCode: item.equipmentCode ?? undefined,
   description: item.description,
   dates: [dayjs(item.startDate), dayjs(item.endDate)],
-  workers: item.isWholeUnit
-    ? [toWholeUnitValue(item.workerCount)]
-    : item.workers.map(toWorkerValue),
+  workers: !item.isWholeUnit
+    ? item.workers.map(toWorkerValue)
+    : item.wholeGroups.length > 0
+      ? // Không biết số người từng tổ đã chụp: dồn tổng vào tổ đầu (chỉ dùng để đếm)
+        item.wholeGroups.map((group, index) =>
+          toWholeGroupValue(group.orgUnitId, index === 0 ? item.workerCount : 0),
+        )
+      : [toWholeUnitValue(item.workerCount)],
   // Dòng cũ chưa lưu KTV: điền KTV của tổ (đúng như đang hiển thị)
   engineerIds: (item.engineers.length > 0
     ? item.engineers
@@ -154,7 +166,7 @@ export const toCommonRequest = (
   values: RowFormValues,
   workCategoryId: number,
 ) => {
-  const isWholeUnit = values.workers.some(isWholeUnitValue);
+  const isWholeUnit = values.workers.some(isWholeValue);
   return {
     workCategoryId,
     equipmentCode: values.equipmentCode?.trim() || null,
@@ -162,6 +174,9 @@ export const toCommonRequest = (
     startDate: toIsoDate(values.dates?.[0]) ?? null,
     endDate: toIsoDate(values.dates?.[1] ?? values.dates?.[0]) ?? null,
     isWholeUnit,
+    wholeGroupOrgUnitIds: values.workers
+      .filter(isWholeGroupValue)
+      .map((value) => parseWholeGroupValue(value).orgUnitId),
     workers: isWholeUnit ? [] : values.workers.map(fromWorkerValue),
     engineerIds: values.engineerIds ?? [],
     note: values.note?.trim() || null,
@@ -178,9 +193,29 @@ export const lastEditText = (item: {
     ? `Sửa lần cuối: ${item.updatedByName ?? item.updatedBy ?? "không rõ"} · ${formatDateTime(item.updatedAt)}`
     : undefined;
 
+/** Nhãn "Cả tổ" của dòng: cả đơn vị hoặc "Cả tổ Lò cao 1, 2, Cả tổ Lò cao 3, 4". */
+const wholeText = (item: WorkItemBase) =>
+  item.wholeGroups.length > 0
+    ? item.wholeGroups.map((group) => wholeGroupLabel(group.name)).join(", ")
+    : WHOLE_UNIT_LABEL;
+
 /** Tên người thực hiện để so sánh khi xung đột: "Cả tổ" hoặc danh sách tên (nhân viên chưa biết tên: "NV #id"). */
-const workersText = (values: string[], known: WorkItemWorker[]) => {
+const workersText = (
+  values: string[],
+  known: WorkItemWorker[],
+  groups: OrgUnitOption[],
+) => {
   if (values.some(isWholeUnitValue)) return WHOLE_UNIT_LABEL;
+  if (values.some(isWholeGroupValue)) {
+    return values
+      .filter(isWholeGroupValue)
+      .map((value) => {
+        const { orgUnitId } = parseWholeGroupValue(value);
+        const group = groups.find((item) => item.orgUnitId === orgUnitId);
+        return group ? wholeGroupLabel(group.name) : `Cả tổ #${orgUnitId}`;
+      })
+      .join(", ");
+  }
   const names = new Map(
     known.map((worker) => [toWorkerValue(worker), worker.displayName]),
   );
@@ -199,6 +234,8 @@ export const commonConflictFields = (
   latest: WorkItemBase,
   knownWorkers: WorkItemWorker[],
   engineerOptions: EngineerOption[] = [],
+  /** Tổ "Cả tổ" của dòng đang sửa (để hiện tên tổ bên bản đang sửa). */
+  knownGroups: OrgUnitOption[] = [],
 ): ConflictField[] => [
   {
     label: "KTV phụ trách",
@@ -232,9 +269,13 @@ export const commonConflictFields = (
   },
   {
     label: "Người thực hiện",
-    mine: workersText(mine.workers ?? [], [...knownWorkers, ...latest.workers]),
+    mine: workersText(
+      mine.workers ?? [],
+      [...knownWorkers, ...latest.workers],
+      [...knownGroups, ...latest.wholeGroups],
+    ),
     latest: latest.isWholeUnit
-      ? WHOLE_UNIT_LABEL
+      ? wholeText(latest)
       : latest.workers.map((worker) => worker.displayName).join(", "),
   },
   {
@@ -251,7 +292,13 @@ const renderWorkers = (item?: WorkItemBase) => {
   if (item.isWholeUnit) {
     return (
       <Tooltip title={names.join(", ")}>
-        <span className="cursor-help">{WHOLE_UNIT_LABEL}</span>
+        <span className="cursor-help whitespace-pre-line">
+          {item.wholeGroups.length > 0
+            ? item.wholeGroups
+                .map((group) => wholeGroupLabel(group.name))
+                .join("\n")
+            : WHOLE_UNIT_LABEL}
+        </span>
       </Tooltip>
     );
   }
@@ -405,14 +452,19 @@ export const useSheetEditor = <
     phaseEditors.find(
       (editor) => editor.formId === formId && editor.itemId === itemId,
     );
-  /** Tên người đang sửa / thêm dòng trong tổ/kíp (để hiện ở dòng tiêu đề). */
+  /** Tên người đang thêm dòng mới trong tổ/kíp (hiện ở dòng tiêu đề; người sửa dòng có sẵn hiện ngay trên dòng). */
   const editorNamesOf = (formId: number) => [
     ...new Set(
       phaseEditors
-        .filter((editor) => editor.formId === formId)
+        .filter((editor) => editor.formId === formId && editor.itemId == null)
         .map((editor) => editor.fullName),
     ),
   ];
+  /** Sửa / xóa được dòng: quyền của tổ/kíp + là KTV phụ trách dòng (kỹ sư). */
+  const canUpdateItem = (form: TForm, item: TItem) =>
+    form.canUpdate && isRowEngineer(form.role, item, currentUser?.employeeId);
+  const canDeleteItem = (form: TForm, item: TItem) =>
+    form.canDelete && isRowEngineer(form.role, item, currentUser?.employeeId);
 
   /** Lựa chọn cột (10) của dòng đang sửa: KTV đang có trên dòng, kỹ sư được phân công tổ/kíp, người nhập. */
   const engineerOptions = (() => {
@@ -486,6 +538,8 @@ export const useSheetEditor = <
     engineerOptions,
     lockOf,
     editorNamesOf,
+    canUpdateItem,
+    canDeleteItem,
     collapse,
   };
 };
@@ -513,6 +567,8 @@ interface CommonColumnContext<TRow> {
   engineerOptions: EngineerOption[];
   rowForm: FormInstance<RowFormValues>;
   editingWorkers?: WorkItemBase["workers"];
+  /** Tổ "Cả tổ" đã lưu của dòng đang sửa (hiện đúng tên khi danh sách gợi ý chưa tải). */
+  editingWholeGroups?: OrgUnitOption[];
   onSave: () => void;
 }
 
@@ -708,6 +764,7 @@ export const commonLeadingColumns = <TRow,>(
                 <WorkerSelect
                   unitId={ctx.unitIdOf(row)}
                   initialWorkers={ctx.editingWorkers}
+                  initialGroups={ctx.editingWholeGroups}
                 />
               </Form.Item>,
               () => renderWorkers(ctx.itemOf(row)),

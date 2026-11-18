@@ -20,13 +20,48 @@ public class PublicWorkReportsController(
     IWorkReportService reportService,
     IWorkPlanMaterialService planMaterialService,
     IWorkReportMaterialService reportMaterialService,
-    IWorkWeekService weekService) : ControllerBase
+    IWorkWeekService weekService,
+    IWorkReportDashboardService dashboardService) : ControllerBase
 {
+    // ===== Hôm nay / Phân tích =====
+
+    /// <summary>Dòng báo cáo có khoảng ngày làm phủ ngày date (trống = hôm nay) của các xưởng công khai.</summary>
+    [HttpGet("daily/report")]
+    public async Task<ActionResult<ApiResponse<DailyWorkDto<WorkReportItemDto>>>> GetDailyReport(
+        [FromQuery] DailyWorkRequest request, CancellationToken cancellationToken)
+    {
+        await scopeService.UsePublicViewAsync(cancellationToken);
+        var date = request.Date ?? DateOnly.FromDateTime(DateTime.Now);
+        var result = await dashboardService.GetDailyReportAsync(date, cancellationToken);
+        return Ok(ApiResponse<DailyWorkDto<WorkReportItemDto>>.Ok(result));
+    }
+
+    /// <summary>Dòng kế hoạch có khoảng ngày làm phủ ngày date (trống = ngày mai) của các xưởng công khai.</summary>
+    [HttpGet("daily/plan")]
+    public async Task<ActionResult<ApiResponse<DailyWorkDto<WorkPlanItemDto>>>> GetDailyPlan(
+        [FromQuery] DailyWorkRequest request, CancellationToken cancellationToken)
+    {
+        await scopeService.UsePublicViewAsync(cancellationToken);
+        var date = request.Date ?? DateOnly.FromDateTime(DateTime.Now).AddDays(1);
+        var result = await dashboardService.GetDailyPlanAsync(date, cancellationToken);
+        return Ok(ApiResponse<DailyWorkDto<WorkPlanItemDto>>.Ok(result));
+    }
+
+    /// <summary>Phân tích báo cáo tuần weekId (trống = tuần đang báo cáo) + kế hoạch tuần tới của các xưởng công khai.</summary>
+    [HttpGet("dashboard")]
+    public async Task<ActionResult<ApiResponse<WorkReportDashboardDto>>> GetDashboard(
+        [FromQuery] WorkReportDashboardRequest request, CancellationToken cancellationToken)
+    {
+        await scopeService.UsePublicViewAsync(cancellationToken);
+        var result = await dashboardService.GetDashboardAsync(request, cancellationToken);
+        return Ok(ApiResponse<WorkReportDashboardDto>.Ok(result));
+    }
+
     /// <summary>Các xưởng có đơn vị báo cáo (bộ chọn xưởng).</summary>
     [HttpGet("scope")]
     public async Task<ActionResult<ApiResponse<MyWorkReportScopeDto>>> GetScope(CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await scopeService.GetMyScopeAsync(cancellationToken);
         return Ok(ApiResponse<MyWorkReportScopeDto>.Ok(result));
     }
@@ -35,7 +70,7 @@ public class PublicWorkReportsController(
     public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkWeekDto>>>> GetWeeks(
         [FromQuery] WorkWeekFilterRequest filter, CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await weekService.GetListAsync(filter, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<WorkWeekDto>>.Ok(result));
     }
@@ -44,7 +79,7 @@ public class PublicWorkReportsController(
     public async Task<ActionResult<ApiResponse<WorkingWeeksDto>>> GetWorkingWeeks(
         [FromQuery] int? workshopId, CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await weekService.GetWorkingWeeksAsync(workshopId, cancellationToken);
         return Ok(ApiResponse<WorkingWeeksDto>.Ok(result));
     }
@@ -55,7 +90,7 @@ public class PublicWorkReportsController(
     public async Task<ActionResult<ApiResponse<WorkGridDto<WeeklyPlanFormDto>>>> GetPlanGrid(
         [FromQuery] WorkReportGridRequest request, CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await planService.GetGridAsync(request, cancellationToken);
         return Ok(ApiResponse<WorkGridDto<WeeklyPlanFormDto>>.Ok(result));
     }
@@ -64,7 +99,7 @@ public class PublicWorkReportsController(
     public async Task<ActionResult<ApiResponse<WorkReportSummaryDto>>> GetPlanSummary(
         [FromQuery] WorkReportGridRequest request, CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await planService.GetSummaryAsync(request, cancellationToken);
         return Ok(ApiResponse<WorkReportSummaryDto>.Ok(result));
     }
@@ -73,7 +108,7 @@ public class PublicWorkReportsController(
     public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkMaterialDto>>>> GetPlanMaterials(
         [FromQuery] WorkshopMaterialFilterRequest filter, CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await planMaterialService.GetWorkshopMaterialsAsync(filter, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<WorkMaterialDto>>.Ok(result));
     }
@@ -82,7 +117,7 @@ public class PublicWorkReportsController(
     public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkMaterialDto>>>> GetPlanFormMaterials(
         int formId, CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await planMaterialService.GetByFormAsync(formId, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<WorkMaterialDto>>.Ok(result));
     }
@@ -93,7 +128,7 @@ public class PublicWorkReportsController(
     public async Task<ActionResult<ApiResponse<WorkGridDto<WeeklyReportFormDto>>>> GetReportGrid(
         [FromQuery] WorkReportGridRequest request, CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await reportService.GetGridAsync(request, cancellationToken);
         return Ok(ApiResponse<WorkGridDto<WeeklyReportFormDto>>.Ok(result));
     }
@@ -102,7 +137,7 @@ public class PublicWorkReportsController(
     public async Task<ActionResult<ApiResponse<WorkReportSummaryDto>>> GetReportSummary(
         [FromQuery] WorkReportGridRequest request, CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await reportService.GetSummaryAsync(request, cancellationToken);
         return Ok(ApiResponse<WorkReportSummaryDto>.Ok(result));
     }
@@ -111,7 +146,7 @@ public class PublicWorkReportsController(
     public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkMaterialDto>>>> GetReportMaterials(
         [FromQuery] WorkshopMaterialFilterRequest filter, CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await reportMaterialService.GetWorkshopMaterialsAsync(filter, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<WorkMaterialDto>>.Ok(result));
     }
@@ -120,7 +155,7 @@ public class PublicWorkReportsController(
     public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkMaterialDto>>>> GetReportFormMaterials(
         int formId, CancellationToken cancellationToken)
     {
-        scopeService.UsePublicView();
+        await scopeService.UsePublicViewAsync(cancellationToken);
         var result = await reportMaterialService.GetByFormAsync(formId, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<WorkMaterialDto>>.Ok(result));
     }

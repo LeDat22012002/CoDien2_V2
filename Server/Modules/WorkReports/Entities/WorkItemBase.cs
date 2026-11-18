@@ -42,6 +42,12 @@ public abstract class WorkItemBase<TWorker> : BaseEntity
     public bool IsWholeUnit { get; set; }
 
     /// <summary>
+    /// (9) "Cả tổ" theo từng tổ (đơn vị có tổ gợi ý, vd sheet Lọc bụi = tổ Lò cao 1, 2 + tổ Lò cao 3, 4): các tổ được chọn
+    /// cả tổ (bản chụp tên lúc lưu); Workers = nhân viên các tổ đó. Chỉ có nghĩa khi IsWholeUnit = true; rỗng = cả đơn vị.
+    /// </summary>
+    public List<WorkItemGroup> WholeGroups { get; set; } = [];
+
+    /// <summary>
     /// (10) KTV phụ trách dòng: mặc định người nhập, chọn thêm kỹ sư được phân công tổ/kíp cùng làm.
     /// Lưu JSON trên dòng (bản chụp họ tên lúc lưu). Rỗng = dòng nhập trước 17/11/2026, hiển thị KTV của form.
     /// </summary>
@@ -69,6 +75,15 @@ public class WorkItemEngineer
 
     /// <summary>Họ tên lúc lưu.</summary>
     public string FullName { get; set; } = string.Empty;
+}
+
+/// <summary>1 tổ chọn "Cả tổ" của dòng (phần tử JSON trong cột WholeGroups).</summary>
+public class WorkItemGroup
+{
+    public int OrgUnitId { get; set; }
+
+    /// <summary>Tên tổ lúc lưu.</summary>
+    public string Name { get; set; } = string.Empty;
 }
 
 /// <summary>

@@ -31,6 +31,13 @@ internal static class WorkItemConfigurationHelper
             engineer.Property(x => x.FullName).HasMaxLength(255);
         });
 
+        // "Cả tổ" theo từng tổ: cột JSON [{"OrgUnitId":18,"Name":"…"}]
+        builder.OwnsMany(x => x.WholeGroups, group =>
+        {
+            group.ToJson();
+            group.Property(x => x.Name).HasMaxLength(255);
+        });
+
         builder.HasIndex(x => x.WeeklyFormId);
         builder.HasIndex(x => x.Code);
 

@@ -118,6 +118,11 @@ export const WORK_REPORT_QUERY_KEYS = {
     ["workReports", "data", "materials", filter] as const,
   formMaterials: (formId?: number, phase?: WorkReportPhase) =>
     ["workReports", "data", "formMaterials", formId, phase] as const,
+  /** Trang công khai: việc trong ngày, phân tích tuần. */
+  daily: (phase: WorkReportPhase, date: string) =>
+    ["workReports", "data", "daily", phase, date] as const,
+  dashboard: (weekId?: number) =>
+    ["workReports", "data", "dashboard", weekId] as const,
   workerOptions: (
     unitId?: number,
     scope?: WorkerOptionScope,
@@ -136,6 +141,27 @@ const useInvalidate = (queryKey: readonly unknown[]) => {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey });
 };
+
+// ===== Trang công khai: Hôm nay / Phân tích =====
+
+/** Việc trong ngày date (yyyy-MM-dd): báo cáo hoặc kế hoạch của các xưởng công khai. */
+export const usePublicDailyWork = (phase: WorkReportPhase, date: string) =>
+  useQuery({
+    queryKey: WORK_REPORT_QUERY_KEYS.daily(phase, date),
+    queryFn: () =>
+      phase === "REPORT"
+        ? publicWorkReportsApi.getDailyReport(date)
+        : publicWorkReportsApi.getDailyPlan(date),
+    placeholderData: keepPreviousData,
+  });
+
+/** Phân tích báo cáo tuần weekId (trống = tuần đang báo cáo) + kế hoạch tuần tới. */
+export const usePublicDashboard = (weekId?: number) =>
+  useQuery({
+    queryKey: WORK_REPORT_QUERY_KEYS.dashboard(weekId),
+    queryFn: () => publicWorkReportsApi.getDashboard(weekId),
+    placeholderData: keepPreviousData,
+  });
 
 // ===== Phạm vi, cấu hình =====
 

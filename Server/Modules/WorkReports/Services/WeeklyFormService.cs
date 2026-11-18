@@ -192,6 +192,11 @@ public class WeeklyFormService(
         }
 
         var scope = await scopeService.GetScopeAsync(cancellationToken);
+        if (scope.PublicWorkshopIds is { } publicIds && !publicIds.Contains(workshopId))
+        {
+            throw new ForbiddenException("Xưởng này chưa được hiện trên trang công khai.");
+        }
+
         var canSeeWorkshop = scope.CanConfigure || scope.CanViewFactory
                              || scope.ManagedWorkshopIds.Contains(workshopId) || visible.Count > 0;
         if (!canSeeWorkshop)
@@ -458,7 +463,7 @@ public class WeeklyFormService(
         category.IsActive && (category.Workshops.Count == 0 || category.Workshops.Any(x => x.WorkshopId == workshopId));
 
     /// <summary>Số đầu mã vật tư: đếm mã khác nhau (vật tư chưa có mã thì đếm theo tên).</summary>
-    private static int CountMaterialCodes(IEnumerable<SummaryMaterial> materials) =>
+    public static int CountMaterialCodes(IEnumerable<SummaryMaterial> materials) =>
         materials
             .Select(x => TextNormalizer.ToKey(string.IsNullOrWhiteSpace(x.MaterialCode) ? x.MaterialName : x.MaterialCode))
             .Where(x => x.Length > 0)

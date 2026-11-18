@@ -71,6 +71,8 @@ export interface WorkReportSetting {
   deadlineTime: string;
   warnDaysBefore: number;
   deadlineDescription: string;
+  /** Xưởng hiện trên trang công khai; rỗng = mọi xưởng. */
+  publicWorkshopIds: number[];
 }
 
 export type UpdateWorkReportSettingRequest = Omit<
@@ -185,6 +187,8 @@ export interface WorkReportUnit {
   laborType: LaborType;
   sortOrder: number;
   isActive: boolean;
+  /** Đơn vị tự đặt: các tổ trên sơ đồ được gộp (người thực hiện chỉ lấy từ các tổ này). Rỗng = cả đội/xưởng. */
+  memberOrgUnits: OrgUnitOption[];
   engineers: WorkReportUnitEngineer[];
   canConfigure: boolean;
   canManageEngineers: boolean;
@@ -198,12 +202,22 @@ export interface WorkReportUnitParentOption {
   orgUnitId: number;
   name: string;
   isWorkshop: boolean;
+  /** Tổ trên sơ đồ nằm trong xưởng / đội này: lựa chọn gộp nhân sự. */
+  groups: OrgUnitOption[];
+}
+
+/** Đơn vị trên sơ đồ tổ chức. */
+export interface OrgUnitOption {
+  orgUnitId: number;
+  name: string;
 }
 
 export interface WorkReportUnitRequestBase {
   displayName?: string | null;
   codePrefix: string;
   laborType: LaborType;
+  /** Chỉ đơn vị tự đặt: Id các tổ gộp nhân sự. Rỗng = cả đội/xưởng. */
+  memberOrgUnitIds?: number[];
 }
 
 /** Thêm đơn vị tự đặt (tổ/kíp trên sơ đồ Server tự tạo). */
@@ -254,6 +268,8 @@ export interface WorkItemBase {
   workers: WorkItemWorker[];
   /** Cả tổ/kíp: hiển thị "Cả tổ"; workers là danh sách nhân viên tổ/kíp chụp lúc lưu. */
   isWholeUnit: boolean;
+  /** "Cả tổ" theo từng tổ (đơn vị có tổ gợi ý): các tổ đã chọn; rỗng = cả đơn vị. */
+  wholeGroups: OrgUnitOption[];
   /** (10) KTV phụ trách dòng; rỗng = dòng cũ, hiện KTV của form. */
   engineers: EngineerOption[];
   note?: string | null;
@@ -389,6 +405,8 @@ interface WorkItemRequestBase {
   workers: WorkItemWorkerRequest[];
   /** Cả tổ/kíp: Server tự lấy nhân viên tổ/kíp, bỏ qua workers. */
   isWholeUnit?: boolean;
+  /** Cùng isWholeUnit: "Cả tổ" của các tổ gợi ý này; trống = cả đơn vị. */
+  wholeGroupOrgUnitIds?: number[];
   /** (10) KTV phụ trách; trống = người nhập. */
   engineerIds?: number[];
   note?: string | null;
@@ -423,6 +441,9 @@ export interface WorkerOption {
   fullName: string;
   orgUnitName: string;
   levelName: string;
+  /** Đơn vị có tổ gợi ý: tổ của người này (chia nhóm theo tổ); null = không chia nhóm. */
+  groupOrgUnitId?: number | null;
+  groupName?: string | null;
 }
 
 export interface EquipmentOption {
@@ -513,4 +534,66 @@ export interface WorkReportSummary {
   columns: WorkCategory[];
   rows: WorkReportSummaryRow[];
   total: WorkReportSummaryRow;
+}
+
+// ===== Trang công khai: Hôm nay / Phân tích =====
+
+export interface DailyUnit<TItem extends WorkItemBase> {
+  formId: number;
+  unitId: number;
+  orderLabel: string;
+  unitName: string;
+  /** KTV của tổ/kíp (dòng cũ chưa lưu KTV theo dòng). */
+  engineerNames?: string | null;
+  items: TItem[];
+}
+
+export interface DailyWorkshop<TItem extends WorkItemBase> {
+  workshopId: number;
+  workshopName: string;
+  itemCount: number;
+  units: DailyUnit<TItem>[];
+}
+
+/** Dòng có khoảng ngày làm phủ ngày date của các xưởng công khai. */
+export interface DailyWork<TItem extends WorkItemBase> {
+  date: string;
+  phase: WorkReportPhase;
+  week?: WorkWeek | null;
+  workshops: DailyWorkshop<TItem>[];
+}
+
+export interface DashboardCategoryMinutes {
+  categoryId: number;
+  minutes: number;
+  /** % trong tổng phút của xưởng. */
+  percent: number;
+}
+
+export interface DashboardWeekStats {
+  itemCount: number;
+  unplannedCount: number;
+  plannedMinutes: number;
+  actualMinutes: number;
+  /** Thực tế ÷ kế hoạch × 100; null khi kế hoạch = 0. */
+  completionPercent?: number | null;
+  capacityMinutes: number;
+  materialCodeCount: number;
+  materialLineCount: number;
+  categories: DashboardCategoryMinutes[];
+}
+
+export interface DashboardWorkshop {
+  workshopId: number;
+  workshopName: string;
+  report: DashboardWeekStats;
+  plan: DashboardWeekStats;
+}
+
+/** Báo cáo tuần reportWeek + kế hoạch tuần planWeek (tuần kế tiếp) theo xưởng công khai. */
+export interface WorkReportDashboard {
+  reportWeek: WorkWeek;
+  planWeek?: WorkWeek | null;
+  categories: WorkCategory[];
+  workshops: DashboardWorkshop[];
 }

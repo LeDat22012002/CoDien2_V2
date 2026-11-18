@@ -90,15 +90,18 @@ public class WorkReportUnitEngineerService(
         await EnsureCanManageAsync(unit, cancellationToken);
 
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
+        // Đơn vị tự đặt gộp tổ: kỹ sư ở các tổ gộp cũng là gợi ý
         var orgUnitIds = new List<int> { unit.OrgUnitId };
+        orgUnitIds.AddRange(unit.MemberOrgUnitIds.Where(x => x != unit.OrgUnitId));
 
-        // Kỹ sư thường giữ vị trí ở Đội chứa tổ (hoặc đơn vị cha trực tiếp)
+        // Kỹ sư thường giữ vị trí ở Đội chứa tổ (hoặc đơn vị cha trực tiếp).
+        // Tổ theo kíp: cha là nhóm "Kỹ sư … - Theo ca" → chỉ gợi ý kỹ sư theo ca, không lấy kỹ sư HC của đội.
         if (tree.Get(unit.OrgUnitId)?.ParentId is { } parentId)
         {
             orgUnitIds.Add(parentId);
         }
 
-        if (tree.GetTeam(unit.OrgUnitId) is { } team && !orgUnitIds.Contains(team.Id))
+        if (!tree.IsShiftCrew(unit.OrgUnitId) && tree.GetTeam(unit.OrgUnitId) is { } team && !orgUnitIds.Contains(team.Id))
         {
             orgUnitIds.Add(team.Id);
         }
@@ -183,7 +186,7 @@ public class WorkReportUnitEngineerService(
         }
 
         var tree = await orgTreeProvider.GetAsync(cancellationToken);
-        var isShift = tree.Get(unit.OrgUnitId)?.TypeCode == OrgUnitTypeCodes.Shift;
+        var isShift = tree.IsShiftUnit(unit.OrgUnitId);
         throw new ForbiddenException(isShift
             ? "Chỉ quản đốc / phó quản đốc được phân công kỹ sư cho kíp."
             : "Chỉ đội trưởng / đội phó của đội hoặc quản đốc / phó quản đốc được phân công kỹ sư cho tổ.");

@@ -527,6 +527,62 @@ Chuẩn bị: `dotnet ef database update --configuration Release` (migration `Ad
 | 6 | Dòng kế hoạch KTV "K2" → Đưa vào báo cáo | Dòng báo cáo KTV "K2" |
 | 7 | Tab Vật tư xưởng | Cột KTV theo dòng công việc gắn vật tư |
 
+## C1f. Chỉ KTV phụ trách dòng được sửa / xóa (18/11)
+Chuẩn bị: tổ T có 2 kỹ sư phân công K1, K2; quản đốc Q.
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | K1 thêm dòng D1 (KTV = K1) | K2 không thấy nút bút/xóa ở D1, double-click không mở sửa |
+| 2 | K2 gọi API sửa/xóa D1 | 403 "Chỉ KTV phụ trách dòng này (K1) mới được sửa/xóa." |
+| 3 | K1 sửa D1, chọn thêm K2 | K2 thấy nút bút/xóa ở D1, sửa/xóa được |
+| 4 | Q (quản đốc) | Sửa/xóa được mọi dòng |
+| 5 | Dòng cũ (chưa lưu KTV theo dòng) | K1, K2 đều sửa được như trước |
+| 6 | Dòng tiêu đề tổ đang mở | Không còn tag "Đang nhập"; quá hạn hiện "Đã khóa" |
+| 7 | K1 đang sửa D1, K2 xem | Cột Thao tác D1 hiện bút + tên K1 + 3 chấm động |
+| 8 | K1 bấm "Thêm dòng" | Dòng tiêu đề tổ T bên K2 hiện bút + tên K1 + 3 chấm |
+
+## C1g. Tổ theo kíp (18/11)
+Chuẩn bị: chạy `Data/Scripts/FixShiftCrewUnits.sql`. Xưởng X.CĐNĐ1 có nhóm "Kỹ sư Cơ điện - Theo ca" với 3 tổ Kíp A/B/C.
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | Mở Bảng công việc X.CĐNĐ1 | Không còn sheet "Kỹ sư Cơ điện - Theo ca"; có 3 sheet "Tổ Cơ điện - Theo ca - Kíp A/B/C" |
+| 2 | Xem loại giờ công 3 sheet đó | KIP, giờ công/tuần = giờ kíp trong Cài đặt |
+| 3 | Trang Đơn vị báo cáo | Dòng phụ "Tổ kíp A · …" |
+| 4 | Quản đốc mở Phân công kỹ sư tổ Kíp A | Gợi ý = kỹ sư cấp KS ở nhóm Kỹ sư theo ca |
+| 5 | Đội trưởng mở Phân công tổ Kíp A | 403 "Chỉ quản đốc / phó quản đốc được phân công kỹ sư cho kíp." |
+| 6 | Thêm tổ kíp mới dưới nhóm theo ca trên sơ đồ, mở lại bảng | Tự tạo sheet mới, giờ KIP |
+| 7 | Xưởng không có nhóm theo ca | Không đổi, tổ vẫn HC |
+
+## C1h. Tổ gợi ý người thực hiện (18/11)
+Chuẩn bị: `dotnet ef database update --configuration Release` (migration `AddWorkReportUnitMemberOrgUnits`, `AddWorkItemWholeGroups`).
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | Thêm đơn vị, Thuộc "Đội Cơ khí - Nạp liệu, lọc bụi" | Ô "Tổ gợi ý người thực hiện" liệt kê các tổ của đội |
+| 2 | Đổi "Thuộc" sang xưởng | Ô tổ gợi ý bị xóa, liệt kê mọi tổ của xưởng |
+| 3 | Chọn 2 tổ Lọc bụi, lưu | Trang đơn vị (thẻ mobile) hiện "tổ gợi ý: …" |
+| 4 | Bảng công việc, thêm dòng ở đơn vị đó, mở ô người thực hiện | 2 nhóm tiêu đề tổ Lọc bụi LC 1,2 / 3,4; mỗi nhóm có "Cả tổ Lò cao …(n người)" + nhân viên tổ đó; không có người Nạp liệu |
+| 5 | Chọn "Cả tổ Lò cao 1, 2" + "Cả tổ Lò cao 3, 4", giờ công "8h", lưu | Cột (9) 2 dòng "Cả tổ Lò cao 1, 2" / "Cả tổ Lò cao 3, 4"; (8) = tổng người 2 tổ; phút = 480 × số người |
+| 6 | Đang "Cả tổ" chọn thêm 1 người | Bỏ hết "Cả tổ", còn người đó |
+| 7 | Sửa đơn vị, bỏ hết tổ gợi ý | Ô người thực hiện như cũ: 1 dòng "Cả tổ" + cả đội |
+| 8 | Gọi API `wholeGroupOrgUnitIds` = tổ không phải tổ gợi ý | 400 "\"Cả tổ\" chỉ chọn được các tổ gợi ý…" |
+| 9 | Đưa dòng kế hoạch "Cả tổ Lò cao 1, 2" vào báo cáo | Dòng báo cáo giữ "Cả tổ Lò cao 1, 2" |
+
+## C1i. Trang công khai: Hôm nay / Phân tích (18/11)
+Chuẩn bị: `dotnet ef database update --configuration Release` (migration `AddWorkReportPublicWorkshops`). Không đăng nhập, mở `/work-reports`.
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| 1 | Mở trang | Phần "Hôm nay"; chỉ 5 xưởng LG1, LG2, NĐ1, NĐ2, Xử lý nước; không có KHTH, An toàn, Kho, HC-ISO |
+| 2 | Dòng báo cáo 17–19/11 | Hiện ở "Báo cáo hôm nay" ngày 18/11 (khoảng ngày phủ hôm nay) |
+| 3 | Chọn "Kế hoạch ngày mai" | Dòng kế hoạch phủ ngày 19/11 |
+| 4 | Chọn ngày Chủ nhật | Kế hoạch = thứ 2 tuần sau (kế hoạch tuần mới) |
+| 5 | Phần "Phân tích" | Bảng theo xưởng: KH, TT, % = TT/KH, vật tư; dòng Tổng; 3 biểu đồ báo cáo + bảng đầu mục; phần Kế hoạch tuần tới |
+| 6 | Rê chuột cột chồng | Tooltip từng đầu mục: phút + % trong tổng xưởng |
+| 7 | Phần "Chi tiết tuần" | Bộ chọn xưởng chỉ 5 xưởng; gọi API grid với workshopId = xưởng ẩn → 403 |
+| 8 | Admin: Cài đặt → bỏ 1 xưởng, lưu | Trang công khai không còn xưởng đó; bỏ trống = mọi xưởng |
+
 ## C2. Kế hoạch
 | # | Bước | Kỳ vọng |
 |---|---|---|

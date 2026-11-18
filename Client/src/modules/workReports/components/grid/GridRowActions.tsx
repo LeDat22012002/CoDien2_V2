@@ -2,10 +2,10 @@ import {
   CloseOutlined,
   DeleteOutlined,
   EditOutlined,
-  LockOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
+import { toShortName } from "@/modules/workReports/utils/workReportUtils";
 
 /** Nút lưu / hủy của dòng đang sửa. */
 export const EditingActions = ({
@@ -40,17 +40,37 @@ export const EditingActions = ({
   </div>
 );
 
-/** Biểu tượng khóa mềm: người khác đang sửa dòng này. */
-export const LockedByIcon = ({ name }: { name: string }) => (
-  <Tooltip title={`${name} đang sửa dòng này`}>
-    <LockOutlined
-      className="text-warning"
-      aria-label={`${name} đang sửa dòng này`}
-    />
-  </Tooltip>
+/** 3 chấm nhấp nhô "đang nhập". */
+const TypingDots = () => (
+  <span className="inline-flex items-end gap-0.5" aria-hidden>
+    {[0, 0.2, 0.4].map((delay) => (
+      <span
+        key={delay}
+        className="size-1 animate-typing-dot rounded-full bg-current"
+        style={{ animationDelay: `${delay}s` }}
+      />
+    ))}
+  </span>
 );
 
-/** Nút sửa / xóa của 1 dòng (ẩn nút không có quyền); người khác đang sửa thì chỉ hiện khóa. */
+/** Người khác đang nhập: bút + tên (2 chữ cuối) + 3 chấm động; rê chuột thấy họ tên đầy đủ. */
+export const EditingByBadge = ({ names }: { names: string[] }) => {
+  const label = `${names.join(", ")} đang nhập`;
+  return (
+    <Tooltip title={label}>
+      <span
+        className="inline-flex flex-wrap items-center justify-center gap-x-1 text-xs text-warning"
+        aria-label={label}
+      >
+        <EditOutlined />
+        <span>{names.map(toShortName).join(", ")}</span>
+        <TypingDots />
+      </span>
+    </Tooltip>
+  );
+};
+
+/** Nút sửa / xóa của 1 dòng (ẩn nút không có quyền); người khác đang nhập thì hiện người đó thay nút. */
 export const ItemActions = ({
   code,
   canUpdate,
@@ -69,10 +89,8 @@ export const ItemActions = ({
   onEdit: () => void;
   onDelete: () => void;
 }) =>
-  lockedBy && (canUpdate || canDelete) ? (
-    <div className="flex justify-center">
-      <LockedByIcon name={lockedBy} />
-    </div>
+  lockedBy ? (
+    <EditingByBadge names={[lockedBy]} />
   ) : (
     <div className="flex justify-center">
       {canUpdate && (

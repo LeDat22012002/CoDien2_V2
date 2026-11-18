@@ -228,7 +228,7 @@ export const WorkshopMaterialTable = ({
             · {row.count} vật tư
           </Typography.Text>
         </CollapseToggle>
-        <FormStatusTag status={form.status} />
+        {form.status !== "OPEN" && <FormStatusTag status={form.status} />}
         {form.canCreate && (
           <Button
             size="small"

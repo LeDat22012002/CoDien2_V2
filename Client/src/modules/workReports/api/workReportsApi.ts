@@ -7,6 +7,7 @@ import {
 } from "@/shared/api/axiosClient";
 import type {
   CreateWorkReportUnitRequest,
+  DailyWork,
   EngineerSuggestion,
   EquipmentOption,
   MaterialPurpose,
@@ -30,6 +31,7 @@ import type {
   WorkPlanItem,
   WorkReportFilter,
   WorkReportItem,
+  WorkReportDashboard,
   WorkReportPhase,
   WorkReportSetting,
   WorkReportSummary,
@@ -89,6 +91,15 @@ export const publicWorkReportsApi = {
     httpGet<WorkMaterial[]>(
       `${PUBLIC_BASE}/${PHASE_PATH[phase]}/forms/${formId}/materials`,
     ),
+  /** Báo cáo trong ngày date (yyyy-MM-dd). */
+  getDailyReport: (date: string) =>
+    httpGet<DailyWork<WorkReportItem>>(`${PUBLIC_BASE}/daily/report`, { date }),
+  /** Kế hoạch trong ngày date (yyyy-MM-dd). */
+  getDailyPlan: (date: string) =>
+    httpGet<DailyWork<WorkPlanItem>>(`${PUBLIC_BASE}/daily/plan`, { date }),
+  /** Phân tích báo cáo tuần weekId (trống = tuần đang báo cáo) + kế hoạch tuần tới. */
+  getDashboard: (weekId?: number) =>
+    httpGet<WorkReportDashboard>(`${PUBLIC_BASE}/dashboard`, { weekId }),
 };
 
 // ===== Cấu hình chung =====

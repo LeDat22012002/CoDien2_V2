@@ -14,5 +14,8 @@ public class WorkReportSettingConfiguration : IEntityTypeConfiguration<WorkRepor
 
         builder.Property(x => x.HcMinutesPerWeek).HasPrecision(18, 2);
         builder.Property(x => x.ShiftMinutesPerWeek).HasPrecision(18, 2);
+
+        // Xưởng hiện trên trang công khai: mảng JSON Id đơn vị cấp 1, vd [6,35]
+        builder.Property(x => x.PublicWorkshopIds).IsUnicode(false).IsRequired();
     }
 }

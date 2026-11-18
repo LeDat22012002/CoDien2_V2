@@ -19,9 +19,11 @@ public class WorkReportUnitSyncService(
 {
     private const int SortOrderStep = 10;
 
-    /// <summary>Loại đơn vị trên sơ đồ tự thành đơn vị báo cáo.</summary>
-    public static readonly IReadOnlySet<string> ReportableTypes =
-        new HashSet<string> { OrgUnitTypeCodes.Group, OrgUnitTypeCodes.Shift };
+    /// <summary>
+    /// Loại đơn vị trên sơ đồ tự thành đơn vị báo cáo: chỉ tổ (GROUP). Nhóm "Kỹ sư … - Theo ca" (SHIFT) không thành sheet;
+    /// các tổ con của nó (Tổ … - Kíp A/B/C) thành sheet giờ công KIP.
+    /// </summary>
+    public static readonly IReadOnlySet<string> ReportableTypes = new HashSet<string> { OrgUnitTypeCodes.Group };
 
     public async Task<IReadOnlyList<int>> EnsureFromOrgChartAsync(int? workshopId, CancellationToken cancellationToken)
     {
@@ -63,7 +65,7 @@ public class WorkReportUnitSyncService(
                     OrgUnitId = orgUnit.Id,
                     DisplayName = orgUnit.Name,
                     CodePrefix = prefix,
-                    LaborType = orgUnit.TypeCode == OrgUnitTypeCodes.Shift ? LaborTypes.Shift : LaborTypes.Hc,
+                    LaborType = tree.IsShiftCrew(orgUnit.Id) ? LaborTypes.Shift : LaborTypes.Hc,
                     SortOrder = sortOrder += SortOrderStep,
                     IsActive = true,
                 };

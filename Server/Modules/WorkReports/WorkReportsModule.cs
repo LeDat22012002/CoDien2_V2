@@ -40,6 +40,7 @@ public static class WorkReportsModule
         services.AddScoped<IWorkerOptionService, WorkerOptionService>();
         services.AddScoped<IWorkPlanService, WorkPlanService>();
         services.AddScoped<IWorkReportService, WorkReportService>();
+        services.AddScoped<IWorkReportDashboardService, WorkReportDashboardService>();
         services.AddScoped<IWorkPlanMaterialService, WorkPlanMaterialService>();
         services.AddScoped<IWorkReportMaterialService, WorkReportMaterialService>();
         services.AddScoped<IWorkReportSettingService, WorkReportSettingService>();

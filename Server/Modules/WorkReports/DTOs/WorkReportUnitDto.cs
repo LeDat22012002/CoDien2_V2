@@ -40,6 +40,9 @@ public class WorkReportUnitDto
     public int SortOrder { get; init; }
     public bool IsActive { get; init; }
 
+    /// <summary>Đơn vị tự đặt: các tổ trên sơ đồ được gộp (người thực hiện lấy từ các tổ này). Rỗng = cả đội/xưởng.</summary>
+    public IReadOnlyList<OrgUnitOptionDto> MemberOrgUnits { get; init; } = [];
+
     /// <summary>Kỹ sư đang phụ trách.</summary>
     public IReadOnlyList<WorkReportUnitEngineerDto> Engineers { get; init; } = [];
 
@@ -65,6 +68,16 @@ public class WorkReportUnitParentOptionDto
     public int OrgUnitId { get; init; }
     public string Name { get; init; } = string.Empty;
     public bool IsWorkshop { get; init; }
+
+    /// <summary>Tổ trên sơ đồ nằm trong xưởng / đội này: lựa chọn "Gộp nhân sự từ tổ".</summary>
+    public IReadOnlyList<OrgUnitOptionDto> Groups { get; init; } = [];
+}
+
+/// <summary>Đơn vị trên sơ đồ tổ chức (Id + tên).</summary>
+public class OrgUnitOptionDto
+{
+    public int OrgUnitId { get; init; }
+    public string Name { get; init; } = string.Empty;
 }
 
 // ===== Request =====
@@ -78,6 +91,9 @@ public abstract class WorkReportUnitRequestBase
 
     /// <summary>HC | KIP.</summary>
     public string LaborType { get; set; } = string.Empty;
+
+    /// <summary>Chỉ đơn vị tự đặt: Id các tổ trên sơ đồ (trong đội/xưởng gắn) gộp nhân sự. Rỗng = cả đội/xưởng.</summary>
+    public List<int>? MemberOrgUnitIds { get; set; }
 }
 
 /// <summary>Thêm đơn vị tự đặt (tổ/kíp trên sơ đồ được tạo tự động).</summary>

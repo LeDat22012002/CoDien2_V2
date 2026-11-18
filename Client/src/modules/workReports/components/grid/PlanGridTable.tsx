@@ -27,7 +27,6 @@ import {
 import {
   EditingActions,
   ItemActions,
-  LockedByIcon,
 } from "@/modules/workReports/components/grid/GridRowActions";
 import {
   SheetGroupHeader,
@@ -112,7 +111,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
   const canEditAny = forms.some((form) => form.canEditNow);
 
   const startEdit = (form: WeeklyPlanForm, item: WorkPlanItem) => {
-    if (!form.canUpdate) return;
+    if (!editor.canUpdateItem(form, item)) return;
     editor.startEdit(form, item, {
       ...toCommonFormValues(item, form),
       plannedMinutes: item.plannedMinutes?.toString() ?? undefined,
@@ -129,6 +128,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
       latest,
       editingItem?.workers ?? [],
       editor.engineerOptions,
+      editingItem?.wholeGroups,
     ),
     {
       label: "Giờ công KH (phút)",
@@ -305,13 +305,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
     renderTt: (row: Row) => {
       if (row.kind !== "item")
         return <PlusOutlined className="text-primary" aria-label="Dòng mới" />;
-      const lock = editor.lockOf(row.form.formId, row.item.id);
-      return (
-        <span className="inline-flex items-center gap-1">
-          {row.item.tt}
-          {lock && <LockedByIcon name={lock.fullName} />}
-        </span>
-      );
+      return row.item.tt;
     },
     renderCode: (row: Row) => {
       if (row.kind === "draft")
@@ -335,6 +329,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
     engineerOptions: editor.engineerOptions,
     rowForm,
     editingWorkers: editingItem?.workers,
+    editingWholeGroups: editingItem?.wholeGroups,
     onSave: handleSave,
   };
 
@@ -392,8 +387,8 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
               return (
                 <ItemActions
                   code={item.code}
-                  canUpdate={row.form.canUpdate}
-                  canDelete={row.form.canDelete}
+                  canUpdate={editor.canUpdateItem(row.form, item)}
+                  canDelete={editor.canDeleteItem(row.form, item)}
                   disabled={isBusy}
                   lockedBy={editor.lockOf(row.form.formId, item.id)?.fullName}
                   onEdit={() => startEdit(row.form, item)}
@@ -437,7 +432,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
               onDoubleClick: () => {
                 if (row.kind !== "item" || isBusy) return;
                 const lock = editor.lockOf(row.form.formId, row.item.id);
-                if (lock && row.form.canUpdate) {
+                if (lock && editor.canUpdateItem(row.form, row.item)) {
                   notify.info(`${lock.fullName} đang sửa dòng này.`, {
                     toastId: `lock-${row.item.id}`,
                   });

@@ -9,14 +9,17 @@ namespace Server.Modules.WorkReports.Services.Interfaces;
 /// work-reports.manage + trưởng/phó Đội → xem, phân công các tổ trong đội; + trưởng/phó đơn vị cấp 1 → cả xưởng, cấu hình tổ/kíp;
 /// work-reports.plan.* / report.* (admin cấp) → thêm/sửa/xóa trong đội/xưởng mình là trưởng/phó (admin: mọi xưởng);
 /// work-reports.configure → cấu hình, mở khóa, phân công.
-/// Trang công khai (Ban Giám đốc) gọi UsePublicView: xem mọi xưởng, không sửa, không cần đăng nhập.
+/// Trang công khai (Ban Giám đốc) gọi UsePublicViewAsync: xem các xưởng công khai, không sửa, không cần đăng nhập.
 /// </summary>
 public interface IWorkReportScopeService
 {
     Task<WorkReportScope> GetScopeAsync(CancellationToken cancellationToken);
 
-    /// <summary>Request của trang công khai: phạm vi = chỉ xem mọi xưởng, bỏ qua người đăng nhập (gọi trước mọi hàm khác).</summary>
-    void UsePublicView();
+    /// <summary>
+    /// Request của trang công khai: phạm vi = chỉ xem các xưởng được bật trong Cài đặt (chưa cấu hình = mọi xưởng),
+    /// bỏ qua người đăng nhập (gọi trước mọi hàm khác).
+    /// </summary>
+    Task UsePublicViewAsync(CancellationToken cancellationToken);
 
     /// <summary>Quyền của người gọi trên 1 đơn vị báo cáo.</summary>
     Task<WorkReportUnitAccessDto> GetUnitAccessAsync(WorkReportUnit unit, CancellationToken cancellationToken);
