@@ -93,7 +93,7 @@ public class WorkReportService(
     {
         var context = await formService.GetContextAsync(formId, Phase, WorkItemAction.Create, cancellationToken);
         Normalize(request);
-        WorkItemRequestValidator.ValidateReport(request, context.Week, isUnplanned: true);
+        WorkItemRequestValidator.ValidateReport(request, context.Week, context.Form.LaborType, isUnplanned: true);
 
         var category = await support.GetUsableCategoryAsync(request.WorkCategoryId, context.Form.WorkshopId, cancellationToken);
         var workers = await support.BuildWorkersAsync(request, context.Form, cancellationToken);
@@ -255,7 +255,7 @@ public class WorkReportService(
         }
 
         Normalize(request);
-        WorkItemRequestValidator.ValidateReport(request, context.Week, isUnplanned);
+        WorkItemRequestValidator.ValidateReport(request, context.Week, context.Form.LaborType, isUnplanned);
 
         WorkCategory? newCategory = null;
         if (request.WorkCategoryId != item.WorkCategoryId)

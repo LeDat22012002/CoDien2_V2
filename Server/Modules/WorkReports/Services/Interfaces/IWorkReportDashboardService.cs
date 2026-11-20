@@ -5,12 +5,12 @@ namespace Server.Modules.WorkReports.Services.Interfaces;
 /// <summary>Trang công khai: việc trong ngày và phân tích tuần của các xưởng công khai (gọi sau UsePublicViewAsync).</summary>
 public interface IWorkReportDashboardService
 {
-    /// <summary>Dòng báo cáo có khoảng ngày làm phủ ngày date.</summary>
-    Task<DailyWorkDto<WorkReportItemDto>> GetDailyReportAsync(DateOnly date, CancellationToken cancellationToken);
+    /// <summary>Lưới báo cáo từng xưởng, chỉ dòng có khoảng ngày làm phủ ngày date.</summary>
+    Task<DailyWorkDto<WeeklyReportFormDto>> GetDailyReportAsync(DateOnly date, CancellationToken cancellationToken);
 
-    /// <summary>Dòng kế hoạch có khoảng ngày làm phủ ngày date.</summary>
-    Task<DailyWorkDto<WorkPlanItemDto>> GetDailyPlanAsync(DateOnly date, CancellationToken cancellationToken);
+    /// <summary>Lưới kế hoạch từng xưởng, chỉ dòng có khoảng ngày làm phủ ngày date.</summary>
+    Task<DailyWorkDto<WeeklyPlanFormDto>> GetDailyPlanAsync(DateOnly date, CancellationToken cancellationToken);
 
-    /// <summary>Báo cáo tuần + kế hoạch tuần tới theo xưởng: giờ công KH/TT, %, phút theo đầu mục, vật tư.</summary>
+    /// <summary>Kế hoạch – thực hiện của cùng 1 tuần theo xưởng: số việc, mã vật tư, giờ công KH/TT, %, phút theo đầu mục.</summary>
     Task<WorkReportDashboardDto> GetDashboardAsync(WorkReportDashboardRequest request, CancellationToken cancellationToken);
 }

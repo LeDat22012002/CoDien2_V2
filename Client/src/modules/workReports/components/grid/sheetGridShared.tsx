@@ -17,6 +17,7 @@ import { EquipmentInput } from "@/modules/workReports/components/EquipmentInput"
 import { WorkerSelect } from "@/modules/workReports/components/WorkerSelect";
 import {
   GROUP_ROW_BG,
+  SECTION_ROW_BG,
   UNIT_ROW_BG,
 } from "@/modules/workReports/constants/sheetTable";
 import { useAuthStore } from "@/stores/authStore";
@@ -24,6 +25,7 @@ import { useCollapsedKeys } from "@/modules/workReports/hooks/useCollapsedKeys";
 import { useWorkReportPresence } from "@/modules/workReports/hooks/useWorkReportLiveUpdates";
 import type {
   EngineerOption,
+  LaborType,
   OrgUnitOption,
   WeeklyFormBase,
   WorkCategory,
@@ -62,13 +64,27 @@ export type SheetForm<TItem extends WorkItemBase> = WeeklyFormBase & {
 };
 
 /**
- * Dòng của bảng: tiêu đề tổ/kíp (I, II…), tiêu đề đầu mục (A, B…), dòng công việc, gợi ý từ kế hoạch (chỉ bảng báo cáo),
+ * Nhóm cấp trên tổ/kíp (vd 1 xưởng khi gộp nhiều xưởng vào 1 bảng ở tab Hôm nay): tiêu đề, số dòng, các form thuộc nhóm
+ * (theo thứ tự). Nhóm không có form vẫn hiện dòng tiêu đề.
+ */
+export interface SheetSection {
+  key: string;
+  title: ReactNode;
+  /** Hiện cạnh tiêu đề (vd "Đang nhập – …"). */
+  extra?: ReactNode;
+  itemCount: number;
+  formIds: number[];
+}
+
+/**
+ * Dòng của bảng: tiêu đề nhóm cấp trên (xưởng, chỉ khi có sections), tiêu đề tổ/kíp (I, II…), tiêu đề đầu mục (A, B…), dòng công việc, gợi ý từ kế hoạch (chỉ bảng báo cáo),
  * dòng mới đang nhập. collapsed: thuộc nhóm đang thu gọn (vẫn render để chạy hiệu ứng, chỉ co lại).
  */
 export type SheetRow<
   TItem extends WorkItemBase,
   TForm extends SheetForm<TItem>,
 > = (
+  | { kind: "section"; key: string; section: SheetSection }
   | { kind: "unit"; key: string; form: TForm }
   | {
       kind: "group";
@@ -134,6 +150,7 @@ export const headerTitle = (label: string, columnNo?: number) => (
 
 /** Khóa thu gọn của tổ/kíp và của đầu mục trong tổ/kíp. */
 export const unitKey = (formId: number) => `u-${formId}`;
+export const sectionKey = (key: string) => `s-${key}`;
 export const groupKey = (formId: number, categoryId: number) =>
   `g-${formId}-${categoryId}`;
 
@@ -150,7 +167,10 @@ export const toCommonFormValues = (
     : item.wholeGroups.length > 0
       ? // Không biết số người từng tổ đã chụp: dồn tổng vào tổ đầu (chỉ dùng để đếm)
         item.wholeGroups.map((group, index) =>
-          toWholeGroupValue(group.orgUnitId, index === 0 ? item.workerCount : 0),
+          toWholeGroupValue(
+            group.orgUnitId,
+            index === 0 ? item.workerCount : 0,
+          ),
         )
       : [toWholeUnitValue(item.workerCount)],
   // Dòng cũ chưa lưu KTV: điền KTV của tổ (đúng như đang hiển thị)
@@ -315,28 +335,35 @@ export const useSheetRows = <
   editing,
   collapsed,
   suggestionsOf,
+  hideEmptyGroups = false,
+  sections,
 }: {
   forms: TForm[];
   categories: WorkCategory[];
   editing?: EditingState;
   collapsed: ReadonlySet<string>;
   suggestionsOf?: (form: TForm) => WorkPlanItem[];
+  /** Bỏ dòng đầu mục không có dòng nào (bảng chỉ xem, vd tab Hôm nay); mặc định hiện mọi đầu mục đang dùng. */
+  hideEmptyGroups?: boolean;
+  /** Nhóm cấp trên tổ/kíp (vd xưởng); không có = không có cấp này. */
+  sections?: SheetSection[];
 }) =>
   useMemo(() => {
     type Row = SheetRow<TItem, TForm>;
     const isDraft = editing !== undefined && editing.itemId === undefined;
     const result: Row[] = [];
-    forms.forEach((form) => {
+    const pushForm = (form: TForm, isSectionCollapsed: boolean) => {
       result.push({
         kind: "unit",
         key: `unit-${form.formId}`,
         form,
-        collapsed: false,
+        collapsed: isSectionCollapsed,
       });
       const isEditingForm = editing?.formId === form.formId;
-      // Tổ/kíp thu gọn: chỉ còn dòng tiêu đề (đang sửa dòng trong tổ thì luôn mở)
+      // Tổ/kíp thu gọn: chỉ còn dòng tiêu đề (đang sửa dòng trong tổ thì luôn mở); nhóm cấp trên thu gọn: ẩn cả tổ
       const isUnitCollapsed =
-        collapsed.has(unitKey(form.formId)) && !isEditingForm;
+        isSectionCollapsed ||
+        (collapsed.has(unitKey(form.formId)) && !isEditingForm);
       const suggestions = suggestionsOf?.(form) ?? [];
       categories.forEach((category) => {
         const items = form.items.filter(
@@ -351,7 +378,7 @@ export const useSheetRows = <
           items.length === 0 &&
           groupSuggestions.length === 0 &&
           !hasDraft &&
-          !category.isActive
+          (!category.isActive || hideEmptyGroups)
         )
           return;
         result.push({
@@ -395,12 +422,39 @@ export const useSheetRows = <
             key: `draft-${form.formId}`,
             form,
             categoryId: category.id,
-            collapsed: false,
+            collapsed: isSectionCollapsed,
           });
+      });
+    };
+
+    if (!sections) {
+      forms.forEach((form) => pushForm(form, false));
+      return result;
+    }
+    const formById = new Map(forms.map((form) => [form.formId, form]));
+    sections.forEach((section) => {
+      result.push({
+        kind: "section",
+        key: `section-${section.key}`,
+        section,
+        collapsed: false,
+      });
+      const isSectionCollapsed = collapsed.has(sectionKey(section.key));
+      section.formIds.forEach((formId) => {
+        const form = formById.get(formId);
+        if (form) pushForm(form, isSectionCollapsed);
       });
     });
     return result;
-  }, [forms, categories, editing, collapsed, suggestionsOf]);
+  }, [
+    forms,
+    categories,
+    editing,
+    collapsed,
+    suggestionsOf,
+    hideEmptyGroups,
+    sections,
+  ]);
 
 /** Trạng thái sửa tại chỗ 1 dòng (Form AntD dùng chung cho cả bảng). */
 export const useSheetEditor = <
@@ -561,6 +615,8 @@ interface CommonColumnContext<TRow> {
   categoryIdOf: (row: TRow) => number | undefined;
   unitNameOf: (row: TRow) => string;
   unitIdOf: (row: TRow) => number;
+  /** Loại giờ công của tổ/kíp: tổ HC không được chọn khoảng ngày vắt qua Chủ nhật. */
+  laborTypeOf: (row: TRow) => LaborType | undefined;
   /** KTV của tổ/kíp (form): hiện cho dòng cũ chưa lưu KTV theo dòng. */
   engineerNamesOf: (row: TRow) => string | null | undefined;
   /** Lựa chọn KTV của dòng đang sửa. */
@@ -571,6 +627,23 @@ interface CommonColumnContext<TRow> {
   editingWholeGroups?: OrgUnitOption[];
   onSave: () => void;
 }
+
+const isSunday = (date: Dayjs) => date.day() === 0;
+
+/**
+ * Tổ hành chính (HC) làm thứ 2 → thứ 7: khoảng ngày chỉ trong T2–T7; làm Chủ nhật thì chọn riêng 1 ngày
+ * (bắt đầu = kết thúc = CN). Đúng khi khoảng ngày có Chủ nhật mà không phải đúng 1 ngày CN.
+ */
+export const isInvalidHcRange = (start: Dayjs, end: Dayjs) => {
+  if (start.isSame(end, "day")) return false;
+  for (let day = start; !day.isAfter(end, "day"); day = day.add(1, "day")) {
+    if (isSunday(day)) return true;
+  }
+  return false;
+};
+
+const HC_SUNDAY_MESSAGE =
+  "Tổ HC: ngày kết thúc không được là Chủ nhật (làm Chủ nhật thì chọn riêng 1 ngày CN)";
 
 /** Ô đang sửa thì hiện control, không thì hiện giá trị. */
 const makeCell =
@@ -701,13 +774,25 @@ export const commonLeadingColumns = <TRow,>(
       key: "dates",
       width: 150,
       align: "center",
-      render: (_, row) =>
-        cell(
+      render: (_, row) => {
+        // Tổ HC: khoảng T2–T7, CN chọn riêng 1 ngày. Không khóa ngày trên lịch (lịch chỉ biết ngày đầu khi vừa chọn
+        // trong lần mở đó, giữ ngày đầu mặc định rồi chọn CN thì lịch tự bỏ ngày kết thúc mà không báo): cho chọn,
+        // sai thì báo lỗi ngay dưới ô (kiểm tra khi đổi giá trị) và không cho lưu
+        const isHc = ctx.laborTypeOf(row) === "HC";
+        return cell(
           row,
           <Form.Item
             name="dates"
             className="mb-0"
-            rules={[{ required: true, message: "Chọn ngày" }]}
+            rules={[
+              { required: true, message: "Chọn ngày" },
+              {
+                validator: (_, value?: [Dayjs, Dayjs]) =>
+                  isHc && value && isInvalidHcRange(value[0], value[1])
+                    ? Promise.reject(new Error(HC_SUNDAY_MESSAGE))
+                    : Promise.resolve(),
+              },
+            ]}
           >
             <DatePicker.RangePicker
               aria-label="Ngày bắt đầu – ngày kết thúc"
@@ -727,7 +812,8 @@ export const commonLeadingColumns = <TRow,>(
             const item = ctx.itemOf(row);
             return item ? formatDateRange(item.startDate, item.endDate) : null;
           },
-        ),
+        );
+      },
     }),
     {
       title: "Nhân sự thực hiện (Người)",
@@ -744,7 +830,8 @@ export const commonLeadingColumns = <TRow,>(
                 {() =>
                   countWorkerValues(
                     ctx.rowForm.getFieldValue("workers") as
-                      string[] | undefined,
+                      | string[]
+                      | undefined,
                   )
                 }
               </Form.Item>
@@ -851,7 +938,18 @@ export const createGridLeafColumns = <
   TItem extends WorkItemBase,
   TForm extends SheetForm<TItem>,
 >() =>
-  createSheetLeafColumns<SheetRow<TItem, TForm>>(
-    (row) => row.kind === "unit" || row.kind === "group",
-    (row) => (row.kind === "unit" ? UNIT_ROW_BG : GROUP_ROW_BG),
+  createSheetLeafColumns<SheetRow<TItem, TForm>>(isSheetHeaderRow, (row) =>
+    row.kind === "section"
+      ? SECTION_ROW_BG
+      : row.kind === "unit"
+        ? UNIT_ROW_BG
+        : GROUP_ROW_BG,
   );
+
+/** Dòng tiêu đề (gộp ô cả hàng): nhóm cấp trên, tổ/kíp, đầu mục. */
+export const isSheetHeaderRow = <
+  TItem extends WorkItemBase,
+  TForm extends SheetForm<TItem>,
+>(
+  row: SheetRow<TItem, TForm>,
+) => row.kind === "section" || row.kind === "unit" || row.kind === "group";

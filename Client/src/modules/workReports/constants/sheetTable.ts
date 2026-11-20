@@ -23,6 +23,9 @@ export const SHEET_TABLE_CLASS = [
 ].join(" ");
 
 /** Nền đặc (không trong suốt) cho dòng tiêu đề: ô ghim trái phải che được nội dung cuộn bên dưới. */
+/** Dòng tiêu đề nhóm cấp trên tổ/kíp (xưởng, tab Hôm nay): nền xanh dương nhạt, đậm hơn tổ/kíp. */
+export const SECTION_ROW_BG =
+  "bg-[color-mix(in_srgb,var(--app-color-primary)_14%,var(--app-color-bg-container))]";
 export const UNIT_ROW_BG =
   "bg-[color-mix(in_srgb,var(--app-color-warning)_15%,var(--app-color-bg-container))]";
 export const GROUP_ROW_BG =

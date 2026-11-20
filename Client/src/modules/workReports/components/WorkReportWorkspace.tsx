@@ -62,7 +62,8 @@ const TAB_KEYS: TabKey[] = ["grid", "summary", "materials", "units"];
  * - manage: trang quản trị /admin/work-reports (work-reports.manage) cho đội trưởng, quản đốc: xem đội/xưởng mình,
  *   tab Đơn vị & kỹ sư; thêm/sửa/xóa dòng chỉ khi admin cấp quyền work-reports.plan.* / report.*.
  * - factory: trang công khai /work-reports cho Ban Giám đốc (ai cũng xem được, không cần đăng nhập), chỉ xem mọi xưởng;
- *   bọc trong WorkReportPublicContext để gọi API /work-reports/public/*.
+ *   bọc trong WorkReportPublicContext để gọi API /work-reports/public/*. Không tự mở xưởng: chưa chọn (?ws=) thì chỉ hiện
+ *   ô chọn xưởng.
  */
 export type WorkReportWorkspaceMode = "submit" | "manage" | "factory";
 
@@ -96,7 +97,7 @@ const MODE_TEXT: Record<
  * chỉ thân bảng cuộn và bảng dùng hết chỗ còn lại (giống trang Nhật ký hệ thống).
  * - submit / manage (PrivateLayout): header 56px + lề p-4 / md:p-6.
  * - factory (PublicLayout + FactoryWorkReportPage): header 64px + lề py-4 / md:py-6 + thanh chọn phần
- *   (Hôm nay / Phân tích / Chi tiết tuần) 32px + mb-2 / md:mb-3.
+ *   (Phân tích / Hôm nay / Chi tiết tuần) 32px + mb-2 / md:mb-3.
  */
 const MODE_HEIGHT_CLASS: Record<WorkReportWorkspaceMode, string> = {
   submit: "h-[calc(100dvh-88px)] md:h-[calc(100dvh-104px)]",
@@ -136,8 +137,10 @@ export const WorkReportWorkspace = ({ mode }: WorkReportWorkspaceProps) => {
   const workshops = scopeQuery.data?.workshops ?? [];
 
   const workshopParam = Number(searchParams.get(PARAMS.workshop)) || undefined;
+  // Trang công khai: không tự mở xưởng, người xem chọn xưởng trước; trang kỹ sư / quản lý mở xưởng đầu
   const workshop =
-    workshops.find((item) => item.workshopId === workshopParam) ?? workshops[0];
+    workshops.find((item) => item.workshopId === workshopParam) ??
+    (mode === "factory" ? undefined : workshops[0]);
   const workshopId = workshop?.workshopId;
   const phase: WorkReportPhase =
     searchParams.get(PARAMS.phase) === "PLAN" ? "PLAN" : "REPORT";
@@ -221,6 +224,39 @@ export const WorkReportWorkspace = ({ mode }: WorkReportWorkspaceProps) => {
         onRetry={() => scopeQuery.refetch()}
       />
     );
+  if (!workshop && mode === "factory" && workshops.length > 0) {
+    // Trang công khai chưa chọn xưởng: chỉ hiện ô chọn xưởng
+    return (
+      <div className="flex flex-col gap-2 md:gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-bg-container px-3 py-2 md:px-4">
+          <Typography.Title level={4} className="mb-0 basis-full sm:basis-auto">
+            {text.title}
+          </Typography.Title>
+          <Select
+            aria-label="Chọn xưởng"
+            placeholder="Chọn xưởng"
+            onChange={(value: number) =>
+              updateParams({
+                workshop: value,
+                week: undefined,
+                year: undefined,
+              })
+            }
+            options={workshops.map((item) => ({
+              value: item.workshopId,
+              label: item.workshopName,
+            }))}
+            showSearch
+            optionFilterProp="label"
+            className="w-full sm:w-72"
+          />
+        </div>
+        <div className="rounded-md bg-bg-container py-10">
+          <Empty description="Chọn xưởng để xem kế hoạch, báo cáo công việc tuần." />
+        </div>
+      </div>
+    );
+  }
   if (!workshop) {
     return (
       <div>
@@ -252,7 +288,7 @@ export const WorkReportWorkspace = ({ mode }: WorkReportWorkspaceProps) => {
       <Typography.Title level={4} className="mb-0 basis-full sm:basis-auto">
         {text.title}
       </Typography.Title>
-      {workshops.length > 1 && (
+      {(workshops.length > 1 || mode === "factory") && (
         <Select
           aria-label="Chọn xưởng"
           value={workshopId}

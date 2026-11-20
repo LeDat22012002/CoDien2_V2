@@ -30,6 +30,7 @@ import {
 } from "@/modules/workReports/components/grid/GridRowActions";
 import {
   SheetGroupHeader,
+  SheetSectionHeader,
   SheetUnitHeader,
 } from "@/modules/workReports/components/grid/SheetGridHeaders";
 import {
@@ -38,6 +39,8 @@ import {
   commonTrailingColumns,
   createGridLeafColumns,
   groupKey,
+  isSheetHeaderRow,
+  sectionKey,
   headerTitle,
   lastEditText,
   toCommonFormValues,
@@ -47,6 +50,7 @@ import {
   useSheetRows,
   type RowFormValues,
   type SheetRow,
+  type SheetSection,
 } from "@/modules/workReports/components/grid/sheetGridShared";
 import {
   EDITING_ROW_CLASS,
@@ -75,6 +79,10 @@ interface PlanGridTableProps {
   grid: WorkPlanGrid;
   /** Tổ/kíp hiển thị (đã lọc), theo thứ tự I, II… */
   forms: WeeklyPlanForm[];
+  /** Bỏ dòng đầu mục không có dòng nào (bảng chỉ xem, vd tab Hôm nay); mặc định hiện mọi đầu mục đang dùng. */
+  hideEmptyGroups?: boolean;
+  /** Nhóm cấp trên tổ/kíp (vd mỗi xưởng 1 nhóm khi gộp nhiều xưởng vào 1 bảng); không có = không có cấp này. */
+  sections?: SheetSection[];
 }
 
 /**
@@ -82,7 +90,12 @@ interface PlanGridTableProps {
  * đầu mục (dòng A, B… tô xanh). Thêm / sửa / xóa tự do trong hạn kế hoạch theo quyền (canCreate/canUpdate/canDelete);
  * quá hạn thì khóa, chỉ admin mở khóa. Sửa tại chỗ: double-click hoặc bút; Enter lưu, Esc hủy.
  */
-export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
+export const PlanGridTable = ({
+  grid,
+  forms,
+  hideEmptyGroups = false,
+  sections,
+}: PlanGridTableProps) => {
   const { modal } = App.useApp();
   const { containerRef, scrollY } = useTableScrollY();
   const { week, categories } = grid;
@@ -104,6 +117,8 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
   const rows = useSheetRows<WorkPlanItem, WeeklyPlanForm>({
     forms,
     categories,
+    hideEmptyGroups,
+    sections,
     editing,
     collapsed: collapse.collapsed,
   });
@@ -257,13 +272,23 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
       },
     });
 
-  const isHeaderRow = (row: Row) => row.kind === "unit" || row.kind === "group";
+  const isHeaderRow = (row: Row) => isSheetHeaderRow(row);
   const isEditingRow = (row: Row) =>
     (row.kind === "item" && editing?.itemId === row.item.id) ||
     row.kind === "draft";
   const itemOf = (row: Row) => (row.kind === "item" ? row.item : undefined);
 
   const renderHeader = (row: Row) => {
+    if (row.kind === "section") {
+      const key = sectionKey(row.section.key);
+      return (
+        <SheetSectionHeader
+          section={row.section}
+          expanded={!collapse.collapsed.has(key)}
+          onToggle={() => collapse.toggle(key)}
+        />
+      );
+    }
     if (row.kind === "unit") {
       return (
         <SheetUnitHeader
@@ -323,9 +348,13 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
         : row.kind === "draft"
           ? row.categoryId
           : undefined,
-    unitNameOf: (row: Row) => row.form.unitName,
-    unitIdOf: (row: Row) => row.form.unitId,
-    engineerNamesOf: (row: Row) => row.form.engineerNames,
+    // Chỉ gọi cho dòng công việc (dòng tiêu đề gộp ô); dòng nhóm cấp trên không có form
+    unitNameOf: (row: Row) => (row.kind === "section" ? "" : row.form.unitName),
+    unitIdOf: (row: Row) => (row.kind === "section" ? 0 : row.form.unitId),
+    laborTypeOf: (row: Row) =>
+      row.kind === "section" ? undefined : row.form.laborType,
+    engineerNamesOf: (row: Row) =>
+      row.kind === "section" ? undefined : row.form.engineerNames,
     engineerOptions: editor.engineerOptions,
     rowForm,
     editingWorkers: editingItem?.workers,
@@ -383,7 +412,7 @@ export const PlanGridTable = ({ grid, forms }: PlanGridTableProps) => {
                   />
                 );
               const item = itemOf(row);
-              if (!item) return null;
+              if (!item || row.kind === "section") return null;
               return (
                 <ItemActions
                   code={item.code}

@@ -5,6 +5,7 @@ import { CollapseToggle } from "@/modules/workReports/components/collapsible/Col
 import { FormStatusTag } from "@/modules/workReports/components/FormStatusTag";
 import { FormUnlockButton } from "@/modules/workReports/components/grid/FormUnlockButton";
 import { EditingByBadge } from "@/modules/workReports/components/grid/GridRowActions";
+import type { SheetSection } from "@/modules/workReports/components/grid/sheetGridShared";
 import type {
   WeeklyFormBase,
   WorkCategory,
@@ -47,6 +48,29 @@ export const SheetUnitHeader = ({
     <FormUnlockButton form={form} phase={phase} />
     {extra}
     {editorNames.length > 0 && <EditingByBadge names={editorNames} />}
+  </div>
+);
+
+/** Dòng tiêu đề nhóm cấp trên tổ/kíp (vd xưởng): tên, số dòng, phần thêm (vd đang nhập). */
+export const SheetSectionHeader = ({
+  section,
+  expanded,
+  onToggle,
+}: {
+  section: SheetSection;
+  expanded: boolean;
+  onToggle: () => void;
+}) => (
+  <div className="sticky inset-s-2 inline-flex items-center gap-x-3 whitespace-nowrap py-0.5">
+    <CollapseToggle expanded={expanded} onToggle={onToggle}>
+      <Typography.Text strong className="text-sm">
+        {section.title}
+      </Typography.Text>
+      <Typography.Text type="secondary">
+        · {section.itemCount} việc
+      </Typography.Text>
+    </CollapseToggle>
+    {section.extra}
   </div>
 );
 

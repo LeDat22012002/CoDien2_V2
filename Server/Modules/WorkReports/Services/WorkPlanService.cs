@@ -66,7 +66,7 @@ public class WorkPlanService(
     {
         var context = await formService.GetContextAsync(formId, Phase, WorkItemAction.Create, cancellationToken);
         Normalize(request);
-        WorkItemRequestValidator.ValidatePlan(request, context.Week);
+        WorkItemRequestValidator.ValidatePlan(request, context.Week, context.Form.LaborType);
 
         var category = await support.GetUsableCategoryAsync(request.WorkCategoryId, context.Form.WorkshopId, cancellationToken);
         var workers = await support.BuildWorkersAsync(request, context.Form, cancellationToken);
@@ -112,7 +112,7 @@ public class WorkPlanService(
         }
 
         Normalize(request);
-        WorkItemRequestValidator.ValidatePlan(request, context.Week);
+        WorkItemRequestValidator.ValidatePlan(request, context.Week, context.Form.LaborType);
 
         WorkCategory? newCategory = null;
         if (request.WorkCategoryId != item.WorkCategoryId)

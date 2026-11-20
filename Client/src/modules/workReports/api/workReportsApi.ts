@@ -28,8 +28,10 @@ import type {
   WorkGrid,
   WorkMaterial,
   WorkMaterialRequest,
+  WorkPlanGrid,
   WorkPlanItem,
   WorkReportFilter,
+  WorkReportGrid,
   WorkReportItem,
   WorkReportDashboard,
   WorkReportPhase,
@@ -91,13 +93,13 @@ export const publicWorkReportsApi = {
     httpGet<WorkMaterial[]>(
       `${PUBLIC_BASE}/${PHASE_PATH[phase]}/forms/${formId}/materials`,
     ),
-  /** Báo cáo trong ngày date (yyyy-MM-dd). */
+  /** Lưới báo cáo từng xưởng, chỉ dòng trong ngày date (yyyy-MM-dd). */
   getDailyReport: (date: string) =>
-    httpGet<DailyWork<WorkReportItem>>(`${PUBLIC_BASE}/daily/report`, { date }),
-  /** Kế hoạch trong ngày date (yyyy-MM-dd). */
+    httpGet<DailyWork<WorkReportGrid>>(`${PUBLIC_BASE}/daily/report`, { date }),
+  /** Lưới kế hoạch từng xưởng, chỉ dòng trong ngày date (yyyy-MM-dd). */
   getDailyPlan: (date: string) =>
-    httpGet<DailyWork<WorkPlanItem>>(`${PUBLIC_BASE}/daily/plan`, { date }),
-  /** Phân tích báo cáo tuần weekId (trống = tuần đang báo cáo) + kế hoạch tuần tới. */
+    httpGet<DailyWork<WorkPlanGrid>>(`${PUBLIC_BASE}/daily/plan`, { date }),
+  /** Phân tích kế hoạch – thực hiện tuần weekId (trống = tuần đang báo cáo). */
   getDashboard: (weekId?: number) =>
     httpGet<WorkReportDashboard>(`${PUBLIC_BASE}/dashboard`, { weekId }),
 };

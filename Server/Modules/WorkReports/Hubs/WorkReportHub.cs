@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Server.Modules.WorkReports.Entities;
+using Server.Modules.WorkReports.Repositories.Interfaces;
 using Server.Shared.Constants;
 
 namespace Server.Modules.WorkReports.Hubs;
@@ -10,11 +11,12 @@ namespace Server.Modules.WorkReports.Hubs;
 /// Cập nhật tức thì báo cáo tuần (SignalR, đường dẫn <see cref="Path"/>). Trang đang mở vào nhóm theo (xưởng, tuần).
 /// - <see cref="FormChangedEvent"/>: dòng / vật tư / mở khóa của 1 tổ/kíp thay đổi. Tin <b>không chứa dữ liệu</b>:
 ///   mỗi trang tự tải lại qua API của mình (đúng quyền), nên hub cho kết nối không cần đăng nhập.
-/// - <see cref="PresenceChangedEvent"/>: ai đang sửa / thêm dòng nào (khóa mềm, chỉ hiển thị; chốt chặn thật vẫn là
-///   rowVersion → 409). Báo "đang sửa" cần đăng nhập (token gửi qua query access_token).
+/// - <see cref="PresenceChangedEvent"/>: ai đang sửa / thêm dòng nào của tổ/kíp nào (khóa mềm, chỉ hiển thị; chốt chặn
+///   thật vẫn là rowVersion → 409). Báo "đang sửa" cần đăng nhập (token gửi qua query access_token). Trang công khai
+///   (tab Hôm nay) vào nhóm của mọi xưởng công khai để hiện tổ nào đang nhập và tự tải lại khi lưu.
 /// </summary>
 [AllowAnonymous]
-public class WorkReportHub(WorkReportPresenceTracker presence) : Hub
+public class WorkReportHub(WorkReportPresenceTracker presence, IWeeklyFormRepository formRepository) : Hub
 {
     public const string Path = "/api/hubs/work-reports";
 
@@ -54,12 +56,20 @@ public class WorkReportHub(WorkReportPresenceTracker presence) : Hub
             throw new HubException("Dữ liệu không hợp lệ.");
         }
 
+        // Tên tổ/kíp để trang xem (tab Hôm nay) hiện "tổ nào đang nhập" kể cả khi tổ chưa có dòng nào trong ngày
+        var form = await formRepository.GetByIdAsync(formId, Context.ConnectionAborted);
+        if (form is null || form.WorkshopId != workshopId || form.WorkWeekId != weekId)
+        {
+            throw new HubException("Form không thuộc xưởng / tuần đang xem.");
+        }
+
         var fullName = Context.User!.FindFirstValue(AppClaimTypes.FullName)
                        ?? Context.User.FindFirstValue(AppClaimTypes.EmpCode)
                        ?? $"#{userId}";
         var group = new WeekGroup(workshopId, weekId);
         var previous = presence.Set(group, new WorkReportEditorDto(
-            Context.ConnectionId, userId, fullName, formId, phase, itemId is > 0 ? itemId : null, DateTime.Now));
+            Context.ConnectionId, userId, fullName, formId, form.UnitName, phase,
+            itemId is > 0 ? itemId : null, DateTime.Now));
 
         await BroadcastAsync(group);
         if (previous is { } old)

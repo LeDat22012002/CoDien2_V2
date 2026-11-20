@@ -1,207 +1,110 @@
 import { ReloadOutlined } from "@ant-design/icons";
 import {
+  Badge,
   Button,
-  Card,
   DatePicker,
   Empty,
   Segmented,
   Select,
   Skeleton,
-  Table,
-  Tag,
   Tooltip,
-  Typography,
-  type TableColumnsType,
 } from "antd";
 import type { Dayjs } from "dayjs";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ErrorState } from "@/shared/components/ErrorState";
 import dayjs from "@/shared/utils/dayjs";
-import { EMPTY_TEXT, formatNumber } from "@/shared/utils/format";
-import { WHOLE_UNIT_LABEL } from "@/modules/workReports/constants/workReportOptions";
+import { PlanGridTable } from "@/modules/workReports/components/grid/PlanGridTable";
+import { ReportGridTable } from "@/modules/workReports/components/grid/ReportGridTable";
+import type { SheetSection } from "@/modules/workReports/components/grid/sheetGridShared";
+import {
+  readOnlyPresence,
+  useWorkReportLiveGroups,
+  WorkReportPresenceContext,
+} from "@/modules/workReports/hooks/useWorkReportLiveUpdates";
 import { usePublicDailyWork } from "@/modules/workReports/hooks/useWorkReportQueries";
 import type {
-  DailyUnit,
   DailyWorkshop,
-  WorkItemBase,
-  WorkPlanItem,
-  WorkReportItem,
+  WeeklyPlanForm,
+  WeeklyReportForm,
+  WorkCategory,
+  WorkGrid,
+  WorkReportEditor,
   WorkReportPhase,
 } from "@/modules/workReports/types/workReports";
-import {
-  formatDateRange,
-  wholeGroupLabel,
-} from "@/modules/workReports/utils/workReportUtils";
 
-type DailyItem = WorkPlanItem | WorkReportItem;
-
-/** 1 dòng bảng: dòng công việc kèm tổ/kíp; rowSpan gộp ô tổ/kíp. */
-interface DailyRow {
-  key: number;
-  unit: DailyUnit<DailyItem>;
-  unitRowSpan: number;
-  item: DailyItem;
-}
-
-const isReportItem = (item: DailyItem): item is WorkReportItem =>
-  "effectiveActualMinutes" in item;
-
-/** Người thực hiện: "Cả tổ" / "Cả tổ Lò cao 1, 2" hoặc tên từng người. */
-const workersText = (item: WorkItemBase) => {
-  if (!item.isWholeUnit)
-    return item.workers.map((worker) => worker.displayName).join(", ");
-  return item.wholeGroups.length > 0
-    ? item.wholeGroups.map((group) => wholeGroupLabel(group.name)).join(", ")
-    : WHOLE_UNIT_LABEL;
-};
-
-/** KTV của dòng; dòng cũ chưa lưu KTV theo dòng thì KTV của tổ/kíp. */
-const engineersText = (item: WorkItemBase, unit: DailyUnit<DailyItem>) =>
-  item.engineers.length > 0
-    ? item.engineers.map((engineer) => engineer.fullName).join(", ")
-    : (unit.engineerNames ?? "");
-
-const toRows = (workshop: DailyWorkshop<DailyItem>): DailyRow[] =>
-  workshop.units.flatMap((unit) =>
-    unit.items.map((item, index) => ({
-      key: item.id,
-      unit,
-      unitRowSpan: index === 0 ? unit.items.length : 0,
-      item,
-    })),
-  );
-
-const text = (value?: string | null) =>
-  value ? (
-    <span className="whitespace-pre-line">{value}</span>
-  ) : (
-    <span className="text-text-secondary">{EMPTY_TEXT}</span>
-  );
-
-const buildColumns = (
-  phase: WorkReportPhase,
-): TableColumnsType<DailyRow> => [
-  {
-    title: "Tổ/kíp",
-    key: "unit",
-    width: 180,
-    onCell: (row) => ({ rowSpan: row.unitRowSpan }),
-    render: (_, row) => (
-      <Typography.Text strong>
-        {row.unit.orderLabel}. {row.unit.unitName}
-      </Typography.Text>
-    ),
-  },
-  {
-    title: "Mã công việc",
-    key: "code",
-    width: 150,
-    render: (_, row) => (
-      <div className="flex flex-col items-start gap-0.5">
-        <span className="font-mono">{row.item.code}</span>
-        {isReportItem(row.item) && row.item.isUnplanned && (
-          <Tag color="orange" className="me-0">
-            Phát sinh
-          </Tag>
-        )}
-      </div>
-    ),
-  },
-  {
-    title: "Đầu mục",
-    key: "category",
-    width: 160,
-    render: (_, row) =>
-      text(`${row.item.groupLetter}. ${row.item.categoryName}`),
-  },
-  {
-    title: "Thiết bị",
-    key: "equipment",
-    width: 180,
-    render: (_, row) =>
-      text(
-        [row.item.equipmentCode, row.item.equipmentName]
-          .filter(Boolean)
-          .join(" – "),
-      ),
-  },
-  {
-    title: "Hạng mục công việc",
-    key: "description",
-    width: 300,
-    render: (_, row) => text(row.item.description),
-  },
-  {
-    title: "Thời gian",
-    key: "dates",
-    width: 120,
-    render: (_, row) => formatDateRange(row.item.startDate, row.item.endDate),
-  },
-  {
-    title: "Người thực hiện",
-    key: "workers",
-    width: 220,
-    render: (_, row) => (
-      <span>
-        {text(workersText(row.item))}
-        <Typography.Text type="secondary"> ({row.item.workerCount} người)</Typography.Text>
-      </span>
-    ),
-  },
-  {
-    title: "KTV phụ trách",
-    key: "engineers",
-    width: 160,
-    render: (_, row) => text(engineersText(row.item, row.unit)),
-  },
-  {
-    title: "Giờ công KH (phút)",
-    key: "planned",
-    width: 110,
-    align: "right",
-    render: (_, row) => formatNumber(row.item.plannedMinutes, 2),
-  },
-  ...(phase === "REPORT"
-    ? ([
-        {
-          title: "Giờ công TT (phút)",
-          key: "actual",
-          width: 110,
-          align: "right",
-          render: (_, row) =>
-            isReportItem(row.item)
-              ? formatNumber(row.item.effectiveActualMinutes, 2)
-              : null,
-        },
-        {
-          title: "% hoàn thành",
-          key: "result",
-          width: 100,
-          align: "right",
-          render: (_, row) =>
-            isReportItem(row.item) && row.item.resultPercent != null
-              ? `${formatNumber(row.item.resultPercent, 0)}%`
-              : EMPTY_TEXT,
-        },
-      ] satisfies TableColumnsType<DailyRow>)
-    : []),
-  {
-    title: "Ghi chú",
-    key: "note",
-    width: 180,
-    render: (_, row) => text(row.item.note),
-  },
-];
-
-const PHASE_TEXT: Record<WorkReportPhase, string> = {
-  REPORT: "Báo cáo",
-  PLAN: "Kế hoạch",
+const PHASE_TITLE: Record<WorkReportPhase, string> = {
+  REPORT: "BÁO CÁO CÔNG VIỆC NGÀY",
+  PLAN: "KẾ HOẠCH CÔNG VIỆC NGÀY",
 };
 
 /**
+ * Gộp lưới trong ngày của các xưởng thành 1 lưới: form nối theo thứ tự xưởng, đầu mục = hợp đầu mục các xưởng
+ * (theo thứ tự nhóm; đầu mục không có dòng bị ẩn).
+ */
+const mergeGrids = (
+  workshops: DailyWorkshop<WorkGrid>[],
+  phase: WorkReportPhase,
+  title: string,
+): WorkGrid | undefined => {
+  const first = workshops[0]?.grid;
+  if (!first) return undefined;
+  const categories = new Map<number, WorkCategory>();
+  workshops.forEach((workshop) =>
+    workshop.grid.categories.forEach((category) =>
+      categories.set(category.id, category),
+    ),
+  );
+  const base = {
+    workshopId: 0,
+    workshopName: "",
+    title,
+    week: first.week,
+    categories: [...categories.values()].sort(
+      (a, b) => a.sortOrder - b.sortOrder || a.id - b.id,
+    ),
+  };
+  const forms = workshops.flatMap((workshop) => workshop.grid.forms);
+  return phase === "REPORT"
+    ? { ...base, phase, forms: forms as WeeklyReportForm[] }
+    : { ...base, phase, forms: forms as WeeklyPlanForm[] };
+};
+
+/** "Tổ I: Nguyễn A, Trần B · Kíp II: Lê C" — tổ/kíp đang có người nhập (theo thứ tự bắt đầu nhập). */
+const editingUnitsText = (editors: WorkReportEditor[]) => {
+  const byForm = new Map<number, { unitName: string; names: Set<string> }>();
+  editors.forEach((editor) => {
+    const entry = byForm.get(editor.formId) ?? {
+      unitName: editor.unitName,
+      names: new Set<string>(),
+    };
+    entry.names.add(editor.fullName);
+    byForm.set(editor.formId, entry);
+  });
+  return [...byForm.values()]
+    .map((entry) => `${entry.unitName}: ${[...entry.names].join(", ")}`)
+    .join(" · ");
+};
+
+/** Dấu chấm nhấp nháy + tổ/kíp đang nhập của xưởng (người nhập lưu xong thì bảng tự tải lại). */
+const EditingBadge = ({ editors }: { editors: WorkReportEditor[] }) =>
+  editors.length === 0 ? null : (
+    <Badge
+      status="processing"
+      text={
+        <span className="text-xs font-normal">
+          Đang nhập – {editingUnitsText(editors)}
+        </span>
+      }
+    />
+  );
+
+/**
  * Trang công khai, tab "Hôm nay": báo cáo của ngày đang chọn (mặc định hôm nay) và kế hoạch ngày kế tiếp
- * (mặc định ngày mai) của các xưởng công khai. Việc kéo dài nhiều ngày hiện ở mọi ngày trong khoảng làm.
- * Mỗi xưởng 1 khung, bảng gộp ô theo tổ/kíp.
+ * (mặc định ngày mai) của các xưởng công khai trong 1 bảng giống Chi tiết tuần (cột (1)–(18)), nhóm 3 cấp đều
+ * thu gọn được: xưởng (xanh dương) → tổ/kíp (vàng) → đầu mục (xanh lá). Chỉ dòng có khoảng ngày làm phủ ngày đó;
+ * số việc, tổng phút tính theo ngày; xưởng không có việc chỉ còn dòng tiêu đề. Bảng cao vừa màn hình, tự cuộn bên trong.
+ * Cập nhật tức thì (SignalR, nhóm xưởng × tuần của ngày báo cáo và ngày kế hoạch): KTV lưu / xóa dòng thì bảng tự tải
+ * lại; KTV đang nhập thì dòng xưởng hiện "Đang nhập – tổ/kíp: người", dòng đang được sửa hiện tên người sửa.
  */
 export const PublicDailyView = () => {
   const [date, setDate] = useState<Dayjs>(() => dayjs());
@@ -216,7 +119,7 @@ export const PublicDailyView = () => {
   const query = phase === "REPORT" ? reportQuery : planQuery;
   const isToday = date.isSame(dayjs(), "day");
 
-  const countOf = (data?: { workshops: DailyWorkshop<DailyItem>[] }) =>
+  const countOf = (data?: { workshops: { itemCount: number }[] }) =>
     data?.workshops.reduce((sum, workshop) => sum + workshop.itemCount, 0);
   const reportCount = countOf(reportQuery.data);
   const planCount = countOf(planQuery.data);
@@ -224,11 +127,59 @@ export const PublicDailyView = () => {
   const reportLabel = `${isToday ? "Báo cáo hôm nay" : "Báo cáo"} ${date.format("DD/MM")}`;
   const planLabel = `${isToday ? "Kế hoạch ngày mai" : "Kế hoạch"} ${date.add(1, "day").format("DD/MM")}`;
 
-  const workshops = (query.data?.workshops ?? []) as DailyWorkshop<DailyItem>[];
+  const workshops = query.data?.workshops ?? [];
   const visibleWorkshops = workshopId
     ? workshops.filter((workshop) => workshop.workshopId === workshopId)
     : workshops;
-  const columns = buildColumns(phase);
+
+  // Theo dõi mọi xưởng công khai ở tuần của ngày báo cáo và tuần của ngày kế hoạch (2 tab đều tự cập nhật)
+  const reportWeekId = reportQuery.data?.week?.id;
+  const planWeekId = planQuery.data?.week?.id;
+  const workshopIds = [
+    ...new Set(
+      [
+        ...(reportQuery.data?.workshops ?? []),
+        ...(planQuery.data?.workshops ?? []),
+      ].map((workshop) => workshop.workshopId),
+    ),
+  ].join(",");
+  const liveTargets = useMemo(
+    () =>
+      workshopIds
+        ? workshopIds
+            .split(",")
+            .flatMap((id) =>
+              [...new Set([reportWeekId, planWeekId])]
+                .filter((weekId): weekId is number => weekId !== undefined)
+                .map((weekId) => ({ workshopId: Number(id), weekId })),
+            )
+        : [],
+    [workshopIds, reportWeekId, planWeekId],
+  );
+  const { editorsOf } = useWorkReportLiveGroups(liveTargets);
+  /** Người đang nhập giai đoạn đang xem của xưởng (tuần chứa ngày đang xem). */
+  const phaseEditorsOf = (id: number) =>
+    editorsOf(id, query.data?.week?.id).filter(
+      (editor) => editor.phase === phase,
+    );
+
+  const visibleEditors = visibleWorkshops.flatMap((workshop) =>
+    phaseEditorsOf(workshop.workshopId),
+  );
+  // Mỗi xưởng 1 nhóm cấp trên tổ/kíp (xưởng không có việc vẫn hiện dòng tiêu đề)
+  const sections: SheetSection[] = visibleWorkshops.map((workshop) => ({
+    key: String(workshop.workshopId),
+    title: workshop.workshopName,
+    itemCount: workshop.itemCount,
+    formIds: workshop.grid.forms.map((form) => form.formId),
+    extra: <EditingBadge editors={phaseEditorsOf(workshop.workshopId)} />,
+  }));
+  const shownDate = phase === "REPORT" ? date : date.add(1, "day");
+  const grid = mergeGrids(
+    visibleWorkshops,
+    phase,
+    `${PHASE_TITLE[phase]} ${shownDate.format("DD/MM/YYYY")}`,
+  );
 
   const renderContent = () => {
     if (query.isError && !query.data)
@@ -238,46 +189,39 @@ export const PublicDailyView = () => {
       return (
         <Empty description="Chưa có kỳ tuần cho ngày này." className="py-10" />
       );
+    if (!grid)
+      return (
+        <Empty
+          description="Chưa có xưởng nào hiện trên trang công khai."
+          className="py-10"
+        />
+      );
     return (
-      <div className="flex flex-col gap-3">
-        {visibleWorkshops.map((workshop) => (
-          <Card
-            key={workshop.workshopId}
-            size="small"
-            title={
-              <span>
-                {workshop.workshopName}
-                <Typography.Text type="secondary" className="ms-2 font-normal">
-                  · {workshop.itemCount} việc
-                </Typography.Text>
-              </span>
-            }
-          >
-            {workshop.itemCount === 0 ? (
-              <Typography.Text type="secondary">
-                Không có việc {PHASE_TEXT[phase].toLowerCase()} trong ngày.
-              </Typography.Text>
-            ) : (
-              <Table<DailyRow>
-                rowKey="key"
-                size="small"
-                bordered
-                columns={columns}
-                dataSource={toRows(workshop)}
-                pagination={false}
-                tableLayout="fixed"
-                scroll={{ x: "max-content" }}
-              />
-            )}
-          </Card>
-        ))}
-      </div>
+      // Bảng hiện tên người đang sửa ngay trên dòng / dòng tiêu đề tổ/kíp
+      <WorkReportPresenceContext value={readOnlyPresence(visibleEditors)}>
+        {grid.phase === "PLAN" ? (
+          <PlanGridTable
+            grid={grid}
+            forms={grid.forms}
+            sections={sections}
+            hideEmptyGroups
+          />
+        ) : (
+          <ReportGridTable
+            grid={grid}
+            forms={grid.forms}
+            sections={sections}
+            hideEmptyGroups
+          />
+        )}
+      </WorkReportPresenceContext>
     );
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-bg-container px-3 py-2 md:px-4">
+    // Cao vừa phần dưới thanh chọn phần (như Chi tiết tuần): chỉ thân bảng cuộn
+    <div className="flex h-[calc(100dvh-136px)] flex-col gap-2 md:h-[calc(100dvh-156px)] md:gap-3">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-bg-container px-3 py-2 md:px-4">
         <Segmented<WorkReportPhase>
           aria-label="Báo cáo hoặc kế hoạch"
           value={phase}
@@ -327,7 +271,9 @@ export const PublicDailyView = () => {
           />
         </Tooltip>
       </div>
-      {renderContent()}
+      <div className="flex min-h-0 flex-1 flex-col rounded-md bg-bg-container px-3 py-2 md:px-4 md:py-3">
+        {renderContent()}
+      </div>
     </div>
   );
 };

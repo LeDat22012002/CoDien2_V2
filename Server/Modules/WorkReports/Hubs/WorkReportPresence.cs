@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.SignalR;
 namespace Server.Modules.WorkReports.Hubs;
 
 /// <summary>1 người đang sửa / thêm dòng (ItemId null = đang thêm dòng mới ở tổ/kíp đó).</summary>
+/// <param name="UnitName">Tên tổ/kíp của form (chụp trên form).</param>
 /// <param name="Phase">PLAN | REPORT.</param>
 public sealed record WorkReportEditorDto(
-    string ConnectionId, int UserId, string FullName, int FormId, string Phase, int? ItemId, DateTime Since);
+    string ConnectionId, int UserId, string FullName, int FormId, string UnitName, string Phase, int? ItemId,
+    DateTime Since);
 
 /// <summary>Nội dung sự kiện PresenceChanged: toàn bộ người đang sửa của 1 xưởng + tuần.</summary>
 public sealed record WorkReportPresenceChanged(int WorkshopId, int WeekId, IReadOnlyList<WorkReportEditorDto> Editors);

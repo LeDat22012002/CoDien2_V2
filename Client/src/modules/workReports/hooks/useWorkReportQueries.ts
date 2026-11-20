@@ -53,6 +53,7 @@ import {
 import { useIsPublicWorkReport } from "@/modules/workReports/hooks/workReportViewContext";
 import type {
   CreateWorkReportUnitRequest,
+  DailyWork,
   MaterialPurposeRequest,
   PlanItemRequest,
   ReportItemRequest,
@@ -62,6 +63,7 @@ import type {
   UpdateWorkWeekDeadlineRequest,
   WorkCategoryRequest,
   WorkerOptionScope,
+  WorkGrid,
   WorkMaterialRequest,
   WorkReportFilter,
   WorkReportPhase,
@@ -144,18 +146,18 @@ const useInvalidate = (queryKey: readonly unknown[]) => {
 
 // ===== Trang công khai: Hôm nay / Phân tích =====
 
-/** Việc trong ngày date (yyyy-MM-dd): báo cáo hoặc kế hoạch của các xưởng công khai. */
+/** Lưới việc trong ngày date (yyyy-MM-dd): báo cáo hoặc kế hoạch của các xưởng công khai. */
 export const usePublicDailyWork = (phase: WorkReportPhase, date: string) =>
   useQuery({
     queryKey: WORK_REPORT_QUERY_KEYS.daily(phase, date),
-    queryFn: () =>
+    queryFn: (): Promise<DailyWork<WorkGrid>> =>
       phase === "REPORT"
         ? publicWorkReportsApi.getDailyReport(date)
         : publicWorkReportsApi.getDailyPlan(date),
     placeholderData: keepPreviousData,
   });
 
-/** Phân tích báo cáo tuần weekId (trống = tuần đang báo cáo) + kế hoạch tuần tới. */
+/** Phân tích kế hoạch – thực hiện tuần weekId (trống = tuần đang báo cáo). */
 export const usePublicDashboard = (weekId?: number) =>
   useQuery({
     queryKey: WORK_REPORT_QUERY_KEYS.dashboard(weekId),

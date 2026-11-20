@@ -25,29 +25,29 @@ public class PublicWorkReportsController(
 {
     // ===== Hôm nay / Phân tích =====
 
-    /// <summary>Dòng báo cáo có khoảng ngày làm phủ ngày date (trống = hôm nay) của các xưởng công khai.</summary>
+    /// <summary>Lưới báo cáo từng xưởng công khai, chỉ dòng có khoảng ngày làm phủ ngày date (trống = hôm nay).</summary>
     [HttpGet("daily/report")]
-    public async Task<ActionResult<ApiResponse<DailyWorkDto<WorkReportItemDto>>>> GetDailyReport(
+    public async Task<ActionResult<ApiResponse<DailyWorkDto<WeeklyReportFormDto>>>> GetDailyReport(
         [FromQuery] DailyWorkRequest request, CancellationToken cancellationToken)
     {
         await scopeService.UsePublicViewAsync(cancellationToken);
         var date = request.Date ?? DateOnly.FromDateTime(DateTime.Now);
         var result = await dashboardService.GetDailyReportAsync(date, cancellationToken);
-        return Ok(ApiResponse<DailyWorkDto<WorkReportItemDto>>.Ok(result));
+        return Ok(ApiResponse<DailyWorkDto<WeeklyReportFormDto>>.Ok(result));
     }
 
-    /// <summary>Dòng kế hoạch có khoảng ngày làm phủ ngày date (trống = ngày mai) của các xưởng công khai.</summary>
+    /// <summary>Lưới kế hoạch từng xưởng công khai, chỉ dòng có khoảng ngày làm phủ ngày date (trống = ngày mai).</summary>
     [HttpGet("daily/plan")]
-    public async Task<ActionResult<ApiResponse<DailyWorkDto<WorkPlanItemDto>>>> GetDailyPlan(
+    public async Task<ActionResult<ApiResponse<DailyWorkDto<WeeklyPlanFormDto>>>> GetDailyPlan(
         [FromQuery] DailyWorkRequest request, CancellationToken cancellationToken)
     {
         await scopeService.UsePublicViewAsync(cancellationToken);
         var date = request.Date ?? DateOnly.FromDateTime(DateTime.Now).AddDays(1);
         var result = await dashboardService.GetDailyPlanAsync(date, cancellationToken);
-        return Ok(ApiResponse<DailyWorkDto<WorkPlanItemDto>>.Ok(result));
+        return Ok(ApiResponse<DailyWorkDto<WeeklyPlanFormDto>>.Ok(result));
     }
 
-    /// <summary>Phân tích báo cáo tuần weekId (trống = tuần đang báo cáo) + kế hoạch tuần tới của các xưởng công khai.</summary>
+    /// <summary>Phân tích kế hoạch – thực hiện tuần weekId (trống = tuần đang báo cáo) của các xưởng công khai.</summary>
     [HttpGet("dashboard")]
     public async Task<ActionResult<ApiResponse<WorkReportDashboardDto>>> GetDashboard(
         [FromQuery] WorkReportDashboardRequest request, CancellationToken cancellationToken)

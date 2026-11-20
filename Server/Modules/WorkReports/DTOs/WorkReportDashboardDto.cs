@@ -3,10 +3,11 @@ namespace Server.Modules.WorkReports.DTOs;
 // ===== Response =====
 
 /// <summary>
-/// Trang công khai, tab "Hôm nay": dòng có khoảng ngày làm phủ ngày Date của các xưởng công khai.
-/// Báo cáo: dòng báo cáo của tuần chứa Date; kế hoạch: dòng kế hoạch của tuần chứa Date.
+/// Trang công khai, tab "Hôm nay": lưới của từng xưởng công khai, chỉ giữ dòng có khoảng ngày làm phủ ngày Date
+/// (cùng dạng với lưới Chi tiết tuần để dùng chung bảng). Báo cáo: dòng báo cáo của tuần chứa Date;
+/// kế hoạch: dòng kế hoạch của tuần chứa Date.
 /// </summary>
-public class DailyWorkDto<TItem> where TItem : WorkItemDtoBase
+public class DailyWorkDto<TForm> where TForm : WeeklyFormDto
 {
     public DateOnly Date { get; init; }
 
@@ -16,87 +17,69 @@ public class DailyWorkDto<TItem> where TItem : WorkItemDtoBase
     /// <summary>Tuần chứa Date; null = chưa có kỳ tuần (chưa tạo).</summary>
     public WorkWeekDto? Week { get; init; }
 
-    public IReadOnlyList<DailyWorkshopDto<TItem>> Workshops { get; init; } = [];
+    /// <summary>Xưởng công khai theo thứ tự sơ đồ (kể cả xưởng không có việc trong ngày).</summary>
+    public IReadOnlyList<DailyWorkshopDto<TForm>> Workshops { get; init; } = [];
 }
 
-public class DailyWorkshopDto<TItem> where TItem : WorkItemDtoBase
+public class DailyWorkshopDto<TForm> where TForm : WeeklyFormDto
 {
     public int WorkshopId { get; init; }
     public string WorkshopName { get; init; } = string.Empty;
+
+    /// <summary>Số dòng trong ngày của cả xưởng.</summary>
     public int ItemCount { get; init; }
 
-    /// <summary>Tổ/kíp có dòng trong ngày (theo thứ tự I, II…).</summary>
-    public IReadOnlyList<DailyUnitDto<TItem>> Units { get; init; } = [];
-}
-
-public class DailyUnitDto<TItem> where TItem : WorkItemDtoBase
-{
-    public int FormId { get; init; }
-    public int UnitId { get; init; }
-    public string OrderLabel { get; init; } = string.Empty;
-    public string UnitName { get; init; } = string.Empty;
-
-    /// <summary>KTV của tổ/kíp (dòng cũ chưa lưu KTV theo dòng).</summary>
-    public string? EngineerNames { get; init; }
-
-    public IReadOnlyList<TItem> Items { get; init; } = [];
+    /// <summary>
+    /// Lưới của xưởng: chỉ tổ/kíp có việc trong ngày; mỗi form chỉ dòng trong ngày, ItemCount / tổng phút tính theo ngày,
+    /// không kèm gợi ý.
+    /// </summary>
+    public WorkGridDto<TForm> Grid { get; init; } = null!;
 }
 
 /// <summary>
-/// Trang công khai, tab "Phân tích": báo cáo tuần ReportWeek và kế hoạch tuần kế tiếp (PlanWeek) của các xưởng công khai.
+/// Trang công khai, tab "Phân tích": kế hoạch và thực hiện của cùng tuần Week theo xưởng công khai.
 /// </summary>
 public class WorkReportDashboardDto
 {
-    public WorkWeekDto ReportWeek { get; init; } = null!;
+    public WorkWeekDto Week { get; init; } = null!;
 
-    /// <summary>Tuần kế tiếp ReportWeek; null = chưa có kỳ tuần.</summary>
-    public WorkWeekDto? PlanWeek { get; init; }
-
-    /// <summary>Đầu mục có số liệu ở ít nhất 1 xưởng (theo thứ tự nhóm A, B…).</summary>
+    /// <summary>Đầu mục có phút thực tế ở ít nhất 1 xưởng (theo thứ tự nhóm A, B…).</summary>
     public IReadOnlyList<WorkCategoryDto> Categories { get; init; } = [];
 
     public IReadOnlyList<DashboardWorkshopDto> Workshops { get; init; } = [];
 }
 
+/// <summary>Số liệu 1 xưởng trong tuần: kế hoạch lấy từ form kế hoạch, thực tế lấy từ form báo cáo của cùng tuần.</summary>
 public class DashboardWorkshopDto
 {
     public int WorkshopId { get; init; }
     public string WorkshopName { get; init; } = string.Empty;
 
-    /// <summary>Báo cáo tuần ReportWeek.</summary>
-    public DashboardWeekStatsDto Report { get; init; } = new();
+    /// <summary>Số dòng ở form kế hoạch của tuần.</summary>
+    public int PlannedItemCount { get; init; }
 
-    /// <summary>Kế hoạch tuần PlanWeek (rỗng khi chưa có tuần).</summary>
-    public DashboardWeekStatsDto Plan { get; init; } = new();
-}
+    /// <summary>Số dòng ở form báo cáo của tuần (gồm phát sinh).</summary>
+    public int ActualItemCount { get; init; }
 
-/// <summary>Số liệu 1 xưởng trong 1 tuần.</summary>
-public class DashboardWeekStatsDto
-{
-    public int ItemCount { get; init; }
+    /// <summary>Trong ActualItemCount: dòng phát sinh (không có trong kế hoạch).</summary>
+    public int UnplannedItemCount { get; init; }
 
-    /// <summary>Việc phát sinh (báo cáo, không có trong kế hoạch).</summary>
-    public int UnplannedCount { get; init; }
+    /// <summary>Số mã khác nhau trong vật tư kế hoạch.</summary>
+    public int PlannedMaterialCodeCount { get; init; }
 
-    /// <summary>Giờ công kế hoạch (phút): tổng cột (11).</summary>
+    /// <summary>Số mã khác nhau trong vật tư báo cáo (bỏ vật tư có số lượng thực tế = 0).</summary>
+    public int ActualMaterialCodeCount { get; init; }
+
+    /// <summary>Giờ công kế hoạch (phút): tổng cột (11) của form kế hoạch.</summary>
     public decimal PlannedMinutes { get; init; }
 
-    /// <summary>Giờ công thực tế (phút): tổng cột (12), trống = kế hoạch. Kế hoạch: bằng PlannedMinutes.</summary>
+    /// <summary>Giờ công thực tế (phút): tổng cột (12) của báo cáo, trống = kế hoạch của dòng.</summary>
     public decimal ActualMinutes { get; init; }
 
-    /// <summary>% thực hiện = thực tế ÷ kế hoạch × 100 (null khi kế hoạch = 0).</summary>
+    /// <summary>% = thực tế ÷ kế hoạch × 100 (null khi kế hoạch = 0).</summary>
     public decimal? CompletionPercent { get; init; }
 
-    /// <summary>Giờ công hiệu dụng của mọi tổ/kíp (phút) để so sánh tải.</summary>
-    public decimal CapacityMinutes { get; init; }
-
-    /// <summary>Số mã vật tư khác nhau (không cộng số lượng khác đơn vị tính).</summary>
-    public int MaterialCodeCount { get; init; }
-
-    /// <summary>Số dòng vật tư.</summary>
-    public int MaterialLineCount { get; init; }
-
-    /// <summary>Phút theo đầu mục: báo cáo = thực tế, kế hoạch = kế hoạch; Percent = % trong tổng của xưởng.</summary>
+    /// <summary>Phút thực tế theo đầu mục; Percent = % trong tổng phút thực tế của xưởng.</summary>
     public IReadOnlyList<DashboardCategoryMinutesDto> Categories { get; init; } = [];
 }
 
@@ -117,6 +100,6 @@ public class DailyWorkRequest
 
 public class WorkReportDashboardRequest
 {
-    /// <summary>Tuần báo cáo; trống = tuần đang nhập báo cáo hiện tại.</summary>
+    /// <summary>Tuần; trống = tuần đang nhập báo cáo hiện tại.</summary>
     public int? WeekId { get; set; }
 }

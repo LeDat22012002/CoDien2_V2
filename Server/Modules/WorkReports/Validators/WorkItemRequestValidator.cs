@@ -19,17 +19,41 @@ public static class WorkItemRequestValidator
     /// <summary>Giờ công tối đa 1 dòng (phút) để chặn gõ nhầm: 50 người × 7 ngày × 24 giờ.</summary>
     public const decimal MaxMinutes = 504000m;
 
-    public static void ValidatePlan(PlanItemRequest request, WorkWeek week)
+    /// <summary>
+    /// Tổ HC làm thứ 2 → thứ 7: khoảng ngày có Chủ nhật mà không phải đúng 1 ngày Chủ nhật là sai
+    /// (vd T7–CN, T2–CN); CN–CN và mọi khoảng trong T2–T7 hợp lệ.
+    /// </summary>
+    public static bool IsInvalidHcRange(DateOnly startDate, DateOnly endDate)
     {
-        var errors = CollectCommon(request, week);
+        if (startDate == endDate)
+        {
+            return false;
+        }
+
+        for (var day = startDate; day <= endDate; day = day.AddDays(1))
+        {
+            if (day.DayOfWeek == DayOfWeek.Sunday)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <param name="laborType">Loại giờ công của form (HC / KIP): tổ HC không được vắt khoảng ngày qua Chủ nhật.</param>
+    public static void ValidatePlan(PlanItemRequest request, WorkWeek week, string laborType)
+    {
+        var errors = CollectCommon(request, week, laborType);
         CheckMinutes(errors, "plannedMinutes", request.PlannedMinutes, "Giờ công kế hoạch", required: true);
         errors.ThrowIfInvalid();
     }
 
+    /// <param name="laborType">Loại giờ công của form (HC / KIP): tổ HC không được vắt khoảng ngày qua Chủ nhật.</param>
     /// <param name="isUnplanned">Dòng thêm ở báo cáo: bắt buộc tự điền giờ công kế hoạch.</param>
-    public static void ValidateReport(ReportItemRequest request, WorkWeek week, bool isUnplanned)
+    public static void ValidateReport(ReportItemRequest request, WorkWeek week, string laborType, bool isUnplanned)
     {
-        var errors = CollectCommon(request, week);
+        var errors = CollectCommon(request, week, laborType);
         if (isUnplanned)
         {
             CheckMinutes(errors, "plannedMinutes", request.PlannedMinutes, "Giờ công kế hoạch", required: true);
@@ -60,7 +84,8 @@ public static class WorkItemRequestValidator
         errors.ThrowIfInvalid();
     }
 
-    private static Dictionary<string, string[]> CollectCommon(WorkItemRequestBase request, WorkWeek week)
+    private static Dictionary<string, string[]> CollectCommon(
+        WorkItemRequestBase request, WorkWeek week, string laborType)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -96,6 +121,11 @@ public static class WorkItemRequestValidator
             else if (endDate > week.EndDate)
             {
                 errors["endDate"] = [$"Ngày kết thúc phải trong tuần {weekRange}."];
+            }
+            else if (laborType == LaborTypes.Hc && IsInvalidHcRange(startDate, endDate))
+            {
+                errors["endDate"] =
+                    ["Tổ hành chính: ngày kết thúc không được là Chủ nhật (làm Chủ nhật thì chọn riêng 1 ngày Chủ nhật)."];
             }
         }
 

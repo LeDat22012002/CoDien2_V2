@@ -13,6 +13,7 @@ import {
   type TableColumnsType,
 } from "antd";
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { ErrorState } from "@/shared/components/ErrorState";
 import { EMPTY_TEXT, formatNumber } from "@/shared/utils/format";
 import {
@@ -20,31 +21,67 @@ import {
   OTHER_COLOR,
 } from "@/modules/incidents/constants/incidentDashboard";
 import {
+  dashboardChartHeight,
   GroupBarChartCard,
+  SharePieChartCard,
   type ChartGroup,
   type ChartSeries,
+  type ShareSlice,
 } from "@/modules/workReports/components/public/DashboardCharts";
 import {
   usePublicDashboard,
   useWorkWeeks,
 } from "@/modules/workReports/hooks/useWorkReportQueries";
 import type {
-  DashboardWeekStats,
   DashboardWorkshop,
   WorkCategory,
   WorkReportDashboard,
+  WorkWeek,
 } from "@/modules/workReports/types/workReports";
 
-type StatsKey = "report" | "plan";
+/**
+ * Tên viết tắt trên biểu đồ (tooltip vẫn hiện tên đầy đủ): bỏ "Xưởng (Cơ điện)", mỗi từ lấy chữ cái đầu viết hoa,
+ * từ có chữ số giữ nguyên, các vế cách nhau dấu phẩy nối bằng "-".
+ * Vd "Xưởng Cơ điện Luyện gang 1" → "LG1", "Nhiệt điện 2" → "NĐ2", "Xử lý nước, trạm 110kV" → "XLN-T110kV".
+ */
+const abbreviateWorkshop = (name: string) => {
+  const short = name.replace(/^Xưởng\s+(Cơ điện\s+)?/i, "").trim() || name;
+  return short
+    .split(",")
+    .map((part) =>
+      part
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((word) =>
+          /\d/.test(word) ? word : word.charAt(0).toLocaleUpperCase("vi"),
+        )
+        .join(""),
+    )
+    .filter(Boolean)
+    .join("-");
+};
 
-/** Tên ngắn trên trục: "Xưởng Cơ điện Luyện gang 1" → "Luyện gang 1". */
-const shortWorkshopName = (name: string) =>
-  name.replace(/^Xưởng\s+(Cơ điện\s+)?/i, "").trim() || name;
-
-const minutes = (value?: number | null) => formatNumber(value ?? 0, 0);
+const count = (value?: number | null) => formatNumber(value ?? 0, 0);
 
 const percentText = (value?: number | null) =>
   value == null ? EMPTY_TEXT : `${formatNumber(value, 1)}%`;
+
+/** % thực tế / kế hoạch; null khi kế hoạch = 0. */
+const completion = (planned: number, actual: number) =>
+  planned > 0 ? (actual / planned) * 100 : null;
+
+/** Giờ công: kế hoạch (màu 1) – thực tế (màu 2). */
+const MINUTES_SERIES: ChartSeries[] = [
+  { key: "planned", name: "Kế hoạch", color: CATEGORICAL_COLORS[0] },
+  { key: "actual", name: "Thực tế", color: CATEGORICAL_COLORS[1] },
+];
+
+/** Mã vật tư: cặp màu khác giờ công (màu 3 – màu 4) để 2 biểu đồ cạnh nhau không lẫn. */
+const MATERIAL_SERIES: ChartSeries[] = [
+  { key: "planned", name: "Kế hoạch", color: CATEGORICAL_COLORS[2] },
+  { key: "actual", name: "Thực tế", color: CATEGORICAL_COLORS[3] },
+];
 
 /** Số đầu mục tối đa có màu riêng; còn lại gộp "Khác" (không sinh màu thứ 9). */
 const MAX_CATEGORY_SERIES = CATEGORICAL_COLORS.length;
@@ -71,199 +108,173 @@ const categorySeries = (categories: WorkCategory[]) => {
   return { series, otherIds };
 };
 
+const groupBase = (workshop: DashboardWorkshop) => ({
+  key: String(workshop.workshopId),
+  label: abbreviateWorkshop(workshop.workshopName),
+  fullName: workshop.workshopName,
+});
+
+const minutesGroups = (dashboard: WorkReportDashboard): ChartGroup[] =>
+  dashboard.workshops.map((workshop) => ({
+    ...groupBase(workshop),
+    values: {
+      planned: workshop.plannedMinutes,
+      actual: workshop.actualMinutes,
+    },
+    details: [`Thực tế / kế hoạch: ${percentText(workshop.completionPercent)}`],
+  }));
+
 const categoryGroups = (
   dashboard: WorkReportDashboard,
-  statsKey: StatsKey,
   otherIds: Set<number>,
 ): ChartGroup[] =>
   dashboard.workshops.map((workshop) => {
     const values: Record<string, number> = {};
-    workshop[statsKey].categories.forEach((item) => {
+    workshop.categories.forEach((item) => {
       const key = otherIds.has(item.categoryId)
         ? OTHER_KEY
         : `c${item.categoryId}`;
       values[key] = (values[key] ?? 0) + item.minutes;
     });
     return {
-      key: String(workshop.workshopId),
-      label: shortWorkshopName(workshop.workshopName),
-      fullName: workshop.workshopName,
+      ...groupBase(workshop),
       values,
+      details: [`Tổng thực tế: ${count(workshop.actualMinutes)} phút`],
     };
   });
 
-/** Bảng phút theo đầu mục × xưởng: "phút (x%)" — bản số của biểu đồ cột chồng. */
-const CategoryMatrixTable = ({
-  dashboard,
-  statsKey,
-}: {
-  dashboard: WorkReportDashboard;
-  statsKey: StatsKey;
-}) => {
-  const rows = dashboard.categories.map((category) => ({ category }));
-  const total = (workshop: DashboardWorkshop) =>
-    workshop[statsKey].categories.reduce((sum, item) => sum + item.minutes, 0);
-  const columns: TableColumnsType<{ category: WorkCategory }> = [
-    {
-      title: "Đầu mục",
-      key: "category",
-      fixed: "left",
-      width: 220,
-      render: (_, row) => `${row.category.groupLetter}. ${row.category.name}`,
+const materialGroups = (dashboard: WorkReportDashboard): ChartGroup[] =>
+  dashboard.workshops.map((workshop) => ({
+    ...groupBase(workshop),
+    values: {
+      planned: workshop.plannedMaterialCodeCount,
+      actual: workshop.actualMaterialCodeCount,
     },
-    ...dashboard.workshops.map((workshop) => ({
-      title: shortWorkshopName(workshop.workshopName),
-      key: String(workshop.workshopId),
-      width: 140,
-      align: "right" as const,
-      render: (_: unknown, row: { category: WorkCategory }) => {
-        const item = workshop[statsKey].categories.find(
-          (candidate) => candidate.categoryId === row.category.id,
-        );
-        if (!item || item.minutes === 0)
-          return <span className="text-text-secondary">{EMPTY_TEXT}</span>;
-        return (
-          <span>
-            {minutes(item.minutes)}
-            <Typography.Text type="secondary"> ({formatNumber(item.percent, 1)}%)</Typography.Text>
-          </span>
-        );
-      },
-    })),
-  ];
-  return (
-    <Table
-      rowKey={(row) => row.category.id}
-      size="small"
-      bordered
-      columns={columns}
-      dataSource={rows}
-      pagination={false}
-      scroll={{ x: "max-content" }}
-      summary={() => (
-        <Table.Summary.Row className="font-semibold">
-          <Table.Summary.Cell index={0}>Tổng (phút)</Table.Summary.Cell>
-          {dashboard.workshops.map((workshop, index) => (
-            <Table.Summary.Cell
-              key={workshop.workshopId}
-              index={index + 1}
-              align="right"
-            >
-              {minutes(total(workshop))}
-            </Table.Summary.Cell>
-          ))}
-        </Table.Summary.Row>
-      )}
-    />
-  );
-};
+  }));
 
-/** Bảng tổng của từng xưởng (bản số của các biểu đồ): số việc, giờ công KH / TT, % thực hiện, vật tư. */
-const WorkshopStatsTable = ({
-  dashboard,
-  statsKey,
-}: {
+/** Lát biểu đồ tròn: màu theo thứ tự xưởng trên sơ đồ (cố định khi đổi tuần). */
+const workshopSlices = (dashboard: WorkReportDashboard): ShareSlice[] =>
+  dashboard.workshops.map((workshop, index) => ({
+    ...groupBase(workshop),
+    value: workshop.actualMinutes,
+    color:
+      index < CATEGORICAL_COLORS.length
+        ? CATEGORICAL_COLORS[index]
+        : OTHER_COLOR,
+  }));
+
+interface SummaryTableProps {
   dashboard: WorkReportDashboard;
-  statsKey: StatsKey;
-}) => {
-  const isReport = statsKey === "report";
-  const stats = (workshop: DashboardWorkshop): DashboardWeekStats =>
-    workshop[statsKey];
-  const sum = (pick: (item: DashboardWeekStats) => number) =>
-    dashboard.workshops.reduce((total, workshop) => total + pick(stats(workshop)), 0);
+  /** Bấm tên xưởng: mở Chi tiết tuần của xưởng. */
+  onOpenWorkshop: (workshop: DashboardWorkshop) => void;
+}
+
+/** Bảng tổng hợp theo xưởng (bản số của các biểu đồ) + dòng Tổng. */
+const WorkshopSummaryTable = ({
+  dashboard,
+  onOpenWorkshop,
+}: SummaryTableProps) => {
+  const { workshops } = dashboard;
+  const sum = (pick: (workshop: DashboardWorkshop) => number) =>
+    workshops.reduce((total, workshop) => total + pick(workshop), 0);
   const totalPlanned = sum((item) => item.plannedMinutes);
   const totalActual = sum((item) => item.actualMinutes);
+
+  const numberColumn = (
+    title: string,
+    key: string,
+    pick: (workshop: DashboardWorkshop) => number,
+    width = 110,
+  ) => ({
+    title,
+    key,
+    width,
+    align: "right" as const,
+    render: (_: unknown, workshop: DashboardWorkshop) => count(pick(workshop)),
+  });
 
   const columns: TableColumnsType<DashboardWorkshop> = [
     {
       title: "Xưởng",
       key: "workshop",
       fixed: "left",
-      width: 240,
-      render: (_, workshop) => workshop.workshopName,
+      width: 260,
+      render: (_, workshop) => (
+        <Tooltip title="Xem chi tiết tuần của xưởng">
+          <Typography.Link onClick={() => onOpenWorkshop(workshop)}>
+            {workshop.workshopName}
+          </Typography.Link>
+        </Tooltip>
+      ),
     },
+    numberColumn("Số việc KH", "plannedItems", (item) => item.plannedItemCount),
     {
-      title: "Số việc",
-      key: "items",
-      width: 90,
-      align: "right",
-      render: (_, workshop) => formatNumber(stats(workshop).itemCount, 0),
-    },
-    ...(isReport
-      ? [
-          {
-            title: "Phát sinh",
-            key: "unplanned",
-            width: 90,
-            align: "right" as const,
-            render: (_: unknown, workshop: DashboardWorkshop) =>
-              formatNumber(stats(workshop).unplannedCount, 0),
-          },
-        ]
-      : []),
-    {
-      title: "Giờ công KH (phút)",
-      key: "planned",
-      width: 140,
-      align: "right",
-      render: (_, workshop) => minutes(stats(workshop).plannedMinutes),
-    },
-    ...(isReport
-      ? [
-          {
-            title: "Giờ công TT (phút)",
-            key: "actual",
-            width: 140,
-            align: "right" as const,
-            render: (_: unknown, workshop: DashboardWorkshop) =>
-              minutes(stats(workshop).actualMinutes),
-          },
-          {
-            title: "% thực hiện (TT/KH)",
-            key: "completion",
-            width: 140,
-            align: "right" as const,
-            render: (_: unknown, workshop: DashboardWorkshop) =>
-              percentText(stats(workshop).completionPercent),
-          },
-        ]
-      : []),
-    {
-      title: "Định biên (phút)",
-      key: "capacity",
+      title: "Số việc TT",
+      key: "actualItems",
       width: 130,
       align: "right",
-      render: (_, workshop) => minutes(stats(workshop).capacityMinutes),
+      render: (_, workshop) => (
+        <span>
+          {count(workshop.actualItemCount)}
+          {/* {workshop.unplannedItemCount > 0 && (
+            <Typography.Text type="secondary">
+              {" "}
+              ({count(workshop.unplannedItemCount)} phát sinh)
+            </Typography.Text>
+          )} */}
+        </span>
+      ),
     },
+    numberColumn(
+      "Số mã vật tư KH",
+      "plannedMaterials",
+      (item) => item.plannedMaterialCodeCount,
+      120,
+    ),
+    numberColumn(
+      "Số mã vật tư TT",
+      "actualMaterials",
+      (item) => item.actualMaterialCodeCount,
+      120,
+    ),
+    numberColumn(
+      "Giờ công KH (phút)",
+      "plannedMinutes",
+      (item) => item.plannedMinutes,
+      130,
+    ),
+    numberColumn(
+      "Giờ công TT (phút)",
+      "actualMinutes",
+      (item) => item.actualMinutes,
+      130,
+    ),
     {
-      title: "Số mã vật tư",
-      key: "materialCodes",
-      width: 110,
+      title: "% giờ công TT / KH",
+      key: "completion",
+      width: 140,
       align: "right",
-      render: (_, workshop) => formatNumber(stats(workshop).materialCodeCount, 0),
-    },
-    {
-      title: "Số dòng vật tư",
-      key: "materialLines",
-      width: 120,
-      align: "right",
-      render: (_, workshop) => formatNumber(stats(workshop).materialLineCount, 0),
+      render: (_, workshop) => percentText(workshop.completionPercent),
     },
   ];
 
+  // const unplannedTotal = sum((item) => item.unplannedItemCount);
   const summaryCells = [
-    formatNumber(sum((item) => item.itemCount), 0),
-    ...(isReport ? [formatNumber(sum((item) => item.unplannedCount), 0)] : []),
-    minutes(totalPlanned),
-    ...(isReport
-      ? [
-          minutes(totalActual),
-          percentText(totalPlanned > 0 ? (totalActual / totalPlanned) * 100 : null),
-        ]
-      : []),
-    minutes(sum((item) => item.capacityMinutes)),
-    formatNumber(sum((item) => item.materialCodeCount), 0),
-    formatNumber(sum((item) => item.materialLineCount), 0),
+    count(sum((item) => item.plannedItemCount)),
+    <span key="actualItems">
+      {count(sum((item) => item.actualItemCount))}
+      {/* {unplannedTotal > 0 && (
+        <Typography.Text type="secondary">
+          {" "}
+          ({count(unplannedTotal)} phát sinh)
+        </Typography.Text>
+      )} */}
+    </span>,
+    count(sum((item) => item.plannedMaterialCodeCount)),
+    count(sum((item) => item.actualMaterialCodeCount)),
+    count(totalPlanned),
+    count(totalActual),
+    percentText(completion(totalPlanned, totalActual)),
   ];
 
   return (
@@ -272,12 +283,12 @@ const WorkshopStatsTable = ({
       size="small"
       bordered
       columns={columns}
-      dataSource={dashboard.workshops}
+      dataSource={workshops}
       pagination={false}
       scroll={{ x: "max-content" }}
       summary={() => (
         <Table.Summary.Row className="font-semibold">
-          <Table.Summary.Cell index={0}>Tổng</Table.Summary.Cell>
+          <Table.Summary.Cell index={0}>Tổng nhà máy</Table.Summary.Cell>
           {summaryCells.map((value, index) => (
             <Table.Summary.Cell key={index} index={index + 1} align="right">
               {value}
@@ -289,44 +300,30 @@ const WorkshopStatsTable = ({
   );
 };
 
-const MATERIAL_SERIES: ChartSeries[] = [
-  { key: "materialCodeCount", name: "Số mã vật tư", color: CATEGORICAL_COLORS[0] },
-];
-
-const materialGroups = (
-  dashboard: WorkReportDashboard,
-  statsKey: StatsKey,
-): ChartGroup[] =>
-  dashboard.workshops.map((workshop) => ({
-    key: String(workshop.workshopId),
-    label: shortWorkshopName(workshop.workshopName),
-    fullName: workshop.workshopName,
-    values: { materialCodeCount: workshop[statsKey].materialCodeCount },
-    details: [`${workshop[statsKey].materialLineCount} dòng vật tư`],
-  }));
-
-/** Kế hoạch (xanh dương) – Thực tế (cam): 2 màu đầu của bảng màu. */
-const PLAN_ACTUAL_SERIES: ChartSeries[] = [
-  { key: "planned", name: "Kế hoạch", color: CATEGORICAL_COLORS[0] },
-  { key: "actual", name: "Thực tế", color: CATEGORICAL_COLORS[1] },
-];
+/** Nhãn "Tuần 46 – …" của tuần đang xem. */
+const weekTitle = (week: WorkWeek) =>
+  `Tuần ${String(week.isoWeek).padStart(2, "0")} – ${week.label}`;
 
 /**
- * Trang công khai, tab "Phân tích": báo cáo tuần đang chọn (mặc định tuần đang báo cáo) và kế hoạch tuần kế tiếp
- * của các xưởng công khai. Mỗi phần: biểu đồ + bảng số (bản số của biểu đồ, đọc được không cần màu).
+ * Trang công khai, tab "Phân tích": kế hoạch – thực hiện của tuần đang chọn (mặc định tuần đang báo cáo) theo xưởng công khai.
+ * Kế hoạch lấy từ form kế hoạch, thực tế từ form báo cáo của cùng tuần.
+ * - 1 hàng 4 biểu đồ: giờ công KH – TT (cột dọc), giờ công TT theo đầu mục (thanh ngang chồng, phút + % trong xưởng),
+ *   mã vật tư KH – TT (cột dọc, cặp màu khác giờ công), tỉ trọng giờ công TT của từng xưởng trong nhà máy.
+ * - Bảng tổng hợp theo xưởng (bản số của biểu đồ); bấm tên xưởng mở Chi tiết tuần của xưởng.
  */
 export const PublicDashboardView = () => {
+  const [, setSearchParams] = useSearchParams();
   const [weekId, setWeekId] = useState<number>();
   const dashboardQuery = usePublicDashboard(weekId);
   const dashboard = dashboardQuery.data;
-  const weeksQuery = useWorkWeeks(dashboard?.reportWeek.isoYear);
+  const weeksQuery = useWorkWeeks(dashboard?.week.isoYear);
   const weeks = weeksQuery.data ?? [];
-  const currentId = dashboard?.reportWeek.id;
+  const currentId = dashboard?.week.id;
   const weekIndex = weeks.findIndex((week) => week.id === currentId);
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-bg-container px-3 py-2 md:px-4">
-      <Typography.Text strong>Báo cáo tuần</Typography.Text>
+      <Typography.Text strong>Tuần</Typography.Text>
       <div className="flex w-full min-w-0 items-center gap-1 sm:w-auto">
         <Tooltip title="Tuần trước">
           <Button
@@ -337,7 +334,7 @@ export const PublicDashboardView = () => {
           />
         </Tooltip>
         <Select
-          aria-label="Chọn tuần báo cáo"
+          aria-label="Chọn tuần"
           value={currentId}
           onChange={setWeekId}
           options={weeks.map((week) => ({ value: week.id, label: week.label }))}
@@ -355,7 +352,10 @@ export const PublicDashboardView = () => {
           />
         </Tooltip>
       </div>
-      <Button disabled={weekId === undefined} onClick={() => setWeekId(undefined)}>
+      <Button
+        disabled={weekId === undefined}
+        onClick={() => setWeekId(undefined)}
+      >
         Tuần hiện tại
       </Button>
       <Tooltip title="Tải lại">
@@ -383,106 +383,73 @@ export const PublicDashboardView = () => {
   const { series: categorySeriesList, otherIds } = categorySeries(
     dashboard.categories,
   );
-  const reportLabel = `Tuần ${String(dashboard.reportWeek.isoWeek).padStart(2, "0")}`;
-  const planLabel = dashboard.planWeek
-    ? `Tuần ${String(dashboard.planWeek.isoWeek).padStart(2, "0")}`
-    : "tuần tới";
+  // Các thẻ trong hàng cao bằng nhau
+  const chartHeight = dashboardChartHeight(dashboard.workshops.length);
 
-  const planActualGroups: ChartGroup[] = dashboard.workshops.map((workshop) => ({
-    key: String(workshop.workshopId),
-    label: shortWorkshopName(workshop.workshopName),
-    fullName: workshop.workshopName,
-    values: {
-      planned: workshop.report.plannedMinutes,
-      actual: workshop.report.actualMinutes,
-    },
-    details: [`Thực hiện: ${percentText(workshop.report.completionPercent)}`],
-  }));
+  // Mở Chi tiết tuần (báo cáo) của xưởng, đúng tuần đang xem
+  const openWorkshop = (workshop: DashboardWorkshop) =>
+    setSearchParams(
+      {
+        page: "week",
+        ws: String(workshop.workshopId),
+        week: String(dashboard.week.id),
+        year: String(dashboard.week.isoYear),
+      },
+      { replace: false },
+    );
 
   return (
     <div className="flex flex-col gap-3">
       {toolbar}
 
-      <Card
-        size="small"
-        title={`Báo cáo ${reportLabel} – ${dashboard.reportWeek.label}`}
-      >
-        <div className="flex flex-col gap-3">
-          <WorkshopStatsTable dashboard={dashboard} statsKey="report" />
-          <Row gutter={[12, 12]}>
-            <Col xs={24} xl={12}>
-              <GroupBarChartCard
-                title="Giờ công kế hoạch và thực tế (phút)"
-                groups={planActualGroups}
-                series={PLAN_ACTUAL_SERIES}
-                unit="phút"
-              />
-            </Col>
-            <Col xs={24} xl={12}>
-              <GroupBarChartCard
-                title="Giờ công thực tế theo đầu mục (phút)"
-                groups={categoryGroups(dashboard, "report", otherIds)}
-                series={categorySeriesList}
-                unit="phút"
-                stacked
-              />
-            </Col>
-            <Col xs={24} xl={12}>
-              <GroupBarChartCard
-                title="Số mã vật tư sử dụng"
-                groups={materialGroups(dashboard, "report")}
-                series={MATERIAL_SERIES}
-                unit="mã"
-              />
-            </Col>
-            <Col xs={24} xl={12}>
-              <Card size="small" title="Phút theo đầu mục (% trong tổng của xưởng)" className="h-full">
-                <CategoryMatrixTable dashboard={dashboard} statsKey="report" />
-              </Card>
-            </Col>
-          </Row>
-        </div>
-      </Card>
+      {/* Biểu đồ đầu mục rộng hơn (5 – 8 – 5 – 6 / 24) */}
+      <Row gutter={[12, 12]}>
+        <Col xs={24} md={12} xl={5}>
+          <GroupBarChartCard
+            title="Giờ công kế hoạch – thực tế (phút)"
+            groups={minutesGroups(dashboard)}
+            series={MINUTES_SERIES}
+            unit="phút"
+            direction="column"
+            height={chartHeight}
+          />
+        </Col>
+        <Col xs={24} md={12} xl={8}>
+          <GroupBarChartCard
+            title="Giờ công thực tế theo đầu mục (phút)"
+            groups={categoryGroups(dashboard, otherIds)}
+            series={categorySeriesList}
+            unit="phút"
+            stacked
+            direction="bar"
+            height={chartHeight}
+          />
+        </Col>
+        <Col xs={24} md={12} xl={5}>
+          <GroupBarChartCard
+            title="Số mã vật tư kế hoạch – thực tế"
+            groups={materialGroups(dashboard)}
+            series={MATERIAL_SERIES}
+            unit="mã"
+            direction="column"
+            height={chartHeight}
+          />
+        </Col>
+        <Col xs={24} md={12} xl={6}>
+          <SharePieChartCard
+            title="Giờ công thực tế theo xưởng"
+            slices={workshopSlices(dashboard)}
+            unit="phút"
+            height={chartHeight}
+          />
+        </Col>
+      </Row>
 
-      <Card
-        size="small"
-        title={
-          dashboard.planWeek
-            ? `Kế hoạch ${planLabel} – ${dashboard.planWeek.label}`
-            : "Kế hoạch tuần tới"
-        }
-      >
-        {dashboard.planWeek ? (
-          <div className="flex flex-col gap-3">
-            <WorkshopStatsTable dashboard={dashboard} statsKey="plan" />
-            <Row gutter={[12, 12]}>
-              <Col xs={24} xl={12}>
-                <GroupBarChartCard
-                  title="Giờ công kế hoạch theo đầu mục (phút)"
-                  groups={categoryGroups(dashboard, "plan", otherIds)}
-                  series={categorySeriesList}
-                  unit="phút"
-                  stacked
-                />
-              </Col>
-              <Col xs={24} xl={12}>
-                <GroupBarChartCard
-                  title="Số mã vật tư dự kiến"
-                  groups={materialGroups(dashboard, "plan")}
-                  series={MATERIAL_SERIES}
-                  unit="mã"
-                />
-              </Col>
-              <Col xs={24}>
-                <Card size="small" title="Phút kế hoạch theo đầu mục (% trong tổng của xưởng)">
-                  <CategoryMatrixTable dashboard={dashboard} statsKey="plan" />
-                </Card>
-              </Col>
-            </Row>
-          </div>
-        ) : (
-          <Empty description="Chưa có kỳ tuần kế tiếp." />
-        )}
+      <Card size="small" title="Tổng hợp theo xưởng">
+        <WorkshopSummaryTable
+          dashboard={dashboard}
+          onOpenWorkshop={openWorkshop}
+        />
       </Card>
     </div>
   );

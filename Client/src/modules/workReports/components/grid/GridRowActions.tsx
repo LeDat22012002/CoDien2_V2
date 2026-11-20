@@ -59,7 +59,7 @@ export const EditingByBadge = ({ names }: { names: string[] }) => {
   return (
     <Tooltip title={label}>
       <span
-        className="inline-flex flex-wrap items-center justify-center gap-x-1 text-xs text-warning"
+        className="inline-flex flex-wrap items-center justify-center gap-x-1 text-xs text-gray-500"
         aria-label={label}
       >
         <EditOutlined />

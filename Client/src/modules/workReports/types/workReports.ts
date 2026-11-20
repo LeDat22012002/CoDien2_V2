@@ -295,6 +295,8 @@ export interface WorkReportEditor {
   userId: number;
   fullName: string;
   formId: number;
+  /** Tên tổ/kíp của form đang nhập. */
+  unitName: string;
   phase: WorkReportPhase;
   itemId?: number | null;
   since: string;
@@ -538,62 +540,52 @@ export interface WorkReportSummary {
 
 // ===== Trang công khai: Hôm nay / Phân tích =====
 
-export interface DailyUnit<TItem extends WorkItemBase> {
-  formId: number;
-  unitId: number;
-  orderLabel: string;
-  unitName: string;
-  /** KTV của tổ/kíp (dòng cũ chưa lưu KTV theo dòng). */
-  engineerNames?: string | null;
-  items: TItem[];
-}
-
-export interface DailyWorkshop<TItem extends WorkItemBase> {
+/** Lưới 1 xưởng trong ngày: chỉ tổ/kíp có việc, mỗi form chỉ dòng trong ngày (số dòng, tổng phút theo ngày). */
+export interface DailyWorkshop<TGrid extends WorkGrid> {
   workshopId: number;
   workshopName: string;
   itemCount: number;
-  units: DailyUnit<TItem>[];
+  grid: TGrid;
 }
 
-/** Dòng có khoảng ngày làm phủ ngày date của các xưởng công khai. */
-export interface DailyWork<TItem extends WorkItemBase> {
+/** Lưới từng xưởng công khai, chỉ dòng có khoảng ngày làm phủ ngày date. */
+export interface DailyWork<TGrid extends WorkGrid> {
   date: string;
   phase: WorkReportPhase;
   week?: WorkWeek | null;
-  workshops: DailyWorkshop<TItem>[];
+  workshops: DailyWorkshop<TGrid>[];
 }
 
 export interface DashboardCategoryMinutes {
   categoryId: number;
+  /** Phút thực tế của đầu mục. */
   minutes: number;
-  /** % trong tổng phút của xưởng. */
+  /** % trong tổng phút thực tế của xưởng. */
   percent: number;
 }
 
-export interface DashboardWeekStats {
-  itemCount: number;
-  unplannedCount: number;
+/** 1 xưởng trong tuần: kế hoạch từ form kế hoạch, thực tế từ form báo cáo của cùng tuần. */
+export interface DashboardWorkshop {
+  workshopId: number;
+  workshopName: string;
+  plannedItemCount: number;
+  /** Mọi dòng báo cáo (gồm phát sinh). */
+  actualItemCount: number;
+  unplannedItemCount: number;
+  plannedMaterialCodeCount: number;
+  /** Bỏ vật tư có số lượng thực tế = 0. */
+  actualMaterialCodeCount: number;
   plannedMinutes: number;
   actualMinutes: number;
   /** Thực tế ÷ kế hoạch × 100; null khi kế hoạch = 0. */
   completionPercent?: number | null;
-  capacityMinutes: number;
-  materialCodeCount: number;
-  materialLineCount: number;
   categories: DashboardCategoryMinutes[];
 }
 
-export interface DashboardWorkshop {
-  workshopId: number;
-  workshopName: string;
-  report: DashboardWeekStats;
-  plan: DashboardWeekStats;
-}
-
-/** Báo cáo tuần reportWeek + kế hoạch tuần planWeek (tuần kế tiếp) theo xưởng công khai. */
+/** Kế hoạch – thực hiện tuần week theo xưởng công khai. */
 export interface WorkReportDashboard {
-  reportWeek: WorkWeek;
-  planWeek?: WorkWeek | null;
+  week: WorkWeek;
+  /** Đầu mục có phút thực tế ở ít nhất 1 xưởng (thứ tự A, B…). */
   categories: WorkCategory[];
   workshops: DashboardWorkshop[];
 }

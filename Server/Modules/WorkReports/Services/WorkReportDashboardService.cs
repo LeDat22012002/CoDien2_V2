@@ -7,7 +7,7 @@ using Server.Shared.Exceptions;
 namespace Server.Modules.WorkReports.Services;
 
 /// <summary>
-/// Trang công khai: việc trong 1 ngày (tab "Hôm nay") và phân tích báo cáo tuần + kế hoạch tuần tới (tab "Phân tích")
+/// Trang công khai: lưới việc trong 1 ngày (tab "Hôm nay") và phân tích kế hoạch – thực hiện của 1 tuần (tab "Phân tích")
 /// của các xưởng công khai. Gọi sau IWorkReportScopeService.UsePublicViewAsync (phạm vi = xưởng công khai, chỉ xem).
 /// Dùng lại lưới của từng xưởng (đã lọc quyền, map DTO) rồi lọc / cộng dồn.
 /// </summary>
@@ -20,74 +20,111 @@ public class WorkReportDashboardService(
     IWorkWeekRepository weekRepository,
     IWorkWeekService weekService) : IWorkReportDashboardService
 {
-    public Task<DailyWorkDto<WorkReportItemDto>> GetDailyReportAsync(DateOnly date, CancellationToken cancellationToken) =>
-        GetDailyAsync<WeeklyReportFormDto, WorkReportItemDto>(
-            date, WorkReportPhases.Report, reportService.GetGridAsync, form => form.Items, cancellationToken);
+    public Task<DailyWorkDto<WeeklyReportFormDto>> GetDailyReportAsync(DateOnly date, CancellationToken cancellationToken) =>
+        GetDailyAsync<WeeklyReportFormDto>(
+            date,
+            WorkReportPhases.Report,
+            reportService.GetGridAsync,
+            form =>
+            {
+                var items = form.Items.Where(x => Covers(x, date)).ToList();
+                form.Items = items;
+                form.Suggestions = [];
+                form.ItemCount = items.Count;
+                form.TotalPlannedMinutes = items.Sum(x => x.PlannedMinutes ?? 0);
+                form.TotalActualMinutes = items.Sum(x => x.EffectiveActualMinutes);
+                return items.Count;
+            },
+            cancellationToken);
 
-    public Task<DailyWorkDto<WorkPlanItemDto>> GetDailyPlanAsync(DateOnly date, CancellationToken cancellationToken) =>
-        GetDailyAsync<WeeklyPlanFormDto, WorkPlanItemDto>(
-            date, WorkReportPhases.Plan, planService.GetGridAsync, form => form.Items, cancellationToken);
+    public Task<DailyWorkDto<WeeklyPlanFormDto>> GetDailyPlanAsync(DateOnly date, CancellationToken cancellationToken) =>
+        GetDailyAsync<WeeklyPlanFormDto>(
+            date,
+            WorkReportPhases.Plan,
+            planService.GetGridAsync,
+            form =>
+            {
+                var items = form.Items.Where(x => Covers(x, date)).ToList();
+                var total = items.Sum(x => x.PlannedMinutes ?? 0);
+                form.Items = items;
+                form.ItemCount = items.Count;
+                form.TotalPlannedMinutes = total;
+                form.TotalActualMinutes = total;
+                return items.Count;
+            },
+            cancellationToken);
 
     public async Task<WorkReportDashboardDto> GetDashboardAsync(
         WorkReportDashboardRequest request, CancellationToken cancellationToken)
     {
-        var reportWeek = request.WeekId is { } weekId
+        var week = request.WeekId is { } weekId
             ? await weekService.GetByIdAsync(weekId, null, cancellationToken)
             : (await weekService.GetWorkingWeeksAsync(null, cancellationToken)).ReportWeek;
-        var nextWeek = await FindWeekAsync(reportWeek.StartDate.AddDays(7), cancellationToken);
-        var planWeek = nextWeek is null ? null : await weekService.GetByIdAsync(nextWeek.Id, null, cancellationToken);
 
         var categories = new Dictionary<int, WorkCategoryDto>();
         var workshops = new List<DashboardWorkshopDto>();
         foreach (var workshop in await GetWorkshopsAsync(cancellationToken))
         {
-            var reportGrid = await reportService.GetGridAsync(
-                new WorkReportGridRequest { WorkshopId = workshop.WorkshopId, WeekId = reportWeek.Id }, cancellationToken);
+            var gridRequest = new WorkReportGridRequest { WorkshopId = workshop.WorkshopId, WeekId = week.Id };
+
+            // Kế hoạch của chính tuần: form kế hoạch (kể cả dòng chưa đưa vào báo cáo)
+            var planGrid = await planService.GetGridAsync(gridRequest, cancellationToken);
+            var planItems = planGrid.Forms.SelectMany(x => x.Items).ToList();
+            var planMaterials = await planMaterialRepository.GetByFormIdsAsync(
+                planGrid.Forms.Select(x => x.FormId).ToList(), cancellationToken);
+
+            // Thực hiện: form báo cáo (gồm dòng phát sinh)
+            var reportGrid = await reportService.GetGridAsync(gridRequest, cancellationToken);
             reportGrid.Categories.ToList().ForEach(x => categories.TryAdd(x.Id, x));
             var reportItems = reportGrid.Forms.SelectMany(x => x.Items).ToList();
             var reportMaterials = await reportMaterialRepository.GetByFormIdsAsync(
                 reportGrid.Forms.Select(x => x.FormId).ToList(), cancellationToken);
 
-            var report = BuildStats(
-                reportItems.Select(x => (x.WorkCategoryId, x.PlannedMinutes ?? 0, x.EffectiveActualMinutes)).ToList(),
-                reportItems.Count(x => x.IsUnplanned),
-                reportGrid.Forms.Sum(x => x.CapacityMinutes),
-                reportMaterials.Select(x => new SummaryMaterial(x.WeeklyFormId, x.MaterialCode, x.MaterialName)).ToList());
-
-            var plan = new DashboardWeekStatsDto();
-            if (planWeek is not null)
-            {
-                var planGrid = await planService.GetGridAsync(
-                    new WorkReportGridRequest { WorkshopId = workshop.WorkshopId, WeekId = planWeek.Id }, cancellationToken);
-                planGrid.Categories.ToList().ForEach(x => categories.TryAdd(x.Id, x));
-                var planItems = planGrid.Forms.SelectMany(x => x.Items).ToList();
-                var planMaterials = await planMaterialRepository.GetByFormIdsAsync(
-                    planGrid.Forms.Select(x => x.FormId).ToList(), cancellationToken);
-                plan = BuildStats(
-                    planItems.Select(x => (x.WorkCategoryId, x.PlannedMinutes ?? 0, x.PlannedMinutes ?? 0)).ToList(),
-                    0,
-                    planGrid.Forms.Sum(x => x.CapacityMinutes),
-                    planMaterials.Select(x => new SummaryMaterial(x.WeeklyFormId, x.MaterialCode, x.MaterialName)).ToList());
-            }
+            var plannedMinutes = planItems.Sum(x => x.PlannedMinutes ?? 0);
+            var actualMinutes = reportItems.Sum(x => x.EffectiveActualMinutes);
 
             workshops.Add(new DashboardWorkshopDto
             {
                 WorkshopId = workshop.WorkshopId,
                 WorkshopName = workshop.WorkshopName,
-                Report = report,
-                Plan = plan,
+                PlannedItemCount = planItems.Count,
+                ActualItemCount = reportItems.Count,
+                UnplannedItemCount = reportItems.Count(x => x.IsUnplanned),
+                PlannedMaterialCodeCount = WeeklyFormService.CountMaterialCodes(
+                    planMaterials.Select(x => new SummaryMaterial(x.WeeklyFormId, x.MaterialCode, x.MaterialName))),
+                // Số lượng thực tế trống = bằng kế hoạch; = 0 nghĩa là dự kiến nhưng không dùng → không đếm
+                ActualMaterialCodeCount = WeeklyFormService.CountMaterialCodes(
+                    reportMaterials
+                        .Where(x => (x.ActualQuantity ?? x.PlannedQuantity) != 0)
+                        .Select(x => new SummaryMaterial(x.WeeklyFormId, x.MaterialCode, x.MaterialName))),
+                PlannedMinutes = plannedMinutes,
+                ActualMinutes = actualMinutes,
+                CompletionPercent = plannedMinutes > 0 ? Math.Round(actualMinutes / plannedMinutes * 100, 1) : null,
+                Categories = reportItems
+                    .GroupBy(x => x.WorkCategoryId)
+                    .Select(g =>
+                    {
+                        var minutes = g.Sum(x => x.EffectiveActualMinutes);
+                        return new DashboardCategoryMinutesDto
+                        {
+                            CategoryId = g.Key,
+                            Minutes = minutes,
+                            Percent = actualMinutes > 0 ? Math.Round(minutes / actualMinutes * 100, 1) : 0,
+                        };
+                    })
+                    .Where(x => x.Minutes > 0)
+                    .ToList(),
             });
         }
 
         var usedCategoryIds = workshops
-            .SelectMany(x => x.Report.Categories.Concat(x.Plan.Categories))
+            .SelectMany(x => x.Categories)
             .Select(x => x.CategoryId)
             .ToHashSet();
 
         return new WorkReportDashboardDto
         {
-            ReportWeek = reportWeek,
-            PlanWeek = planWeek,
+            Week = week,
             Categories = categories.Values
                 .Where(x => usedCategoryIds.Contains(x.Id))
                 .OrderBy(x => x.SortOrder).ThenBy(x => x.Id)
@@ -96,50 +133,50 @@ public class WorkReportDashboardService(
         };
     }
 
-    private async Task<DailyWorkDto<TItem>> GetDailyAsync<TForm, TItem>(
+    /// <summary>
+    /// Lưới từng xưởng của tuần chứa date; keepDayItems lọc dòng của form về ngày date (tính lại số dòng, tổng phút)
+    /// và trả số dòng còn lại. Bỏ tổ/kíp không có việc trong ngày.
+    /// </summary>
+    private async Task<DailyWorkDto<TForm>> GetDailyAsync<TForm>(
         DateOnly date,
         string phase,
         Func<WorkReportGridRequest, CancellationToken, Task<WorkGridDto<TForm>>> getGrid,
-        Func<TForm, IReadOnlyList<TItem>> itemsOf,
+        Func<TForm, int> keepDayItems,
         CancellationToken cancellationToken)
         where TForm : WeeklyFormDto
-        where TItem : WorkItemDtoBase
     {
         var week = await FindWeekAsync(date, cancellationToken);
         if (week is null)
         {
-            return new DailyWorkDto<TItem> { Date = date, Phase = phase };
+            return new DailyWorkDto<TForm> { Date = date, Phase = phase };
         }
 
-        var result = new List<DailyWorkshopDto<TItem>>();
+        var result = new List<DailyWorkshopDto<TForm>>();
         foreach (var workshop in await GetWorkshopsAsync(cancellationToken))
         {
             var grid = await getGrid(
                 new WorkReportGridRequest { WorkshopId = workshop.WorkshopId, WeekId = week.Id }, cancellationToken);
-            var units = grid.Forms
-                .Select(form => new DailyUnitDto<TItem>
-                {
-                    FormId = form.FormId,
-                    UnitId = form.UnitId,
-                    OrderLabel = form.OrderLabel,
-                    UnitName = form.UnitName,
-                    EngineerNames = form.EngineerNames,
-                    // Khoảng ngày làm phủ ngày đang xem (việc kéo dài nhiều ngày vẫn hiện)
-                    Items = itemsOf(form).Where(x => x.StartDate <= date && date <= x.EndDate).ToList(),
-                })
-                .Where(x => x.Items.Count > 0)
-                .ToList();
+            var forms = grid.Forms.Where(form => keepDayItems(form) > 0).ToList();
 
-            result.Add(new DailyWorkshopDto<TItem>
+            result.Add(new DailyWorkshopDto<TForm>
             {
                 WorkshopId = workshop.WorkshopId,
                 WorkshopName = workshop.WorkshopName,
-                ItemCount = units.Sum(x => x.Items.Count),
-                Units = units,
+                ItemCount = forms.Sum(x => x.ItemCount),
+                Grid = new WorkGridDto<TForm>
+                {
+                    WorkshopId = grid.WorkshopId,
+                    WorkshopName = grid.WorkshopName,
+                    Phase = grid.Phase,
+                    Title = grid.Title,
+                    Week = grid.Week,
+                    Categories = grid.Categories,
+                    Forms = forms,
+                },
             });
         }
 
-        return new DailyWorkDto<TItem>
+        return new DailyWorkDto<TForm>
         {
             Date = date,
             Phase = phase,
@@ -147,6 +184,10 @@ public class WorkReportDashboardService(
             Workshops = result,
         };
     }
+
+    /// <summary>Khoảng ngày làm phủ ngày đang xem (việc kéo dài nhiều ngày vẫn hiện).</summary>
+    private static bool Covers(WorkItemDtoBase item, DateOnly date) =>
+        item.StartDate <= date && date <= item.EndDate;
 
     /// <summary>Xưởng công khai (theo thứ tự sơ đồ).</summary>
     private async Task<IReadOnlyList<WorkReportScopeWorkshopDto>> GetWorkshopsAsync(CancellationToken cancellationToken)
@@ -164,39 +205,5 @@ public class WorkReportDashboardService(
     {
         var monday = WorkWeekCalculator.GetMonday(date);
         return (await weekRepository.GetByStartDateRangeAsync(monday, monday, cancellationToken)).FirstOrDefault();
-    }
-
-    private static DashboardWeekStatsDto BuildStats(
-        IReadOnlyList<(int CategoryId, decimal Planned, decimal Actual)> items,
-        int unplannedCount,
-        decimal capacityMinutes,
-        IReadOnlyList<SummaryMaterial> materials)
-    {
-        var planned = items.Sum(x => x.Planned);
-        var actual = items.Sum(x => x.Actual);
-        return new DashboardWeekStatsDto
-        {
-            ItemCount = items.Count,
-            UnplannedCount = unplannedCount,
-            PlannedMinutes = planned,
-            ActualMinutes = actual,
-            CompletionPercent = planned > 0 ? Math.Round(actual / planned * 100, 1) : null,
-            CapacityMinutes = capacityMinutes,
-            MaterialCodeCount = WeeklyFormService.CountMaterialCodes(materials),
-            MaterialLineCount = materials.Count,
-            Categories = items
-                .GroupBy(x => x.CategoryId)
-                .Select(g =>
-                {
-                    var minutes = g.Sum(x => x.Actual);
-                    return new DashboardCategoryMinutesDto
-                    {
-                        CategoryId = g.Key,
-                        Minutes = minutes,
-                        Percent = actual > 0 ? Math.Round(minutes / actual * 100, 1) : 0,
-                    };
-                })
-                .ToList(),
-        };
     }
 }
