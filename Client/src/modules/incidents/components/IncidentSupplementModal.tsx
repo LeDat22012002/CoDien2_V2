@@ -122,14 +122,7 @@ export const IncidentSupplementModal = ({
             <Form.Item
               name="incidentReportLink"
               label="Link báo cáo sự cố"
-              rules={[
-                {
-                  required: incident.affectsProduction,
-                  whitespace: true,
-                  message: "Sự cố ảnh hưởng sản xuất: bắt buộc nhập Link báo cáo sự cố",
-                },
-                ...URL_RULES,
-              ]}
+              rules={URL_RULES}
             >
               <Input allowClear placeholder="https://..." />
             </Form.Item>

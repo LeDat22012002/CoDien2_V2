@@ -44,6 +44,10 @@ public class WorkReportService(
                 .Where(x => !acceptedPlanIds.Contains(x.Id))
                 .ToList();
 
+            // Mã KH của dòng đưa từ kế hoạch (mã báo cáo đánh riêng; rê chuột mã để đối chiếu)
+            var planCodes = (await planItemRepository.GetByIdsAsync(acceptedPlanIds, cancellationToken))
+                .ToDictionary(x => x.Id, x => x.Code);
+
             var lookups = await support.LoadLookupsAsync(
                 items.SelectMany(x => (IEnumerable<WorkItemWorkerBase>)x.Workers)
                     .Concat(suggestions.SelectMany(x => x.Workers)),
@@ -55,7 +59,12 @@ public class WorkReportService(
             {
                 var formItems = WorkItemSupport.OrderForGrid<WorkReportItem, WorkReportItemWorker>(
                         itemsByForm[context.Form.Id], lookups.Categories)
-                    .Select(x => WorkItemMapper.ToDto(x.Item, lookups.Categories, lookups.Employees, x.Tt))
+                    .Select(x =>
+                    {
+                        var itemDto = WorkItemMapper.ToDto(x.Item, lookups.Categories, lookups.Employees, x.Tt);
+                        itemDto.PlanCode = x.Item.PlanItemId is { } planId ? planCodes.GetValueOrDefault(planId) : null;
+                        return itemDto;
+                    })
                     .ToList();
                 var dto = WeeklyFormService.ToFormDto<WeeklyReportFormDto>(
                     context,
@@ -114,7 +123,7 @@ public class WorkReportService(
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            var seq = await formRepository.NextCodeSeqAsync(formId, category.Id, ct);
+            var seq = await formRepository.NextCodeSeqAsync(formId, Phase, category.Id, ct);
             item.CodeSeq = seq;
             item.Code = WeeklyFormRules.BuildCode(context.Form.CodePrefix, category.CodeSuffix, seq);
             itemRepository.Add(item);
@@ -148,7 +157,14 @@ public class WorkReportService(
         }
 
         var accepted = await itemRepository.GetAcceptedPlanItemIdsAsync(formId, cancellationToken);
-        var toAccept = planItems.Where(x => !accepted.Contains(x.Id)).OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToList();
+        var categories = (await support.LoadLookupsAsync([], cancellationToken)).Categories;
+        // Cấp mã báo cáo theo thứ tự đầu mục, trong đầu mục theo mã kế hoạch
+        var toAccept = planItems
+            .Where(x => !accepted.Contains(x.Id))
+            .OrderBy(x => categories.GetValueOrDefault(x.WorkCategoryId)?.SortOrder ?? int.MaxValue)
+            .ThenBy(x => x.WorkCategoryId)
+            .ThenBy(x => x.CodeSeq).ThenBy(x => x.Id)
+            .ToList();
         if (toAccept.Count == 0)
         {
             throw new BusinessException("Các dòng kế hoạch đã chọn đều đã có trong báo cáo.");
@@ -166,8 +182,7 @@ public class WorkReportService(
                 WeeklyFormId = formId,
                 WorkCategoryId = plan.WorkCategoryId,
                 PlanItemId = plan.Id,
-                Code = plan.Code,
-                CodeSeq = plan.CodeSeq,
+                // Mã: cấp mã báo cáo mới bên dưới (kế hoạch và báo cáo đánh mã riêng); mã KH xem qua PlanCode
                 EquipmentId = plan.EquipmentId,
                 EquipmentCode = plan.EquipmentCode,
                 EquipmentName = plan.EquipmentName,
@@ -218,7 +233,17 @@ public class WorkReportService(
 
         try
         {
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.ExecuteInTransactionAsync(async ct =>
+            {
+                // Dòng KH vào báo cáo nhận số tiếp theo của báo cáo (như dòng mới thêm) nên nhập xen kẽ vẫn liền số
+                foreach (var item in created)
+                {
+                    var seq = await formRepository.NextCodeSeqAsync(formId, Phase, item.WorkCategoryId, ct);
+                    item.CodeSeq = seq;
+                    item.Code = WeeklyFormRules.BuildCode(
+                        context.Form.CodePrefix, categories[item.WorkCategoryId].CodeSuffix, seq);
+                }
+            }, cancellationToken);
         }
         catch (DbUpdateException)
         {
@@ -229,7 +254,13 @@ public class WorkReportService(
         await notifier.FormChangedAsync(context.Form, Phase);
 
         var lookups = await support.LoadLookupsAsync(created.SelectMany(x => x.Workers), cancellationToken);
-        var dtos = created.Select(x => WorkItemMapper.ToDto(x, lookups.Categories, lookups.Employees)).ToList();
+        var planCodes = toAccept.ToDictionary(x => x.Id, x => x.Code);
+        var dtos = created.Select(x =>
+        {
+            var dto = WorkItemMapper.ToDto(x, lookups.Categories, lookups.Employees);
+            dto.PlanCode = x.PlanItemId is { } planId ? planCodes.GetValueOrDefault(planId) : null;
+            return dto;
+        }).ToList();
         await support.FillUpdatedByNamesAsync(dtos, cancellationToken);
         return dtos;
     }
@@ -285,7 +316,7 @@ public class WorkReportService(
             {
                 await unitOfWork.ExecuteInTransactionAsync(async ct =>
                 {
-                    var seq = await formRepository.NextCodeSeqAsync(item.WeeklyFormId, newCategory.Id, ct);
+                    var seq = await formRepository.NextCodeSeqAsync(item.WeeklyFormId, Phase, newCategory.Id, ct);
                     item.WorkCategoryId = newCategory.Id;
                     item.CodeSeq = seq;
                     item.Code = WeeklyFormRules.BuildCode(context.Form.CodePrefix, newCategory.CodeSuffix, seq);
@@ -360,6 +391,11 @@ public class WorkReportService(
     {
         var lookups = await support.LoadLookupsAsync(item.Workers, cancellationToken);
         var dto = WorkItemMapper.ToDto(item, lookups.Categories, lookups.Employees);
+        if (item.PlanItemId is { } planId)
+        {
+            dto.PlanCode = (await planItemRepository.GetByIdAsync(planId, cancellationToken))?.Code;
+        }
+
         await support.FillUpdatedByNamesAsync([dto], cancellationToken);
         return dto;
     }

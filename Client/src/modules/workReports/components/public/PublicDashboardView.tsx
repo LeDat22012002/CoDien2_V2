@@ -36,7 +36,7 @@ import type {
   DashboardWorkshop,
   WorkCategory,
   WorkReportDashboard,
-  WorkWeek,
+  // WorkWeek,
 } from "@/modules/workReports/types/workReports";
 
 /**
@@ -301,8 +301,8 @@ const WorkshopSummaryTable = ({
 };
 
 /** Nhãn "Tuần 46 – …" của tuần đang xem. */
-const weekTitle = (week: WorkWeek) =>
-  `Tuần ${String(week.isoWeek).padStart(2, "0")} – ${week.label}`;
+// const weekTitle = (week: WorkWeek) =>
+//   `Tuần ${String(week.isoWeek).padStart(2, "0")} – ${week.label}`;
 
 /**
  * Trang công khai, tab "Phân tích": kế hoạch – thực hiện của tuần đang chọn (mặc định tuần đang báo cáo) theo xưởng công khai.

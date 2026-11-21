@@ -7,7 +7,7 @@ import {
   Form,
   Input,
   InputNumber,
-  Select,
+  // Select,
   Table,
   Tooltip,
   Typography,
@@ -17,6 +17,7 @@ import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { toApiError } from "@/shared/api/axiosClient";
 import { useTableScrollY } from "@/shared/hooks/useTableScrollY";
 import { applyServerErrors } from "@/shared/utils/formErrors";
+import { MinutesInput } from "@/modules/workReports/components/MinutesInput";
 import { EMPTY_TEXT, formatNumber } from "@/shared/utils/format";
 import { notify } from "@/shared/utils/notify";
 import {
@@ -462,10 +463,26 @@ export const ReportGridTable = ({
       if (row.kind === "draft")
         return <Typography.Text type="secondary">Tự sinh</Typography.Text>;
       const item = itemOf(row);
+      // Báo cáo đánh mã riêng: dòng đưa từ kế hoạch hiện kèm mã KH gốc khi rê chuột
+      const planCode =
+        row.kind === "item" &&
+        row.item.planCode &&
+        row.item.planCode !== row.item.code
+          ? `Mã KH: ${row.item.planCode}`
+          : undefined;
+      const editText =
+        row.kind === "item" && item ? lastEditText(item) : undefined;
       return (
         <span className="inline-flex items-center gap-1">
           <Tooltip
-            title={row.kind === "item" && item ? lastEditText(item) : undefined}
+            title={
+              planCode || editText ? (
+                <>
+                  {planCode && <div>{planCode}</div>}
+                  {editText && <div>{editText}</div>}
+                </>
+              ) : undefined
+            }
           >
             <span className="font-mono">{item?.code}</span>
           </Tooltip>
@@ -532,11 +549,9 @@ export const ReportGridTable = ({
                   className="mb-0"
                   rules={[{ required: true, message: "Nhập giờ KH" }]}
                 >
-                  <Input
+                  <MinutesInput
                     aria-label="Giờ công kế hoạch"
-                    placeholder="phút / 8h"
                     onPressEnter={handleSave}
-                    className="text-right"
                   />
                 </Form.Item>
               );
@@ -556,11 +571,16 @@ export const ReportGridTable = ({
             reportCell(
               row,
               <Form.Item name="actualMinutes" className="mb-0">
-                <Input
+                <MinutesInput
                   aria-label="Giờ công thực tế"
-                  placeholder="phút / 8h"
                   onPressEnter={handleSave}
-                  className="text-right"
+                  // Dòng lấy từ kế hoạch: ô KH bị khóa, ô Thực tế trống = giờ KH → đổi số người thì điền giờ KH đã
+                  // tính lại vào ô Thực tế. Dòng tự thêm: ô KH tự tính lại, ô Thực tế trống đi theo KH.
+                  emptyBaseMinutes={
+                    row.kind === "item" && !row.item.isUnplanned
+                      ? row.item.plannedMinutes
+                      : undefined
+                  }
                 />
               </Form.Item>,
               (item) =>
@@ -585,11 +605,12 @@ export const ReportGridTable = ({
             const item = reportItemOf(row);
             if (!item || isEditingRow(row)) return null;
             return (
+              // Chênh lệch = kế hoạch − thực tế: âm = làm vượt giờ kế hoạch (đỏ), dương = ít hơn kế hoạch (xanh)
               <span
                 className={
-                  item.diffMinutes > 0
+                  item.diffMinutes < 0
                     ? "text-error"
-                    : item.diffMinutes < 0
+                    : item.diffMinutes > 0
                       ? "text-success"
                       : ""
                 }
@@ -627,25 +648,34 @@ export const ReportGridTable = ({
     leaf({
       title: headerTitle("GPLV", 15),
       key: "workPermit",
-      width: 90,
+      width: 150,
       align: "center",
       render: (_, row) =>
         reportCell(
           row,
-          <Form.Item name="workPermit" className="mb-0">
-            <Select
+          <Form.Item
+            name="workPermit"
+            className="mb-0"
+            rules={[{ max: 255, message: "Tối đa 255 ký tự" }]} // Nên thêm giống 5S để tránh lỗi DB nếu nhập quá dài
+          >
+            <AutoComplete
               aria-label="Giấy phép làm việc"
               allowClear
               options={WORK_PERMIT_OPTIONS}
+              filterOption={(inputValue, option) =>
+                String(option?.label ?? option?.value ?? "")
+                  .toLowerCase()
+                  .includes(inputValue.toLowerCase())
+              }
             />
           </Form.Item>,
-          (item) => item.workPermit ?? EMPTY_TEXT,
+          (item) => wrapText(item.workPermit), // Hoặc giữ item.workPermit ?? EMPTY_TEXT tùy độ dài text
         ),
     }),
     leaf({
       title: headerTitle("5S", 16),
       key: "fiveS",
-      width: 120,
+      width: 150,
       align: "center",
       render: (_, row) =>
         reportCell(

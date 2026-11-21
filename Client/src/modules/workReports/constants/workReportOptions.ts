@@ -35,11 +35,15 @@ export const LABOR_TYPE_OPTIONS: { value: LaborType; label: string }[] = [
 export const WHOLE_UNIT_LABEL = "Cả tổ";
 
 export const WORK_PERMIT_OPTIONS = [
-  { value: "Có", label: "Có" },
-  { value: "Không", label: "Không" },
+  { value: "Có GPLV", label: "Có GPLV" },
+  { value: "Không cần GPLV", label: "Không cần GPLV" },
+  { value: "Chưa có GPLV", label: "Chưa có GPLV" },
 ];
 
-export const FIVE_S_SUGGESTIONS = [{ value: "Đã dọn dẹp vệ sinh 5S" }];
+export const FIVE_S_SUGGESTIONS = [
+  { value: "Đã dọn dẹp vệ sinh 5S" },
+  { value: "Chưa dọn dẹp vệ sinh 5S" },
+];
 
 export const ROLE_LABELS: Record<WorkReportRole, string> = {
   ADMIN: "Quản trị",

@@ -1615,13 +1615,19 @@ namespace Server.Data.Migrations
                     b.Property<int>("WeeklyFormId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Phase")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("PLAN");
+
                     b.Property<int>("WorkCategoryId")
                         .HasColumnType("int");
 
                     b.Property<int>("LastSeq")
                         .HasColumnType("int");
 
-                    b.HasKey("WeeklyFormId", "WorkCategoryId");
+                    b.HasKey("WeeklyFormId", "Phase", "WorkCategoryId");
 
                     b.ToTable("WorkItemCodeCounter", "dbo");
                 });

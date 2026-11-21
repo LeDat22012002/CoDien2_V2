@@ -1,5 +1,5 @@
-import { Card, Empty } from 'antd';
-import type { ReactNode } from 'react';
+import { Card, Empty } from "antd";
+import type { ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -14,9 +14,12 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts';
-import { formatNumber } from '@/shared/utils/format';
-import { CHART_HEIGHT, CHART_INK } from '@/modules/incidents/constants/incidentDashboard';
+} from "recharts";
+import { formatNumber } from "@/shared/utils/format";
+import {
+  CHART_HEIGHT,
+  CHART_INK,
+} from "@/modules/incidents/constants/incidentDashboard";
 
 /** 1 lát / 1 cột: tên, giá trị (số báo cáo hoặc số giờ), %, màu theo đối tượng, các dòng phụ trong tooltip. */
 export interface ChartRow {
@@ -31,31 +34,53 @@ export interface ChartRow {
 }
 
 /** Đơn vị giá trị của biểu đồ: số báo cáo (số nguyên) hoặc số giờ (1 chữ số thập phân). */
-export type ChartUnit = 'report' | 'hour';
+export type ChartUnit = "report" | "hour";
 
-const UNIT_LABEL: Record<ChartUnit, string> = { report: 'báo cáo', hour: 'giờ' };
+const UNIT_LABEL: Record<ChartUnit, string> = {
+  report: "báo cáo",
+  hour: "giờ",
+};
 
-const formatValue = (value: number, unit: ChartUnit) => formatNumber(value, unit === 'hour' ? 1 : 0);
+const formatValue = (value: number, unit: ChartUnit) =>
+  formatNumber(value, unit === "hour" ? 1 : 0);
 
-const formatCountLabel = (row: ChartRow, unit: ChartUnit = 'report') =>
-  unit === 'hour' ? `${formatValue(row.count, unit)} giờ (${row.percent}%)` : `${row.count} (${row.percent}%)`;
+const formatCountLabel = (row: ChartRow, unit: ChartUnit = "report") =>
+  unit === "hour"
+    ? `${formatValue(row.count, unit)} giờ (${row.percent}%)`
+    : `${row.count} (${row.percent}%)`;
 
 /** Chữ trong biểu đồ dùng màu chữ, không dùng màu của lát / cột (màu đối tượng nằm ở ô vuông chú thích). */
-const TEXT_COLOR = 'var(--app-color-text)';
+const TEXT_COLOR = "var(--app-color-text)";
 
-const renderLegendText = (value: string) => <span style={{ color: TEXT_COLOR }}>{value}</span>;
+const renderLegendText = (value: string) => (
+  <span style={{ color: TEXT_COLOR }}>{value}</span>
+);
 
 interface PieLabelProps {
   x?: number;
   y?: number;
-  textAnchor?: 'start' | 'middle' | 'end' | 'inherit';
+  textAnchor?: "start" | "middle" | "end" | "inherit";
   payload?: ChartRow;
+  unit?: ChartUnit;
 }
 
-const renderPieLabel = ({ x, y, textAnchor, payload }: PieLabelProps) =>
+const renderPieLabel = ({
+  x,
+  y,
+  textAnchor,
+  payload,
+  unit = "report",
+}: PieLabelProps) =>
   payload ? (
-    <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fontSize={12} fill={TEXT_COLOR}>
-      {formatCountLabel(payload)}
+    <text
+      x={x}
+      y={y}
+      textAnchor={textAnchor}
+      dominantBaseline="central"
+      fontSize={12}
+      fill={TEXT_COLOR}
+    >
+      {formatCountLabel(payload, unit)}
     </text>
   ) : null;
 
@@ -75,7 +100,7 @@ const renderBarLabel = ({ x, y, width, value }: BarLabelProps) => (
     fontSize={12}
     fill={TEXT_COLOR}
   >
-    {String(value ?? '')}
+    {String(value ?? "")}
   </text>
 );
 
@@ -96,13 +121,15 @@ const renderAxisTick = ({ x, y, payload }: AxisTickProps) => (
     fontSize={12}
     fill={CHART_INK.muted}
   >
-    {String(payload?.value ?? '')}
+    {String(payload?.value ?? "")}
   </Text>
 );
 
 /** Recharts bọc dòng dữ liệu trong payload (Pie lồng thêm 1 lớp). */
 const getRow = (entry?: { payload?: unknown }) => {
-  const payload = entry?.payload as (ChartRow & { payload?: ChartRow }) | undefined;
+  const payload = entry?.payload as
+    | (ChartRow & { payload?: ChartRow })
+    | undefined;
   return payload?.payload ?? payload;
 };
 
@@ -112,17 +139,26 @@ interface ChartTooltipProps {
   unit?: ChartUnit;
 }
 
-const ChartTooltip = ({ active, payload, unit = 'report' }: ChartTooltipProps) => {
+const ChartTooltip = ({
+  active,
+  payload,
+  unit = "report",
+}: ChartTooltipProps) => {
   const row = active ? getRow(payload?.[0]) : undefined;
   if (!row) return null;
   return (
     <div className="max-w-72 rounded-md border border-solid border-border bg-bg-container px-3 py-2 text-sm shadow-md">
       <div className="mb-0.5 flex items-center gap-1.5 font-semibold text-text">
-        <span className="size-2.5 shrink-0 rounded-sm" style={{ backgroundColor: row.color }} aria-hidden />
+        <span
+          className="size-2.5 shrink-0 rounded-sm"
+          style={{ backgroundColor: row.color }}
+          aria-hidden
+        />
         {row.name}
       </div>
       <div className="text-text">
-        <b>{formatValue(row.count, unit)}</b> {UNIT_LABEL[unit]} ({row.percent}%)
+        <b>{formatValue(row.count, unit)}</b> {UNIT_LABEL[unit]} ({row.percent}
+        %)
       </div>
       {row.details?.map((detail) => (
         <div key={detail} className="text-text-secondary">
@@ -139,6 +175,7 @@ interface ChartCardProps {
   emptyText?: string;
   /** Ghi chú nhỏ cạnh tiêu đề (vd số báo cáo không được tính). */
   extra?: ReactNode;
+  unit?: ChartUnit;
 }
 
 interface ColumnChartCardProps extends ChartCardProps {
@@ -160,8 +197,14 @@ const ChartCard = ({
 }) => (
   <Card size="small" title={title} extra={extra} className="h-full">
     {isEmpty ? (
-      <div className="flex items-center justify-center" style={{ height: CHART_HEIGHT }}>
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyText ?? 'Chưa có báo cáo'} />
+      <div
+        className="flex items-center justify-center"
+        style={{ height: CHART_HEIGHT }}
+      >
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={emptyText ?? "Chưa có báo cáo"}
+        />
       </div>
     ) : (
       <div
@@ -178,10 +221,21 @@ const ChartCard = ({
 );
 
 /** Biểu đồ tròn (vành khuyên) cho tỉ trọng: nhãn số trên từng lát + chú thích bên dưới. */
-export const PieChartCard = ({ title, rows, emptyText }: ChartCardProps) => {
+export const PieChartCard = ({
+  title,
+  rows,
+  emptyText,
+  extra,
+  unit = "report",
+}: ChartCardProps) => {
   const visibleRows = rows.filter((row) => row.count > 0);
   return (
-    <ChartCard title={title} isEmpty={visibleRows.length === 0} emptyText={emptyText}>
+    <ChartCard
+      title={title}
+      isEmpty={visibleRows.length === 0}
+      emptyText={emptyText}
+      extra={extra}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -194,7 +248,7 @@ export const PieChartCard = ({ title, rows, emptyText }: ChartCardProps) => {
             // Khe trắng 2px giữa các lát; 1 lát thì bỏ để không có vạch thừa trên vành
             stroke="#ffffff"
             strokeWidth={visibleRows.length > 1 ? 2 : 0}
-            label={renderPieLabel}
+            label={(props) => renderPieLabel({ ...props, unit })}
             labelLine={{ stroke: CHART_INK.axis }}
             isAnimationActive={false}
           >
@@ -202,8 +256,21 @@ export const PieChartCard = ({ title, rows, emptyText }: ChartCardProps) => {
               <Cell key={row.key} fill={row.color} />
             ))}
           </Pie>
-          <Tooltip content={(props) => <ChartTooltip active={props.active} payload={props.payload} />} />
-          <Legend verticalAlign="bottom" iconType="square" wrapperStyle={{ fontSize: 13 }} formatter={renderLegendText} />
+          <Tooltip
+            content={(props) => (
+              <ChartTooltip
+                active={props.active}
+                payload={props.payload}
+                unit={unit}
+              />
+            )}
+          />
+          <Legend
+            verticalAlign="bottom"
+            iconType="square"
+            wrapperStyle={{ fontSize: 13 }}
+            formatter={renderLegendText}
+          />
         </PieChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -211,8 +278,19 @@ export const PieChartCard = ({ title, rows, emptyText }: ChartCardProps) => {
 };
 
 /** Biểu đồ cột đứng: mỗi nhóm 1 cột, nhãn số trên đầu cột, tên đầy đủ trong tooltip. */
-export const ColumnChartCard = ({ title, rows, emptyText, extra, unit = 'report' }: ColumnChartCardProps) => (
-  <ChartCard title={title} isEmpty={rows.length === 0} emptyText={emptyText} extra={extra}>
+export const ColumnChartCard = ({
+  title,
+  rows,
+  emptyText,
+  extra,
+  unit = "report",
+}: ColumnChartCardProps) => (
+  <ChartCard
+    title={title}
+    isEmpty={rows.length === 0}
+    emptyText={emptyText}
+    extra={extra}
+  >
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
         data={rows.map((row) => ({
@@ -223,7 +301,11 @@ export const ColumnChartCard = ({ title, rows, emptyText, extra, unit = 'report'
         margin={{ top: 24, right: 8, left: 0, bottom: 4 }}
         barCategoryGap="20%"
       >
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_INK.grid} />
+        <CartesianGrid
+          strokeDasharray="3 3"
+          vertical={false}
+          stroke={CHART_INK.grid}
+        />
         <XAxis
           dataKey="axisLabel"
           interval={0}
@@ -238,13 +320,24 @@ export const ColumnChartCard = ({ title, rows, emptyText, extra, unit = 'report'
           tickFormatter={(value: number) => formatNumber(value)}
           axisLine={false}
           tickLine={false}
-          width={unit === 'hour' ? 48 : 36}
+          width={unit === "hour" ? 48 : 36}
         />
         <Tooltip
-          cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-          content={(props) => <ChartTooltip active={props.active} payload={props.payload} unit={unit} />}
+          cursor={{ fill: "rgba(0,0,0,0.04)" }}
+          content={(props) => (
+            <ChartTooltip
+              active={props.active}
+              payload={props.payload}
+              unit={unit}
+            />
+          )}
         />
-        <Bar dataKey="count" maxBarSize={56} radius={[4, 4, 0, 0]} isAnimationActive={false}>
+        <Bar
+          dataKey="count"
+          maxBarSize={56}
+          radius={[4, 4, 0, 0]}
+          isAnimationActive={false}
+        >
           {rows.map((row) => (
             <Cell key={row.key} fill={row.color} />
           ))}
@@ -271,8 +364,12 @@ export const StatTile = ({ title, value, percent, icon }: StatTileProps) => (
       {title}
     </div>
     <div className="mt-1 text-3xl leading-tight font-semibold text-text">
-      {value.toLocaleString('vi-VN')}
-      {percent !== undefined && <span className="ml-2 text-base font-normal text-text-secondary">({percent}%)</span>}
+      {value.toLocaleString("vi-VN")}
+      {percent !== undefined && (
+        <span className="ml-2 text-base font-normal text-text-secondary">
+          ({percent}%)
+        </span>
+      )}
     </div>
   </Card>
 );

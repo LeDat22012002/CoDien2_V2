@@ -15,6 +15,9 @@ public class MyWorkReportScopeDto
     /// <summary>Xem mọi xưởng, chỉ xem (trang công khai /work-reports).</summary>
     public bool CanViewFactory { get; init; }
 
+    /// <summary>Có quyền work-reports.export: hiện nút "Xuất Excel" (trang công khai không có).</summary>
+    public bool CanExport { get; init; }
+
     public IReadOnlyList<WorkReportScopeWorkshopDto> Workshops { get; init; } = [];
 }
 

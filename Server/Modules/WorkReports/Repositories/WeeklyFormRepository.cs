@@ -55,22 +55,27 @@ public class WeeklyFormRepository(AppDbContext dbContext) : IWeeklyFormRepositor
                 .Select(x => x.WeeklyFormId))
             .ToListAsync(cancellationToken);
 
-    public async Task<int> NextCodeSeqAsync(int formId, int categoryId, CancellationToken cancellationToken)
+    public async Task<int> NextCodeSeqAsync(
+        int formId, string phase, int categoryId, CancellationToken cancellationToken)
     {
         var counters = dbContext.Set<WorkItemCodeCounter>();
 
-        // Bộ đếm vừa thêm trong cùng lô (chưa lưu) thì dùng tiếp, không đọc lại DB
-        var counter = counters.Local.FirstOrDefault(x => x.WeeklyFormId == formId && x.WorkCategoryId == categoryId)
+        // Bộ đếm vừa thêm / đã đọc trong cùng lô (chưa lưu) thì dùng tiếp, không đọc lại DB
+        var counter = counters.Local.FirstOrDefault(x =>
+                          x.WeeklyFormId == formId && x.Phase == phase && x.WorkCategoryId == categoryId)
                       ?? await counters
                           .FromSql($"""
                                     SELECT * FROM dbo.WorkItemCodeCounter WITH (UPDLOCK, HOLDLOCK)
-                                    WHERE WeeklyFormId = {formId} AND WorkCategoryId = {categoryId}
+                                    WHERE WeeklyFormId = {formId} AND Phase = {phase} AND WorkCategoryId = {categoryId}
                                     """)
                           .FirstOrDefaultAsync(cancellationToken);
 
         if (counter is null)
         {
-            counter = new WorkItemCodeCounter { WeeklyFormId = formId, WorkCategoryId = categoryId, LastSeq = 0 };
+            counter = new WorkItemCodeCounter
+            {
+                WeeklyFormId = formId, Phase = phase, WorkCategoryId = categoryId, LastSeq = 0,
+            };
             counters.Add(counter);
         }
 

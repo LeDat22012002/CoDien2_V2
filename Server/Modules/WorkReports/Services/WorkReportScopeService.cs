@@ -39,6 +39,7 @@ public class WorkReportScopeService(
         var canManage = await Has(PermissionCodes.WorkReports.Manage);
         var canAssignEngineers = await Has(PermissionCodes.WorkReports.AssignEngineers);
         var canUnlock = await Has(PermissionCodes.WorkReports.Unlock);
+        var canExport = await Has(PermissionCodes.WorkReports.Export);
         var planRights = new PhaseRights(
             await Has(PermissionCodes.WorkReports.PlanCreate),
             await Has(PermissionCodes.WorkReports.PlanUpdate),
@@ -95,6 +96,7 @@ public class WorkReportScopeService(
             CanManage = canManage,
             CanAssignEngineers = canAssignEngineers,
             CanUnlock = canUnlock,
+            CanExport = canExport,
             EngineerUnitIds = engineerUnitIds,
             EngineerHistory = engineerHistory,
             HeadTeamIds = headTeamIds,
@@ -171,6 +173,7 @@ public class WorkReportScopeService(
             EmployeeId = scope.EmployeeId,
             CanConfigure = scope.CanConfigure,
             CanViewFactory = scope.CanViewFactory,
+            CanExport = scope.CanExport,
             Workshops = workshops,
         };
     }

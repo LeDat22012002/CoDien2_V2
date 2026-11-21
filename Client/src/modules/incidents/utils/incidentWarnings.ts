@@ -1,8 +1,8 @@
 import dayjs from "@/shared/utils/dayjs";
 import {
   ANALYSIS_DUE_DAYS,
-  INCIDENT_REPORT_DUE_DAYS,
-  INCIDENT_REPORT_REQUIRED_FROM,
+  // INCIDENT_REPORT_DUE_DAYS,
+  // INCIDENT_REPORT_REQUIRED_FROM,
   REPORT_REQUIRED_DOWNTIME_MINUTES,
   SUPPLEMENT_DUE_DAYS,
   SUPPLEMENT_EXEMPT_TYPES,
@@ -36,21 +36,21 @@ const getMissingSupplements = (incident: Incident) => {
 };
 
 /** Sự cố ảnh hưởng sản xuất quá hạn mà chưa có Link báo cáo sự cố (chỉ báo cáo nhập từ ngày áp dụng). */
-const isIncidentReportOverdue = (incident: Incident) => {
-  if (!incident.affectsProduction || !incident.reportedAt) return false;
-  // Báo cáo nhập trước ngày áp dụng quy định thì bỏ qua
-  if (
-    dayjs(incident.reportedAt).isBefore(
-      dayjs(INCIDENT_REPORT_REQUIRED_FROM),
-      "day",
-    )
-  )
-    return false;
+// const isIncidentReportOverdue = (incident: Incident) => {
+//   if (!incident.affectsProduction || !incident.reportedAt) return false;
+//   // Báo cáo nhập trước ngày áp dụng quy định thì bỏ qua
+//   if (
+//     dayjs(incident.reportedAt).isBefore(
+//       dayjs(INCIDENT_REPORT_REQUIRED_FROM),
+//       "day",
+//     )
+//   )
+//     return false;
 
-  const days = getDaysSinceReported(incident);
-  if (days === null || days <= INCIDENT_REPORT_DUE_DAYS) return false;
-  return isBlank(incident.incidentReportLink);
-};
+//   const days = getDaysSinceReported(incident);
+//   if (days === null || days <= INCIDENT_REPORT_DUE_DAYS) return false;
+//   return isBlank(incident.incidentReportLink);
+// };
 
 const isAnalysisOverdue = (incident: Incident) => {
   const days = getDaysSinceReported(incident);
@@ -73,11 +73,11 @@ export const getIncidentWarnings = (incident: Incident) => {
     );
   }
 
-  if (isIncidentReportOverdue(incident)) {
-    warnings.push(
-      `Quá ${INCIDENT_REPORT_DUE_DAYS} ngày chưa nhập Link báo cáo sự cố`,
-    );
-  }
+  // if (isIncidentReportOverdue(incident)) {
+  //   warnings.push(
+  //     `Quá ${INCIDENT_REPORT_DUE_DAYS} ngày chưa nhập Link báo cáo sự cố`,
+  //   );
+  // }
 
   if (isAnalysisOverdue(incident)) {
     warnings.push(

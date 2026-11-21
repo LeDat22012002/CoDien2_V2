@@ -3,7 +3,6 @@ import {
   App,
   ConfigProvider,
   Form,
-  Input,
   Table,
   Tooltip,
   Typography,
@@ -13,6 +12,7 @@ import { useState, type KeyboardEvent } from "react";
 import { toApiError } from "@/shared/api/axiosClient";
 import { useTableScrollY } from "@/shared/hooks/useTableScrollY";
 import { applyServerErrors } from "@/shared/utils/formErrors";
+import { MinutesInput } from "@/modules/workReports/components/MinutesInput";
 import { formatNumber } from "@/shared/utils/format";
 import { notify } from "@/shared/utils/notify";
 import {
@@ -378,11 +378,9 @@ export const PlanGridTable = ({
             if (isEditingRow(row)) {
               return (
                 <Form.Item name="plannedMinutes" className="mb-0">
-                  <Input
+                  <MinutesInput
                     aria-label="Giờ công kế hoạch"
-                    placeholder="phút / 8h"
                     onPressEnter={handleSave}
-                    className="text-right"
                   />
                 </Form.Item>
               );

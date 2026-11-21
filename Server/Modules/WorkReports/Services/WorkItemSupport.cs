@@ -347,7 +347,7 @@ public class WorkItemSupport(
         return false;
     }
 
-    /// <summary>TT đánh lại trong từng nhóm đầu mục, theo thứ tự đầu mục rồi thứ tự dòng.</summary>
+    /// <summary>TT đánh lại trong từng nhóm đầu mục, theo thứ tự đầu mục rồi mã công việc.</summary>
     public static IReadOnlyList<(TItem Item, int Tt)> OrderForGrid<TItem, TWorker>(
         IEnumerable<TItem> items, IReadOnlyDictionary<int, WorkCategory> categories)
         where TItem : WorkItemBase<TWorker>
@@ -357,7 +357,8 @@ public class WorkItemSupport(
         return items
             .OrderBy(x => categories.GetValueOrDefault(x.WorkCategoryId)?.SortOrder ?? int.MaxValue)
             .ThenBy(x => x.WorkCategoryId)
-            .ThenBy(x => x.SortOrder).ThenBy(x => x.Id)
+            // Trong đầu mục: theo mã công việc (01, 02…), giống file Excel (TT đi theo thứ tự mã)
+            .ThenBy(x => x.CodeSeq).ThenBy(x => x.Id)
             .Select(x =>
             {
                 tt[x.WorkCategoryId] = tt.GetValueOrDefault(x.WorkCategoryId) + 1;

@@ -114,7 +114,7 @@ const toDurationRow = (
   count: item.totalHours,
   percent: item.percent,
   color,
-  details: [`Tính trên ${item.count} báo cáo`],
+  details: [`${item.count} báo cáo`],
 });
 
 /** 1 xưởng: báo cáo quá hạn cập nhật và đúng hạn (cộng lại = tổng báo cáo của xưởng). */
@@ -400,8 +400,15 @@ const IncidentDashboard = ({
               </div>
             </div>
 
-            {/* Hàng 2: thời gian sự cố và kíp. 1 xưởng: thời gian "theo xưởng" thay bằng theo kíp */}
+            {/* Hàng 2: thời gian loại sự cố -> thời gian xưởng/kíp -> sự cố theo kíp */}
             <div className={CHART_ROW_CLASS}>
+              <PieChartCard
+                title="Thời gian sự cố theo loại sự cố"
+                rows={durationByTypeRows}
+                unit="hour"
+                extra={durationNote}
+                emptyText={DURATION_EMPTY_TEXT}
+              />
               <ColumnChartCard
                 title={
                   workshopRows
@@ -415,15 +422,8 @@ const IncidentDashboard = ({
                 extra={durationNote}
                 emptyText={DURATION_EMPTY_TEXT}
               />
-              <PieChartCard title="Sự cố theo kíp" rows={shiftRows} />
               <div className={LAST_CHART_CLASS}>
-                <ColumnChartCard
-                  title="Thời gian sự cố theo loại sự cố"
-                  rows={durationByTypeRows}
-                  unit="hour"
-                  extra={durationNote}
-                  emptyText={DURATION_EMPTY_TEXT}
-                />
+                <PieChartCard title="Sự cố theo kíp" rows={shiftRows} />
               </div>
             </div>
           </div>

@@ -20,6 +20,9 @@ public sealed class WorkReportScope
     /// <summary>work-reports.unlock: mở khóa form quá hạn trong phạm vi trưởng/phó (configure → mọi xưởng).</summary>
     public bool CanUnlock { get; init; }
 
+    /// <summary>work-reports.export: xuất Excel kế hoạch / báo cáo của các xưởng xem được.</summary>
+    public bool CanExport { get; init; }
+
     /// <summary>Xem mọi xưởng, chỉ xem: request của trang công khai (IWorkReportScopeService.UsePublicView).</summary>
     public bool CanViewFactory { get; init; }
 

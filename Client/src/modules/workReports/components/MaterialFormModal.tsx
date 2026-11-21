@@ -299,7 +299,10 @@ export const MaterialFormModal = ({
             <Form.Item
               name="materialCode"
               label="Mã vật tư"
-              rules={[{ max: 50, message: "Tối đa 50 ký tự" }]}
+              rules={[
+                { required: true, message: "Nhập mã vật tư" },
+                { max: 50, message: "Tối đa 50 ký tự" },
+              ]}
               extra={
                 catalogHint ? (
                   <Typography.Text type="secondary" className="text-xs">
@@ -334,7 +337,10 @@ export const MaterialFormModal = ({
             <Form.Item
               name="uom"
               label="ĐVT"
-              rules={[{ max: 20, message: "Tối đa 20 ký tự" }]}
+              rules={[
+                { required: true, message: "Nhập đơn vị tính" },
+                { max: 20, message: "Tối đa 20 ký tự" },
+              ]}
             >
               <Input />
             </Form.Item>

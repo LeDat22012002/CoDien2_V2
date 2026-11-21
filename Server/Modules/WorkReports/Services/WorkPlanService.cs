@@ -88,7 +88,7 @@ public class WorkPlanService(
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            var seq = await formRepository.NextCodeSeqAsync(formId, category.Id, ct);
+            var seq = await formRepository.NextCodeSeqAsync(formId, Phase, category.Id, ct);
             item.CodeSeq = seq;
             item.Code = WeeklyFormRules.BuildCode(context.Form.CodePrefix, category.CodeSuffix, seq);
             itemRepository.Add(item);
@@ -144,7 +144,7 @@ public class WorkPlanService(
                 // Đổi đầu mục → cấp mã mới theo đầu mục mới (số cũ không dùng lại)
                 await unitOfWork.ExecuteInTransactionAsync(async ct =>
                 {
-                    var seq = await formRepository.NextCodeSeqAsync(item.WeeklyFormId, newCategory.Id, ct);
+                    var seq = await formRepository.NextCodeSeqAsync(item.WeeklyFormId, Phase, newCategory.Id, ct);
                     item.WorkCategoryId = newCategory.Id;
                     item.CodeSeq = seq;
                     item.Code = WeeklyFormRules.BuildCode(context.Form.CodePrefix, newCategory.CodeSuffix, seq);

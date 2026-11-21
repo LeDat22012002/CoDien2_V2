@@ -66,10 +66,10 @@ public static class WorkItemRequestValidator
             errors["resultPercent"] = ["Kết quả thực hiện từ 0 đến 100%."];
         }
 
-        if (request.WorkPermit is not null && !WorkPermitValues.All.Contains(request.WorkPermit))
-        {
-            errors["workPermit"] = ["GPLV chỉ nhận Có / Không hoặc để trống."];
-        }
+        // if (request.WorkPermit is not null && !WorkPermitValues.All.Contains(request.WorkPermit))
+        // {
+        //     errors["workPermit"] = ["GPLV chỉ nhận Có / Không hoặc để trống."];
+        // }
 
         if (request.FiveS?.Length > FiveSMaxLength)
         {

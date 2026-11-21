@@ -58,6 +58,8 @@ export interface MyWorkReportScope {
   employeeId?: number | null;
   canConfigure: boolean;
   canViewFactory: boolean;
+  /** Quyền work-reports.export: hiện nút "Xuất Excel". */
+  canExport?: boolean;
   workshops: WorkReportScopeWorkshop[];
 }
 
@@ -309,11 +311,14 @@ export interface WorkPlanItem extends WorkItemBase {
 export interface WorkReportItem extends WorkItemBase {
   /** Dòng kế hoạch gốc; null = việc phát sinh. */
   planItemId?: number | null;
+  /** Mã công việc của dòng kế hoạch gốc (báo cáo đánh mã riêng; để đối chiếu). */
+  planCode?: string | null;
   isUnplanned: boolean;
   /** Giờ KH chụp từ dòng kế hoạch. */
   plannedMinutes?: number | null;
   actualMinutes?: number | null;
   effectiveActualMinutes: number;
+  /** (13) Chênh lệch = kế hoạch − thực tế. */
   diffMinutes: number;
   resultPercent?: number | null;
   workPermit?: string | null;

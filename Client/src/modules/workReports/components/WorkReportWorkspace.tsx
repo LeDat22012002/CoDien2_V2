@@ -19,6 +19,7 @@ import {
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ErrorState } from "@/shared/components/ErrorState";
+
 import { PageHeader } from "@/shared/components/PageHeader";
 import { formatDateTime } from "@/shared/utils/format";
 import { UnitManagementPanel } from "@/modules/workReports/components/UnitManagementPanel";
@@ -41,6 +42,7 @@ import type {
   WorkReportFilter,
   WorkReportPhase,
 } from "@/modules/workReports/types/workReports";
+import { ExportExcelButton } from "./ExportExcelButton";
 
 type TabKey = "grid" | "summary" | "materials" | "units";
 
@@ -380,6 +382,17 @@ export const WorkReportWorkspace = ({ mode }: WorkReportWorkspaceProps) => {
           }}
         />
       </Tooltip>
+      {/* Xuất Excel xưởng / tuần / giai đoạn đang xem: cần quyền work-reports.export (trang công khai không có) */}
+      {mode !== "factory" &&
+        scopeQuery.data?.canExport &&
+        workshopId &&
+        weekId && (
+          <ExportExcelButton
+            workshopId={workshopId}
+            weekId={weekId}
+            phase={phase}
+          />
+        )}
       {selectedWeek && (
         <Typography.Text type="secondary">
           Hạn {phase === "REPORT" ? "báo cáo" : "kế hoạch"} tuần{" "}

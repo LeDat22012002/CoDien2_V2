@@ -52,7 +52,13 @@ public abstract class WorkItemRepository<TItem, TWorker>(AppDbContext dbContext)
 
     public void Add(TItem item) => Items.Add(item);
 
-    public void Remove(TItem item) => Items.Remove(item);
+    /// <summary>
+    /// Xóa mềm bằng cờ, không gọi Items.Remove: dòng có cột JSON (KTV phụ trách, Cả tổ) lưu dạng phần tử sở hữu;
+    /// Remove đánh dấu cả các phần tử JSON là xóa, rồi khi SaveChanges đổi dòng sang xóa mềm (sửa) EF phải ghi lại
+    /// cột JSON từ phần tử đang bị xóa và báo lỗi "WorkItemEngineer.Id is part of a key". Mã công việc đã cấp vẫn
+    /// không dùng lại (dòng còn trong bảng). Người thực hiện giữ nguyên theo dòng đã xóa (bị lọc cùng dòng).
+    /// </summary>
+    public void Remove(TItem item) => item.IsDeleted = true;
 
     public void PrepareConcurrentUpdate(TItem item, byte[] clientRowVersion)
     {

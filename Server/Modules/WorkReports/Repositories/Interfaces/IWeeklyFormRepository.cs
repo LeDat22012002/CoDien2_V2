@@ -22,10 +22,11 @@ public interface IWeeklyFormRepository
     Task<IReadOnlyList<int>> GetFormIdsWithItemsAsync(IReadOnlyCollection<int> formIds, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Cấp số thứ tự mã công việc tiếp theo của (form, đầu mục), dùng chung cho kế hoạch và báo cáo.
+    /// Cấp số thứ tự mã công việc tiếp theo của (form, giai đoạn, đầu mục): kế hoạch và báo cáo đánh mã riêng.
     /// Gọi trong transaction: đọc bộ đếm bằng UPDLOCK, HOLDLOCK.
     /// </summary>
-    Task<int> NextCodeSeqAsync(int formId, int categoryId, CancellationToken cancellationToken);
+    /// <param name="phase">PLAN | REPORT.</param>
+    Task<int> NextCodeSeqAsync(int formId, string phase, int categoryId, CancellationToken cancellationToken);
 
     /// <summary>Có tracking: ghi thời điểm mở khóa (admin).</summary>
     Task<WeeklyForm?> FindByIdAsync(int id, CancellationToken cancellationToken);

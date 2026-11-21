@@ -78,6 +78,9 @@ public class WorkReportItemDto : WorkItemDtoBase
     /// <summary>Dòng kế hoạch gốc; null = việc phát sinh.</summary>
     public int? PlanItemId { get; set; }
 
+    /// <summary>Mã công việc của dòng kế hoạch gốc (báo cáo đánh mã riêng; để đối chiếu). Null = việc phát sinh.</summary>
+    public string? PlanCode { get; set; }
+
     /// <summary>Việc phát sinh (không lấy từ kế hoạch).</summary>
     public bool IsUnplanned { get; set; }
 
@@ -90,7 +93,7 @@ public class WorkReportItemDto : WorkItemDtoBase
     /// <summary>(12) dùng để hiển thị / cộng: thực tế, trống thì bằng kế hoạch.</summary>
     public decimal EffectiveActualMinutes { get; set; }
 
-    /// <summary>(13) Chênh lệch = thực tế − kế hoạch.</summary>
+    /// <summary>(13) Chênh lệch = kế hoạch − thực tế (âm = làm vượt giờ kế hoạch).</summary>
     public decimal DiffMinutes { get; set; }
 
     public decimal? ResultPercent { get; set; }

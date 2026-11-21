@@ -11,6 +11,10 @@ public class WorkItemCodeCounterConfiguration : IEntityTypeConfiguration<WorkIte
         // Không khai báo FK để tránh cảnh báo query filter (WeeklyForm/WorkCategory xóa mềm); chỉ đọc qua UPDLOCK
         builder.ToTable("WorkItemCodeCounter", "dbo");
 
-        builder.HasKey(x => new { x.WeeklyFormId, x.WorkCategoryId });
+        builder.HasKey(x => new { x.WeeklyFormId, x.Phase, x.WorkCategoryId });
+        builder.Property(x => x.Phase)
+            .HasMaxLength(10)
+            .IsRequired()
+            .HasDefaultValue(WorkReportPhases.Plan);
     }
 }

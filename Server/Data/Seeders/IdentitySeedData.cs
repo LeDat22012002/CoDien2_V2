@@ -63,6 +63,7 @@ public static class IdentitySeedData
         new(PermissionCodes.WorkReports.AssignEngineers, "Phân công kỹ sư phụ trách tổ/kíp (trong đội/xưởng mình)", "work-reports", 86),
         new(PermissionCodes.WorkReports.Configure, "Cấu hình báo cáo tuần (đầu mục, hạn nộp, giờ công)", "work-reports", 87),
         new(PermissionCodes.WorkReports.Unlock, "Mở khóa kế hoạch / báo cáo tuần quá hạn (trong đội/xưởng mình)", "work-reports", 94),
+        new(PermissionCodes.WorkReports.Export, "Xuất Excel kế hoạch / báo cáo tuần (tổ/kíp được xem của xưởng)", "work-reports", 95),
         new(PermissionCodes.WorkReports.PlanCreate, "Thêm dòng kế hoạch tuần (tổ/kíp trong đội/xưởng mình)", "work-reports", 88),
         new(PermissionCodes.WorkReports.PlanUpdate, "Sửa dòng kế hoạch tuần (tổ/kíp trong đội/xưởng mình)", "work-reports", 89),
         new(PermissionCodes.WorkReports.PlanDelete, "Xóa dòng kế hoạch tuần (tổ/kíp trong đội/xưởng mình)", "work-reports", 90),

@@ -138,6 +138,7 @@ public static class PermissionCodes
         public const string ReportCreate = "work-reports.report.create";
         public const string ReportUpdate = "work-reports.report.update";
         public const string ReportDelete = "work-reports.report.delete";
+        public const string Export = "work-reports.export";
 
         // Xem báo cáo mọi xưởng (Ban Giám đốc): trang công khai /work-reports, API GET /api/work-reports/public/*, không cần quyền
     }

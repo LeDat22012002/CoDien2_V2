@@ -39,7 +39,8 @@ public static class WorkItemMapper
         dto.PlannedMinutes = item.PlannedMinutes;
         dto.ActualMinutes = item.ActualMinutes;
         dto.EffectiveActualMinutes = effectiveActual;
-        dto.DiffMinutes = effectiveActual - (item.PlannedMinutes ?? 0);
+        // (13) Chênh lệch = kế hoạch − thực tế (âm = làm vượt giờ kế hoạch)
+        dto.DiffMinutes = (item.PlannedMinutes ?? 0) - effectiveActual;
         dto.ResultPercent = item.ResultPercent;
         dto.WorkPermit = item.WorkPermit;
         dto.FiveS = item.FiveS;
